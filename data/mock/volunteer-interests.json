@@ -1,0 +1,82 @@
+[
+  {
+    "id": "vi-01",
+    "name": "Chris Alvarez",
+    "email": "chris.alvarez@example.com",
+    "phone": "+1-206-555-0401",
+    "roleId": "vr-front-desk",
+    "message": "Happy to greet visitors on Saturday mornings.",
+    "status": "new",
+    "userId": null,
+    "createdAt": "2026-09-01T10:00:00-07:00",
+    "updatedAt": "2026-09-01T10:00:00-07:00"
+  },
+  {
+    "id": "vi-02",
+    "name": "Nova Park",
+    "email": "nova.park@example.com",
+    "roleId": "vr-shop-steward",
+    "message": "I'd love to help during Thursday open hours in textiles.",
+    "status": "contacted",
+    "userId": "u-nova",
+    "reviewedById": "u-staff",
+    "reviewedAt": "2026-08-20T11:00:00-07:00",
+    "notes": "Left voicemail 8/20",
+    "createdAt": "2026-08-15T10:00:00-07:00",
+    "updatedAt": "2026-08-20T11:00:00-07:00"
+  },
+  {
+    "id": "vi-03",
+    "name": "Kai Nakamura",
+    "email": "kai.nakamura@example.com",
+    "roleId": "vr-shop-steward",
+    "message": "Woodshop steward interest — evenings OK.",
+    "status": "accepted",
+    "userId": "u-kai",
+    "reviewedById": "u-admin",
+    "reviewedAt": "2026-07-10T14:00:00-07:00",
+    "notes": "Onboarded 7/12",
+    "createdAt": "2026-07-01T10:00:00-07:00",
+    "updatedAt": "2026-07-10T14:00:00-07:00"
+  },
+  {
+    "id": "vi-04",
+    "name": "Jordan Lee",
+    "email": "jordan.lee@example.com",
+    "roleId": "vr-events",
+    "message": "Can help with make-night setup once a month.",
+    "status": "accepted",
+    "userId": "u-jordan",
+    "reviewedById": "u-staff",
+    "reviewedAt": "2026-06-15T10:00:00-07:00",
+    "createdAt": "2026-06-01T10:00:00-07:00",
+    "updatedAt": "2026-06-15T10:00:00-07:00"
+  },
+  {
+    "id": "vi-05",
+    "name": "Pat Nguyen",
+    "email": "pat.nguyen@example.com",
+    "roleId": "vr-front-desk",
+    "message": "Interested but schedule is uncertain.",
+    "status": "declined",
+    "userId": null,
+    "reviewedById": "u-staff",
+    "reviewedAt": "2026-08-05T09:00:00-07:00",
+    "notes": "Declined — conflict with work",
+    "createdAt": "2026-07-28T10:00:00-07:00",
+    "updatedAt": "2026-08-05T09:00:00-07:00"
+  },
+  {
+    "id": "vi-06",
+    "name": "Old Interest",
+    "email": "old.volunteer@example.com",
+    "roleId": "vr-events",
+    "message": "From last year's fair.",
+    "status": "archived",
+    "userId": null,
+    "reviewedById": "u-admin",
+    "reviewedAt": "2025-11-01T10:00:00-07:00",
+    "createdAt": "2025-10-01T10:00:00-07:00",
+    "updatedAt": "2025-11-01T10:00:00-07:00"
+  }
+]

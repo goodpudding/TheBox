@@ -1,0 +1,454 @@
+[
+  {
+    "id": "q-so-q01",
+    "moduleId": "mod-shop-orientation",
+    "prompt": "What footwear is required in active shop areas?",
+    "choices": [
+      "Closed-toe shoes",
+      "Sandals OK if careful",
+      "Barefoot for grip",
+      "Heels for posture"
+    ],
+    "correctIndex": 0,
+    "explanation": "Closed-toe shoes protect against dropped tools and debris.",
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-so-q02",
+    "moduleId": "mod-shop-orientation",
+    "prompt": "When may you use a machine?",
+    "choices": [
+      "Only after required certifications",
+      "Whenever the shop is open",
+      "If a friend shows you once",
+      "After watching a YouTube video"
+    ],
+    "correctIndex": 0,
+    "explanation": "Certifications gate powered equipment.",
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-so-q03",
+    "moduleId": "mod-shop-orientation",
+    "prompt": "What should you do if a tool is damaged?",
+    "choices": [
+      "Report it to staff immediately",
+      "Hide it and keep working",
+      "Try to repair it yourself first",
+      "Leave a sticky note only"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-so-q04",
+    "moduleId": "mod-shop-orientation",
+    "prompt": "Sharing your access badge is:",
+    "choices": [
+      "Never allowed",
+      "OK with close friends",
+      "OK if staff are busy",
+      "Required for guests"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-so-q05",
+    "moduleId": "mod-shop-orientation",
+    "prompt": "Eye protection is required when:",
+    "choices": [
+      "Using tools that can throw debris",
+      "Only in the woodshop",
+      "Only if you wear contacts",
+      "Never — glasses are enough"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-so-q06",
+    "moduleId": "mod-shop-orientation",
+    "prompt": "The member expectation “leave it better” means:",
+    "choices": [
+      "Clean your station and put tools away",
+      "Leave projects on every bench",
+      "Take extra consumables home",
+      "Ignore dust collection"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-so-q07",
+    "moduleId": "mod-shop-orientation",
+    "prompt": "Reservations are recommended for:",
+    "choices": [
+      "High-demand tools like the laser",
+      "Every hand tool",
+      "Only 3D printers",
+      "Never — first come first served"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-so-q08",
+    "moduleId": "mod-shop-orientation",
+    "prompt": "If you are unsure how to use a tool:",
+    "choices": [
+      "Ask staff or stop and look up the cert module",
+      "Guess based on similar tools",
+      "Let a guest try first",
+      "Disable safety features temporarily"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-so-q09",
+    "moduleId": "mod-shop-orientation",
+    "prompt": "Emergency exits should be:",
+    "choices": [
+      "Kept clear at all times",
+      "Used for storage of long lumber",
+      "Blocked during events",
+      "Only for staff"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-so-q10",
+    "moduleId": "mod-shop-orientation",
+    "prompt": "Guests in the shop must:",
+    "choices": [
+      "Sign a day waiver and stay with a host",
+      "Borrow a member badge",
+      "Use any machine freely",
+      "Skip orientation"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-so-q11",
+    "moduleId": "mod-shop-orientation",
+    "prompt": "PPE stands for:",
+    "choices": [
+      "Personal Protective Equipment",
+      "Public Printer Etiquette",
+      "Preferred Project Entry",
+      "Power Panel Enclosure"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-so-q12",
+    "moduleId": "mod-shop-orientation",
+    "prompt": "Before leaving the shop you should:",
+    "choices": [
+      "Power down tools you used and clean up",
+      "Leave machines running for the next person",
+      "Store wet brushes on the laser bed",
+      "Unplug the main breaker"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-so-q13",
+    "moduleId": "mod-shop-orientation",
+    "prompt": "Harassment of other members results in:",
+    "choices": [
+      "Possible suspension or revocation",
+      "A free class credit",
+      "Automatic upgrade to annual",
+      "No consequences"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-so-q14",
+    "moduleId": "mod-shop-orientation",
+    "prompt": "Knowledge-only certifications still require:",
+    "choices": [
+      "Passing the quiz (and any listed lessons)",
+      "No learning at all",
+      "Only a cash deposit",
+      "A notarized letter"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-so-q15",
+    "moduleId": "mod-shop-orientation",
+    "prompt": "The Box is operated by:",
+    "choices": [
+      "Discover Burien",
+      "A private for-profit chain",
+      "The city fire department alone",
+      "Amazon"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-3d-q01",
+    "moduleId": "mod-3d-printing",
+    "prompt": "What does a slicer produce for FDM printers?",
+    "choices": [
+      "G-code toolpaths",
+      "STL meshes only",
+      "PNG textures",
+      "DXF outlines"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-3d-q02",
+    "moduleId": "mod-3d-printing",
+    "prompt": "Shop default filament for beginners is:",
+    "choices": [
+      "PLA",
+      "ABS only",
+      "Nylon CF",
+      "Polycarbonate"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-3d-q03",
+    "moduleId": "mod-3d-printing",
+    "prompt": "Before starting a print you should:",
+    "choices": [
+      "Preview the slice and confirm the profile",
+      "Skip bed cleaning",
+      "Disable endstops",
+      "Override nozzle temp to max"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-3d-q04",
+    "moduleId": "mod-3d-printing",
+    "prompt": "Resin printers require:",
+    "choices": [
+      "PPE and careful wash/cure handling",
+      "No gloves",
+      "Open food nearby",
+      "Unattended overnight curing in the lobby"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-3d-q05",
+    "moduleId": "mod-3d-printing",
+    "prompt": "A common cause of first-layer failure is:",
+    "choices": [
+      "Incorrect bed leveling / Z offset",
+      "Too much ear protection",
+      "Using PLA",
+      "Room lights on"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-3d-q06",
+    "moduleId": "mod-3d-printing",
+    "prompt": "Supports are used to:",
+    "choices": [
+      "Hold overhangs during printing",
+      "Cool the nozzle faster",
+      "Increase bed adhesion only",
+      "Replace brims"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-3d-q07",
+    "moduleId": "mod-3d-printing",
+    "prompt": "If a print fails mid-job:",
+    "choices": [
+      "Pause safely and ask staff if unsure",
+      "Yank the bed while hot",
+      "Cut the heater wires",
+      "Ignore smoke"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-3d-q08",
+    "moduleId": "mod-3d-printing",
+    "prompt": "PETG compared to PLA typically needs:",
+    "choices": [
+      "Different temps and sometimes an enclosure",
+      "Lower adhesion always",
+      "No profile change",
+      "Water as lubricant"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-3d-q09",
+    "moduleId": "mod-3d-printing",
+    "prompt": "After printing you should:",
+    "choices": [
+      "Remove debris and log issues",
+      "Leave failed rafts for staff forever",
+      "Store scrap on the laser",
+      "Reset all printers to factory"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-3d-q10",
+    "moduleId": "mod-3d-printing",
+    "prompt": "Badge access to printers requires:",
+    "choices": [
+      "3D Printing cert + Shop Orientation",
+      "Only annual membership",
+      "A woodshop cert",
+      "No certifications"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-3d-q11",
+    "moduleId": "mod-3d-printing",
+    "prompt": "Stringing is often reduced by:",
+    "choices": [
+      "Tuning retraction and temperatures",
+      "Printing underwater",
+      "Removing the part cooling fan forever",
+      "Doubling layer height to 2mm"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-3d-q12",
+    "moduleId": "mod-3d-printing",
+    "prompt": "Never leave a resin print:",
+    "choices": [
+      "Unattended during critical wash/cure steps without following shop rules",
+      "In the UV cure station with a timer",
+      "Labeled on the drying rack",
+      "Documented in the log"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-3d-q13",
+    "moduleId": "mod-3d-printing",
+    "prompt": "Bed adhesion aids may include:",
+    "choices": [
+      "Clean surface, glue stick, or textured PEI as appropriate",
+      "Motor oil",
+      "Duct tape on the nozzle",
+      "Wet paper towels under the bed"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-3d-q14",
+    "moduleId": "mod-3d-printing",
+    "prompt": "Changing filament mid-spool requires:",
+    "choices": [
+      "Following the printer’s unload/load procedure",
+      "Forcing filament past a cold nozzle",
+      "Cutting the hotend thermistor",
+      "Ignoring material type"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "q-3d-q15",
+    "moduleId": "mod-3d-printing",
+    "prompt": "Knowledge pass for 3D printing still requires:",
+    "choices": [
+      "An in-person checkoff before certified status",
+      "Nothing else ever",
+      "Only a waiver",
+      "Buying a printer"
+    ],
+    "correctIndex": 0,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  }
+]

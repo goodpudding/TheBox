@@ -1,0 +1,146 @@
+[
+  {
+    "id": "badge-admin",
+    "uid": "a1b2c3d4e5f60718",
+    "label": "Staff — Avery",
+    "userId": "u-admin",
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "badge-staff",
+    "uid": "b2c3d4e5f6071829",
+    "label": "Staff — Sam",
+    "userId": "u-staff",
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "badge-maya",
+    "uid": "c3d4e5f60718293a",
+    "label": "Maya",
+    "userId": "u-maya",
+    "active": true,
+    "createdAt": "2025-03-20T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "badge-jordan",
+    "uid": "d4e5f60718293a4b",
+    "label": "Jordan",
+    "userId": "u-jordan",
+    "active": true,
+    "createdAt": "2025-04-05T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "badge-sam",
+    "uid": "e5f60718293a4b5c",
+    "label": "Sam P",
+    "userId": "u-sam",
+    "active": true,
+    "createdAt": "2025-05-15T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "badge-riley",
+    "uid": "f60718293a4b5c6d",
+    "label": "Riley day pass",
+    "userId": "u-riley",
+    "active": true,
+    "createdAt": "2026-08-20T11:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "badge-nova",
+    "uid": "0718293a4b5c6d7e",
+    "label": "Nova",
+    "userId": "u-nova",
+    "active": true,
+    "createdAt": "2025-07-05T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "badge-kai",
+    "uid": "18293a4b5c6d7e8f",
+    "label": "Kai",
+    "userId": "u-kai",
+    "active": true,
+    "createdAt": "2025-06-20T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "badge-alex",
+    "uid": "293a4b5c6d7e8f90",
+    "label": "Alex (lapsed)",
+    "userId": "u-alex",
+    "active": true,
+    "createdAt": "2025-03-05T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "badge-casey",
+    "uid": "3a4b5c6d7e8f9012",
+    "label": "Casey (suspended)",
+    "userId": "u-casey",
+    "active": false,
+    "createdAt": "2025-04-25T10:00:00-07:00",
+    "updatedAt": "2026-08-28T16:00:00-07:00"
+  },
+  {
+    "id": "badge-taylor",
+    "uid": "4b5c6d7e8f901234",
+    "label": "Taylor",
+    "userId": "u-taylor",
+    "active": true,
+    "createdAt": "2025-02-15T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "badge-morgan",
+    "uid": "5c6d7e8f90123456",
+    "label": "Morgan",
+    "userId": "u-morgan",
+    "active": true,
+    "createdAt": "2026-07-05T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "badge-jamie",
+    "uid": "6d7e8f9012345678",
+    "label": "Jamie",
+    "userId": "u-jamie",
+    "active": true,
+    "createdAt": "2025-01-25T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "badge-drew",
+    "uid": "7e8f90123456789a",
+    "label": "Drew",
+    "userId": "u-drew",
+    "active": true,
+    "createdAt": "2025-09-05T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "badge-quinn",
+    "uid": "8f90123456789abc",
+    "label": "Quinn",
+    "userId": "u-quinn",
+    "active": true,
+    "createdAt": "2025-08-05T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "badge-inventory-01",
+    "uid": "90123456789abcde",
+    "label": "Spare badge #1",
+    "userId": null,
+    "active": true,
+    "createdAt": "2026-01-10T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  }
+]

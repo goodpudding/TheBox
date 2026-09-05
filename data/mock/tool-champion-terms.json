@@ -1,0 +1,46 @@
+[
+  {
+    "id": "tc-maya-laser",
+    "userId": "u-maya",
+    "machineId": "m-laser-co2",
+    "status": "completed",
+    "startsAt": "2026-05-01T00:00:00-07:00",
+    "endsAt": "2026-07-01T00:00:00-07:00",
+    "notes": "Completed first championship — laser bay docs + two checkoffs.",
+    "createdAt": "2026-04-20T10:00:00-07:00",
+    "updatedAt": "2026-07-01T10:00:00-07:00"
+  },
+  {
+    "id": "tc-maya-prusa",
+    "userId": "u-maya",
+    "machineId": "m-prusa-mk4",
+    "status": "completed",
+    "startsAt": "2026-07-01T00:00:00-07:00",
+    "endsAt": "2026-09-01T00:00:00-07:00",
+    "notes": "Second championship complete.",
+    "createdAt": "2026-06-25T10:00:00-07:00",
+    "updatedAt": "2026-09-01T10:00:00-07:00"
+  },
+  {
+    "id": "tc-maya-sewing",
+    "userId": "u-maya",
+    "machineId": "m-sewing-1",
+    "status": "active",
+    "startsAt": "2026-09-01T00:00:00-07:00",
+    "endsAt": "2026-11-01T00:00:00-07:00",
+    "notes": "Third championship in progress — unlocks Shop lead track when complete.",
+    "createdAt": "2026-08-20T10:00:00-07:00",
+    "updatedAt": "2026-09-01T10:00:00-07:00"
+  },
+  {
+    "id": "tc-reed-bandsaw",
+    "userId": "u-reed",
+    "machineId": "m-band-saw",
+    "status": "active",
+    "startsAt": "2026-08-15T00:00:00-07:00",
+    "endsAt": "2026-10-15T00:00:00-07:00",
+    "notes": "Shop Steward also championing the bandsaw.",
+    "createdAt": "2026-08-10T10:00:00-07:00",
+    "updatedAt": "2026-08-15T10:00:00-07:00"
+  }
+]

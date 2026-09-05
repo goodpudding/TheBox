@@ -1,0 +1,161 @@
+[
+  {
+    "id": "bk-laser-maya",
+    "classSessionId": "class-laser-0910",
+    "userId": "u-maya",
+    "status": "booked",
+    "paidAt": "2026-08-20T10:00:00-07:00",
+    "paidMarkedById": "u-staff",
+    "createdAt": "2026-08-20T10:00:00-07:00",
+    "updatedAt": "2026-08-20T10:00:00-07:00"
+  },
+  {
+    "id": "bk-laser-jordan",
+    "classSessionId": "class-laser-0910",
+    "userId": "u-jordan",
+    "status": "booked",
+    "paidAt": "2026-08-21T11:00:00-07:00",
+    "paidMarkedById": "u-staff",
+    "createdAt": "2026-08-21T11:00:00-07:00",
+    "updatedAt": "2026-08-21T11:00:00-07:00"
+  },
+  {
+    "id": "bk-laser-kai",
+    "classSessionId": "class-laser-0910",
+    "userId": "u-kai",
+    "status": "booked",
+    "paidAt": "2026-08-22T09:00:00-07:00",
+    "paidMarkedById": "u-admin",
+    "createdAt": "2026-08-22T09:00:00-07:00",
+    "updatedAt": "2026-08-22T09:00:00-07:00"
+  },
+  {
+    "id": "bk-laser-sam",
+    "classSessionId": "class-laser-0910",
+    "userId": "u-sam",
+    "status": "booked",
+    "paidAt": "2026-08-23T14:00:00-07:00",
+    "paidMarkedById": "u-staff",
+    "createdAt": "2026-08-23T14:00:00-07:00",
+    "updatedAt": "2026-08-23T14:00:00-07:00"
+  },
+  {
+    "id": "bk-laser-nova-wl",
+    "classSessionId": "class-laser-0910",
+    "userId": "u-nova",
+    "status": "waitlisted",
+    "waitlistPosition": 1,
+    "createdAt": "2026-08-24T10:00:00-07:00",
+    "updatedAt": "2026-08-24T10:00:00-07:00"
+  },
+  {
+    "id": "bk-laser-quinn-wl",
+    "classSessionId": "class-laser-0910",
+    "userId": "u-quinn",
+    "status": "waitlisted",
+    "waitlistPosition": 2,
+    "createdAt": "2026-08-25T10:00:00-07:00",
+    "updatedAt": "2026-08-25T10:00:00-07:00"
+  },
+  {
+    "id": "bk-3d-drew-await",
+    "classSessionId": "class-3d-0907",
+    "userId": "u-drew",
+    "status": "awaiting_payment",
+    "paymentHoldExpiresAt": "2026-09-06T12:00:00-07:00",
+    "createdAt": "2026-09-04T10:00:00-07:00",
+    "updatedAt": "2026-09-04T10:00:00-07:00"
+  },
+  {
+    "id": "bk-3d-maya",
+    "classSessionId": "class-3d-0907",
+    "userId": "u-maya",
+    "status": "booked",
+    "paidAt": "2026-08-28T10:00:00-07:00",
+    "paidMarkedById": "u-staff",
+    "createdAt": "2026-08-28T10:00:00-07:00",
+    "updatedAt": "2026-08-28T10:00:00-07:00"
+  },
+  {
+    "id": "bk-3d-morgan",
+    "classSessionId": "class-3d-0907",
+    "userId": "u-morgan",
+    "status": "booked",
+    "paidAt": "2026-08-29T10:00:00-07:00",
+    "paidMarkedById": "u-staff",
+    "createdAt": "2026-08-29T10:00:00-07:00",
+    "updatedAt": "2026-08-29T10:00:00-07:00"
+  },
+  {
+    "id": "bk-sew-riley-expired",
+    "classSessionId": "class-sewing-0914",
+    "userId": "u-riley",
+    "status": "expired",
+    "paymentHoldExpiresAt": "2026-09-01T12:00:00-07:00",
+    "createdAt": "2026-08-30T10:00:00-07:00",
+    "updatedAt": "2026-09-01T12:05:00-07:00"
+  },
+  {
+    "id": "bk-orient-avery",
+    "classSessionId": "class-orient-0906",
+    "userId": "u-avery",
+    "status": "booked",
+    "createdAt": "2026-09-03T16:00:00-07:00",
+    "updatedAt": "2026-09-03T16:00:00-07:00"
+  },
+  {
+    "id": "bk-orient-riley",
+    "classSessionId": "class-orient-0906",
+    "userId": "u-riley",
+    "status": "booked",
+    "createdAt": "2026-09-01T10:00:00-07:00",
+    "updatedAt": "2026-09-01T10:00:00-07:00"
+  },
+  {
+    "id": "bk-open-jordan",
+    "classSessionId": "class-open-0917",
+    "userId": "u-jordan",
+    "status": "booked",
+    "createdAt": "2026-09-02T10:00:00-07:00",
+    "updatedAt": "2026-09-02T10:00:00-07:00"
+  },
+  {
+    "id": "bk-wood-kai",
+    "classSessionId": "class-wood-0913",
+    "userId": "u-kai",
+    "status": "booked",
+    "paidAt": "2026-09-01T11:00:00-07:00",
+    "paidMarkedById": "u-staff",
+    "createdAt": "2026-09-01T11:00:00-07:00",
+    "updatedAt": "2026-09-01T11:00:00-07:00"
+  },
+  {
+    "id": "bk-sub-jordan",
+    "classSessionId": "class-sub-0924",
+    "userId": "u-jordan",
+    "status": "booked",
+    "paidAt": "2026-09-03T09:00:00-07:00",
+    "paidMarkedById": "u-admin",
+    "createdAt": "2026-09-03T09:00:00-07:00",
+    "updatedAt": "2026-09-03T09:00:00-07:00"
+  },
+  {
+    "id": "bk-emb-nova",
+    "classSessionId": "class-emb-0920",
+    "userId": "u-nova",
+    "status": "booked",
+    "paidAt": "2026-09-02T14:00:00-07:00",
+    "paidMarkedById": "u-staff",
+    "createdAt": "2026-09-02T14:00:00-07:00",
+    "updatedAt": "2026-09-02T14:00:00-07:00"
+  },
+  {
+    "id": "bk-sew-nova",
+    "classSessionId": "class-sewing-0914",
+    "userId": "u-nova",
+    "status": "cancelled",
+    "cancelledAt": "2026-09-03T10:00:00-07:00",
+    "createdAt": "2026-08-28T10:00:00-07:00",
+    "updatedAt": "2026-09-03T10:00:00-07:00"
+  }
+]

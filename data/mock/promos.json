@@ -1,0 +1,80 @@
+[
+  {
+    "id": "promo-welcome",
+    "title": "Welcome to The Box",
+    "body": "Discover Burien’s community makerspace — tools, classes, and people who make things.",
+    "imageUrl": null,
+    "qrUrl": "/join",
+    "startsAt": "2026-01-01T00:00:00-07:00",
+    "endsAt": "2027-12-31T23:59:59-07:00",
+    "active": true,
+    "sortOrder": 1,
+    "createdAt": "2026-01-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "promo-open-studio",
+    "title": "Open Studio Fridays",
+    "body": "Bring a project, grab a seat, and make alongside neighbors. All skill levels welcome.",
+    "imageUrl": null,
+    "qrUrl": "/classes",
+    "startsAt": "2026-08-01T00:00:00-07:00",
+    "endsAt": "2027-06-01T00:00:00-07:00",
+    "active": true,
+    "sortOrder": 2,
+    "createdAt": "2026-08-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "promo-volunteer",
+    "title": "Volunteer with us",
+    "body": "Front desk, shop steward, and event roles keep The Box humming. Sign up in a few minutes.",
+    "imageUrl": null,
+    "qrUrl": "/volunteer",
+    "startsAt": "2026-06-01T00:00:00-07:00",
+    "endsAt": "2027-12-31T23:59:59-07:00",
+    "active": true,
+    "sortOrder": 3,
+    "createdAt": "2026-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "promo-expired-summer",
+    "title": "Summer maker camp",
+    "body": "This slide should never appear on the lobby display — it ended last summer.",
+    "imageUrl": null,
+    "qrUrl": null,
+    "startsAt": "2026-06-01T00:00:00-07:00",
+    "endsAt": "2026-08-15T00:00:00-07:00",
+    "active": true,
+    "sortOrder": 10,
+    "createdAt": "2026-05-01T10:00:00-07:00",
+    "updatedAt": "2026-08-15T10:00:00-07:00"
+  },
+  {
+    "id": "promo-expired-old",
+    "title": "Grand opening raffle",
+    "body": "Expired promo for fixture coverage.",
+    "imageUrl": null,
+    "qrUrl": "/support",
+    "startsAt": "2025-01-01T00:00:00-07:00",
+    "endsAt": "2025-12-31T23:59:59-07:00",
+    "active": true,
+    "sortOrder": 11,
+    "createdAt": "2025-01-01T10:00:00-07:00",
+    "updatedAt": "2025-12-31T10:00:00-07:00"
+  },
+  {
+    "id": "promo-future-holiday",
+    "title": "Holiday open house",
+    "body": "Future-dated promo — not shown until December.",
+    "imageUrl": null,
+    "qrUrl": "/join",
+    "startsAt": "2026-12-01T00:00:00-07:00",
+    "endsAt": "2027-01-15T00:00:00-07:00",
+    "active": true,
+    "sortOrder": 20,
+    "createdAt": "2026-09-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  }
+]

@@ -1,0 +1,29 @@
+services:
+  # Local email catcher for Auth.js magic links
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+
+  # Optional Postgres for production-like DATA_PROVIDER=prisma
+  # Switch prisma/schema.prisma provider to "postgresql" before using.
+  db:
+    image: postgres:16-alpine
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_USER: thebox
+      POSTGRES_PASSWORD: thebox
+      POSTGRES_DB: thebox
+    ports:
+      - "5432:5432"
+    volumes:
+      - thebox_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U thebox"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  thebox_pg:

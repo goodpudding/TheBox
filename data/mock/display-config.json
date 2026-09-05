@@ -1,0 +1,15 @@
+{
+  "panelOrder": [
+    "today",
+    "machines",
+    "upcoming",
+    "certs",
+    "promos",
+    "membership"
+  ],
+  "cadenceSeconds": 12,
+  "pinnedPanel": null,
+  "nameDisplayMode": "first",
+  "membershipEveryNRotations": 3,
+  "updatedAt": "2026-09-04T12:00:00-07:00"
+}

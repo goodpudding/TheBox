@@ -1,0 +1,68 @@
+[
+  {
+    "id": "lesson-so-1",
+    "moduleId": "mod-shop-orientation",
+    "slug": "welcome",
+    "title": "Welcome to The Box",
+    "contentSlug": "lesson-shop-orientation-welcome",
+    "sortOrder": 1,
+    "estimatedMinutes": 8,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "lesson-so-2",
+    "moduleId": "mod-shop-orientation",
+    "slug": "safety",
+    "title": "Safety Culture & PPE",
+    "contentSlug": "lesson-shop-orientation-safety",
+    "sortOrder": 2,
+    "estimatedMinutes": 12,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "lesson-so-3",
+    "moduleId": "mod-shop-orientation",
+    "slug": "access",
+    "title": "Badges, Certs & Reservations",
+    "contentSlug": "lesson-shop-orientation-access",
+    "sortOrder": 3,
+    "estimatedMinutes": 10,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "lesson-3d-1",
+    "moduleId": "mod-3d-printing",
+    "slug": "slicing",
+    "title": "Slicing Basics",
+    "contentSlug": "lesson-3d-slicing",
+    "sortOrder": 1,
+    "estimatedMinutes": 15,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "lesson-3d-2",
+    "moduleId": "mod-3d-printing",
+    "slug": "materials",
+    "title": "Materials & Bed Prep",
+    "contentSlug": "lesson-3d-materials",
+    "sortOrder": 2,
+    "estimatedMinutes": 12,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "lesson-3d-3",
+    "moduleId": "mod-3d-printing",
+    "slug": "troubleshooting",
+    "title": "Troubleshooting & Cleanup",
+    "contentSlug": "lesson-3d-troubleshooting",
+    "sortOrder": 3,
+    "estimatedMinutes": 14,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  }
+]

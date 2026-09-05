@@ -1,0 +1,273 @@
+[
+  {
+    "id": "m-prusa-mk4",
+    "name": "Prusa MK4",
+    "area": "3d_printing",
+    "requiredCertificationIds": [
+      "cert-3d-printing",
+      "cert-shop-orientation"
+    ],
+    "readerKey": "reader-3d-prusa-mk4",
+    "active": true,
+    "reservationRecommended": false,
+    "reservationRequired": false,
+    "locationLabel": "3D lab · Station 1",
+    "gettingStartedVideoUrl": null,
+    "sortOrder": 1,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "m-bambu-x1",
+    "name": "Bambu Lab X1 Carbon",
+    "area": "3d_printing",
+    "requiredCertificationIds": [
+      "cert-3d-printing",
+      "cert-shop-orientation"
+    ],
+    "readerKey": "reader-3d-bambu-x1",
+    "active": true,
+    "reservationRecommended": false,
+    "reservationRequired": false,
+    "locationLabel": "3D lab · Station 2",
+    "gettingStartedVideoUrl": null,
+    "sortOrder": 2,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "m-elegoo-saturn",
+    "name": "Elegoo Saturn 4 Ultra",
+    "area": "3d_printing",
+    "requiredCertificationIds": [
+      "cert-3d-printing",
+      "cert-shop-orientation"
+    ],
+    "readerKey": "reader-3d-elegoo-saturn",
+    "active": true,
+    "reservationRecommended": false,
+    "reservationRequired": false,
+    "locationLabel": "3D lab · Resin bay",
+    "gettingStartedVideoUrl": null,
+    "sortOrder": 3,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "m-laser-co2",
+    "name": "OMTech 60W CO₂ Laser",
+    "area": "laser",
+    "requiredCertificationIds": [
+      "cert-laser-cutter",
+      "cert-shop-orientation"
+    ],
+    "readerKey": "reader-laser-omtech-60w",
+    "active": true,
+    "reservationRecommended": true,
+    "reservationRequired": true,
+    "locationLabel": "Laser room · Station 1",
+    "gettingStartedVideoUrl": null,
+    "sortOrder": 10,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "m-table-saw",
+    "name": "SawStop PCS Table Saw",
+    "area": "woodshop",
+    "requiredCertificationIds": [
+      "cert-woodshop-basics",
+      "cert-table-saw",
+      "cert-shop-orientation"
+    ],
+    "readerKey": "reader-wood-tablesaw",
+    "active": true,
+    "reservationRecommended": true,
+    "reservationRequired": true,
+    "locationLabel": "Woodshop · Bay A",
+    "gettingStartedVideoUrl": null,
+    "sortOrder": 20,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "m-miter-saw",
+    "name": "Dewalt Sliding Miter Saw",
+    "area": "woodshop",
+    "requiredCertificationIds": [
+      "cert-woodshop-basics",
+      "cert-shop-orientation"
+    ],
+    "readerKey": "reader-wood-miter",
+    "active": true,
+    "reservationRecommended": false,
+    "reservationRequired": false,
+    "locationLabel": "Woodshop · Bay B",
+    "gettingStartedVideoUrl": null,
+    "sortOrder": 21,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "m-band-saw",
+    "name": "Laguna 14″ Band Saw",
+    "area": "woodshop",
+    "requiredCertificationIds": [
+      "cert-woodshop-basics",
+      "cert-shop-orientation"
+    ],
+    "readerKey": "reader-wood-bandsaw",
+    "active": true,
+    "reservationRecommended": false,
+    "reservationRequired": false,
+    "locationLabel": "Woodshop · Bay B",
+    "gettingStartedVideoUrl": null,
+    "sortOrder": 22,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "m-planer-jointer",
+    "name": "Jet Planer/Jointer Combo",
+    "area": "woodshop",
+    "requiredCertificationIds": [
+      "cert-woodshop-basics",
+      "cert-shop-orientation"
+    ],
+    "readerKey": "reader-wood-planer",
+    "active": true,
+    "reservationRecommended": false,
+    "reservationRequired": false,
+    "locationLabel": "Woodshop · Bay C",
+    "gettingStartedVideoUrl": null,
+    "sortOrder": 23,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "m-router-table",
+    "name": "Router Table Station",
+    "area": "woodshop",
+    "requiredCertificationIds": [
+      "cert-woodshop-basics",
+      "cert-shop-orientation"
+    ],
+    "readerKey": "reader-wood-router",
+    "active": true,
+    "reservationRecommended": false,
+    "reservationRequired": false,
+    "locationLabel": "Woodshop · Bay C",
+    "gettingStartedVideoUrl": null,
+    "sortOrder": 24,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "m-sewing-1",
+    "name": "Janome Sewing Machine A",
+    "area": "textiles_vinyl",
+    "requiredCertificationIds": [
+      "cert-sewing-machines",
+      "cert-shop-orientation"
+    ],
+    "readerKey": "reader-tex-sewing-a",
+    "active": true,
+    "reservationRecommended": false,
+    "reservationRequired": false,
+    "locationLabel": "Textiles · Sewing row 1",
+    "gettingStartedVideoUrl": null,
+    "sortOrder": 30,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "m-sewing-2",
+    "name": "Janome Sewing Machine B",
+    "area": "textiles_vinyl",
+    "requiredCertificationIds": [
+      "cert-sewing-machines",
+      "cert-shop-orientation"
+    ],
+    "readerKey": "reader-tex-sewing-b",
+    "active": true,
+    "reservationRecommended": false,
+    "reservationRequired": false,
+    "locationLabel": "Textiles · Sewing row 2",
+    "gettingStartedVideoUrl": null,
+    "sortOrder": 31,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "m-embroidery",
+    "name": "Brother Embroidery PE800",
+    "area": "textiles_vinyl",
+    "requiredCertificationIds": [
+      "cert-embroidery-machine",
+      "cert-shop-orientation"
+    ],
+    "readerKey": "reader-tex-embroidery",
+    "active": true,
+    "reservationRecommended": true,
+    "reservationRequired": true,
+    "locationLabel": "Textiles · Embroidery station",
+    "gettingStartedVideoUrl": null,
+    "sortOrder": 32,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "m-vinyl-cutter",
+    "name": "Cricut Maker 3",
+    "area": "textiles_vinyl",
+    "requiredCertificationIds": [
+      "cert-vinyl-cutter",
+      "cert-shop-orientation"
+    ],
+    "readerKey": "reader-tex-vinyl",
+    "active": true,
+    "reservationRecommended": false,
+    "reservationRequired": false,
+    "locationLabel": "Textiles · Vinyl bench",
+    "gettingStartedVideoUrl": null,
+    "sortOrder": 33,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "m-sub-printer",
+    "name": "Sawgrass Sublimation Printer",
+    "area": "sublimation",
+    "requiredCertificationIds": [
+      "cert-sublimation",
+      "cert-shop-orientation"
+    ],
+    "readerKey": "reader-sub-printer",
+    "active": true,
+    "reservationRecommended": false,
+    "reservationRequired": false,
+    "locationLabel": "Sublimation · Printer desk",
+    "gettingStartedVideoUrl": null,
+    "sortOrder": 40,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "m-heat-press",
+    "name": "Heat Press 15×15",
+    "area": "sublimation",
+    "requiredCertificationIds": [
+      "cert-sublimation",
+      "cert-shop-orientation"
+    ],
+    "readerKey": "reader-sub-heatpress",
+    "active": true,
+    "reservationRecommended": false,
+    "reservationRequired": false,
+    "locationLabel": "Sublimation · Press table",
+    "gettingStartedVideoUrl": null,
+    "sortOrder": 41,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  }
+]

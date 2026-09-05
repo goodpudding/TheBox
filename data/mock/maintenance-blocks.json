@@ -1,0 +1,32 @@
+[
+  {
+    "id": "maint-laser-optics",
+    "machineId": "m-laser-co2",
+    "startsAt": "2026-09-09T09:00:00-07:00",
+    "endsAt": "2026-09-09T13:00:00-07:00",
+    "reason": "Optics cleaning and alignment",
+    "createdById": "u-admin",
+    "createdAt": "2026-09-01T10:00:00-07:00",
+    "updatedAt": "2026-09-01T10:00:00-07:00"
+  },
+  {
+    "id": "maint-tablesaw-blade",
+    "machineId": "m-table-saw",
+    "startsAt": "2026-09-15T08:00:00-07:00",
+    "endsAt": "2026-09-15T12:00:00-07:00",
+    "reason": "Blade change and brake cartridge check",
+    "createdById": "u-staff",
+    "createdAt": "2026-09-02T09:00:00-07:00",
+    "updatedAt": "2026-09-02T09:00:00-07:00"
+  },
+  {
+    "id": "maint-embroidery-service",
+    "machineId": "m-embroidery",
+    "startsAt": "2026-08-01T10:00:00-07:00",
+    "endsAt": "2026-08-01T16:00:00-07:00",
+    "reason": "Annual service — tension calibration",
+    "createdById": "u-admin",
+    "createdAt": "2026-07-20T10:00:00-07:00",
+    "updatedAt": "2026-07-20T10:00:00-07:00"
+  }
+]

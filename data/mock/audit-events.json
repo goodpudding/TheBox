@@ -1,0 +1,214 @@
+[
+  {
+    "id": "ae-01",
+    "action": "waiver_signed",
+    "actorId": "u-maya",
+    "subjectUserId": "u-maya",
+    "entityType": "WaiverSignature",
+    "entityId": "ws-maya",
+    "occurredAt": "2026-01-10T11:00:00-07:00",
+    "createdAt": "2026-01-10T11:00:00-07:00",
+    "updatedAt": "2026-01-10T11:00:00-07:00",
+    "metadata": {
+      "version": "2026.1"
+    }
+  },
+  {
+    "id": "ae-02",
+    "action": "policy_acknowledged",
+    "actorId": "u-maya",
+    "subjectUserId": "u-maya",
+    "entityType": "PolicyAcknowledgement",
+    "entityId": "pa-maya",
+    "occurredAt": "2026-01-10T11:10:00-07:00",
+    "createdAt": "2026-01-10T11:10:00-07:00",
+    "updatedAt": "2026-01-10T11:10:00-07:00",
+    "metadata": {
+      "policySlug": "member-expectations",
+      "version": "2026.1"
+    }
+  },
+  {
+    "id": "ae-03",
+    "action": "cert_knowledge_passed",
+    "actorId": "u-morgan",
+    "subjectUserId": "u-morgan",
+    "entityType": "UserCertification",
+    "entityId": "uc-morgan-3d",
+    "occurredAt": "2026-08-15T14:30:00-07:00",
+    "createdAt": "2026-08-15T14:30:00-07:00",
+    "updatedAt": "2026-08-15T14:30:00-07:00",
+    "metadata": {
+      "certificationId": "cert-3d-printing"
+    }
+  },
+  {
+    "id": "ae-04",
+    "action": "cert_checked_off",
+    "actorId": "u-staff",
+    "subjectUserId": "u-maya",
+    "entityType": "UserCertification",
+    "entityId": "uc-maya-3d",
+    "occurredAt": "2025-03-28T10:00:00-07:00",
+    "createdAt": "2025-03-28T10:00:00-07:00",
+    "updatedAt": "2025-03-28T10:00:00-07:00",
+    "metadata": {
+      "certificationId": "cert-3d-printing"
+    }
+  },
+  {
+    "id": "ae-05",
+    "action": "cert_revoked",
+    "actorId": "u-admin",
+    "subjectUserId": "u-casey",
+    "entityType": "UserCertification",
+    "entityId": "uc-casey-laser",
+    "occurredAt": "2026-08-28T16:00:00-07:00",
+    "createdAt": "2026-08-28T16:00:00-07:00",
+    "updatedAt": "2026-08-28T16:00:00-07:00",
+    "metadata": {
+      "reason": "Unsafe laser operation"
+    }
+  },
+  {
+    "id": "ae-06",
+    "action": "cert_expired",
+    "actorId": null,
+    "subjectUserId": "u-taylor",
+    "entityType": "UserCertification",
+    "entityId": "uc-taylor-laser",
+    "occurredAt": "2026-03-05T10:00:00-07:00",
+    "createdAt": "2026-03-05T10:00:00-07:00",
+    "updatedAt": "2026-03-05T10:00:00-07:00",
+    "metadata": {
+      "certificationId": "cert-laser-cutter"
+    }
+  },
+  {
+    "id": "ae-07",
+    "action": "status_changed",
+    "actorId": "u-admin",
+    "subjectUserId": "u-casey",
+    "entityType": "User",
+    "entityId": "u-casey",
+    "occurredAt": "2026-08-28T16:05:00-07:00",
+    "createdAt": "2026-08-28T16:05:00-07:00",
+    "updatedAt": "2026-08-28T16:05:00-07:00",
+    "metadata": {
+      "from": "active",
+      "to": "suspended"
+    }
+  },
+  {
+    "id": "ae-08",
+    "action": "status_changed",
+    "actorId": "u-admin",
+    "subjectUserId": "u-alex",
+    "entityType": "User",
+    "entityId": "u-alex",
+    "occurredAt": "2026-08-15T09:00:00-07:00",
+    "createdAt": "2026-08-15T09:00:00-07:00",
+    "updatedAt": "2026-08-15T09:00:00-07:00",
+    "metadata": {
+      "from": "active",
+      "to": "lapsed"
+    }
+  },
+  {
+    "id": "ae-09",
+    "action": "badge_linked",
+    "actorId": "u-staff",
+    "subjectUserId": "u-riley",
+    "entityType": "Badge",
+    "entityId": "badge-riley",
+    "occurredAt": "2026-08-20T11:00:00-07:00",
+    "createdAt": "2026-08-20T11:00:00-07:00",
+    "updatedAt": "2026-08-20T11:00:00-07:00",
+    "metadata": {
+      "uid": "f60718293a4b5c6d"
+    }
+  },
+  {
+    "id": "ae-10",
+    "action": "badge_unlinked",
+    "actorId": "u-admin",
+    "subjectUserId": "u-casey",
+    "entityType": "Badge",
+    "entityId": "badge-casey",
+    "occurredAt": "2026-08-28T16:10:00-07:00",
+    "createdAt": "2026-08-28T16:10:00-07:00",
+    "updatedAt": "2026-08-28T16:10:00-07:00",
+    "metadata": {
+      "note": "Deactivated with suspension"
+    }
+  },
+  {
+    "id": "ae-11",
+    "action": "booking_marked_paid",
+    "actorId": "u-staff",
+    "subjectUserId": "u-maya",
+    "entityType": "Booking",
+    "entityId": "bk-laser-maya",
+    "occurredAt": "2026-08-20T10:00:00-07:00",
+    "createdAt": "2026-08-20T10:00:00-07:00",
+    "updatedAt": "2026-08-20T10:00:00-07:00",
+    "metadata": {
+      "classSessionId": "class-laser-0910"
+    }
+  },
+  {
+    "id": "ae-12",
+    "action": "reservation_overridden",
+    "actorId": "u-staff",
+    "subjectUserId": "u-morgan",
+    "entityType": "Reservation",
+    "entityId": "res-morgan-prusa-f",
+    "occurredAt": "2026-09-03T10:00:00-07:00",
+    "createdAt": "2026-09-03T10:00:00-07:00",
+    "updatedAt": "2026-09-03T10:00:00-07:00",
+    "metadata": {
+      "reason": "Staff-created for checkoff prep"
+    }
+  },
+  {
+    "id": "ae-13",
+    "action": "maintenance_created",
+    "actorId": "u-admin",
+    "entityType": "MaintenanceBlock",
+    "entityId": "maint-laser-optics",
+    "occurredAt": "2026-09-01T10:00:00-07:00",
+    "createdAt": "2026-09-01T10:00:00-07:00",
+    "updatedAt": "2026-09-01T10:00:00-07:00",
+    "metadata": {
+      "machineId": "m-laser-co2"
+    }
+  },
+  {
+    "id": "ae-14",
+    "action": "waiver_signed",
+    "actorId": "u-riley",
+    "subjectUserId": "u-riley",
+    "entityType": "WaiverSignature",
+    "entityId": "ws-riley",
+    "occurredAt": "2026-08-20T10:30:00-07:00",
+    "createdAt": "2026-08-20T10:30:00-07:00",
+    "updatedAt": "2026-08-20T10:30:00-07:00",
+    "metadata": {
+      "version": "2026.1"
+    }
+  },
+  {
+    "id": "ae-15",
+    "action": "cert_checked_off",
+    "actorId": "u-admin",
+    "subjectUserId": "u-kai",
+    "entityType": "UserCertification",
+    "entityId": "uc-kai-tablesaw",
+    "occurredAt": "2025-07-08T10:00:00-07:00",
+    "createdAt": "2025-07-08T10:00:00-07:00",
+    "updatedAt": "2025-07-08T10:00:00-07:00",
+    "metadata": {
+      "certificationId": "cert-table-saw"
+    }
+  }
+]

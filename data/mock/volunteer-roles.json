@@ -1,0 +1,42 @@
+[
+  {
+    "id": "vr-front-desk",
+    "slug": "front-desk",
+    "title": "Front Desk Greeter",
+    "contentSlug": "volunteer-front-desk",
+    "active": true,
+    "sortOrder": 1,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "vr-shop-steward",
+    "slug": "shop-steward",
+    "title": "Shop Steward",
+    "contentSlug": "volunteer-shop-steward",
+    "active": true,
+    "sortOrder": 2,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "vr-tool-champion",
+    "slug": "tool-champion",
+    "title": "Tool Champion",
+    "contentSlug": "volunteer-tool-champion",
+    "active": true,
+    "sortOrder": 3,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "vr-events",
+    "slug": "events",
+    "title": "Events & Outreach Helper",
+    "contentSlug": "volunteer-events",
+    "active": true,
+    "sortOrder": 4,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  }
+]

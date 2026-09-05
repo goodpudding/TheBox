@@ -1,0 +1,119 @@
+[
+  {
+    "id": "pa-admin",
+    "userId": "u-admin",
+    "policySlug": "member-expectations",
+    "version": "2026.1",
+    "acknowledgedAt": "2026-01-05T10:10:00-07:00",
+    "createdAt": "2026-01-05T10:10:00-07:00",
+    "updatedAt": "2026-01-05T10:10:00-07:00"
+  },
+  {
+    "id": "pa-staff",
+    "userId": "u-staff",
+    "policySlug": "member-expectations",
+    "version": "2026.1",
+    "acknowledgedAt": "2026-01-05T10:15:00-07:00",
+    "createdAt": "2026-01-05T10:15:00-07:00",
+    "updatedAt": "2026-01-05T10:15:00-07:00"
+  },
+  {
+    "id": "pa-maya",
+    "userId": "u-maya",
+    "policySlug": "member-expectations",
+    "version": "2026.1",
+    "acknowledgedAt": "2026-01-10T11:10:00-07:00",
+    "createdAt": "2026-01-10T11:10:00-07:00",
+    "updatedAt": "2026-01-10T11:10:00-07:00"
+  },
+  {
+    "id": "pa-jordan",
+    "userId": "u-jordan",
+    "policySlug": "member-expectations",
+    "version": "2026.1",
+    "acknowledgedAt": "2026-01-12T11:10:00-07:00",
+    "createdAt": "2026-01-12T11:10:00-07:00",
+    "updatedAt": "2026-01-12T11:10:00-07:00"
+  },
+  {
+    "id": "pa-sam",
+    "userId": "u-sam",
+    "policySlug": "member-expectations",
+    "version": "2026.1",
+    "acknowledgedAt": "2026-01-15T11:10:00-07:00",
+    "createdAt": "2026-01-15T11:10:00-07:00",
+    "updatedAt": "2026-01-15T11:10:00-07:00"
+  },
+  {
+    "id": "pa-riley",
+    "userId": "u-riley",
+    "policySlug": "member-expectations",
+    "version": "2026.1",
+    "acknowledgedAt": "2026-08-20T10:40:00-07:00",
+    "createdAt": "2026-08-20T10:40:00-07:00",
+    "updatedAt": "2026-08-20T10:40:00-07:00"
+  },
+  {
+    "id": "pa-nova",
+    "userId": "u-nova",
+    "policySlug": "member-expectations",
+    "version": "2026.1",
+    "acknowledgedAt": "2026-01-20T11:10:00-07:00",
+    "createdAt": "2026-01-20T11:10:00-07:00",
+    "updatedAt": "2026-01-20T11:10:00-07:00"
+  },
+  {
+    "id": "pa-kai",
+    "userId": "u-kai",
+    "policySlug": "member-expectations",
+    "version": "2026.1",
+    "acknowledgedAt": "2026-01-22T11:10:00-07:00",
+    "createdAt": "2026-01-22T11:10:00-07:00",
+    "updatedAt": "2026-01-22T11:10:00-07:00"
+  },
+  {
+    "id": "pa-taylor",
+    "userId": "u-taylor",
+    "policySlug": "member-expectations",
+    "version": "2026.1",
+    "acknowledgedAt": "2026-01-11T11:10:00-07:00",
+    "createdAt": "2026-01-11T11:10:00-07:00",
+    "updatedAt": "2026-01-11T11:10:00-07:00"
+  },
+  {
+    "id": "pa-morgan",
+    "userId": "u-morgan",
+    "policySlug": "member-expectations",
+    "version": "2026.1",
+    "acknowledgedAt": "2026-07-03T11:10:00-07:00",
+    "createdAt": "2026-07-03T11:10:00-07:00",
+    "updatedAt": "2026-07-03T11:10:00-07:00"
+  },
+  {
+    "id": "pa-jamie-old",
+    "userId": "u-jamie",
+    "policySlug": "member-expectations",
+    "version": "2025.2",
+    "acknowledgedAt": "2025-02-01T11:15:00-07:00",
+    "createdAt": "2025-02-01T11:15:00-07:00",
+    "updatedAt": "2025-02-01T11:15:00-07:00"
+  },
+  {
+    "id": "pa-drew",
+    "userId": "u-drew",
+    "policySlug": "member-expectations",
+    "version": "2026.1",
+    "acknowledgedAt": "2026-01-18T11:10:00-07:00",
+    "createdAt": "2026-01-18T11:10:00-07:00",
+    "updatedAt": "2026-01-18T11:10:00-07:00"
+  },
+  {
+    "id": "pa-quinn",
+    "userId": "u-quinn",
+    "policySlug": "member-expectations",
+    "version": "2026.1",
+    "acknowledgedAt": "2026-01-19T11:10:00-07:00",
+    "createdAt": "2026-01-19T11:10:00-07:00",
+    "updatedAt": "2026-01-19T11:10:00-07:00"
+  }
+]

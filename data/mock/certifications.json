@@ -1,0 +1,136 @@
+[
+  {
+    "id": "cert-shop-orientation",
+    "slug": "shop-orientation",
+    "name": "Shop Orientation",
+    "description": "Required safety and space orientation for all members before using any equipment.",
+    "knowledgeOnly": true,
+    "requiresCertificationIds": [],
+    "expiryMonths": null,
+    "sortOrder": 1,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "cert-3d-printing",
+    "slug": "3d-printing",
+    "name": "3D Printing",
+    "description": "FDM and resin printer setup, slicing basics, and safe material handling.",
+    "knowledgeOnly": false,
+    "requiresCertificationIds": [
+      "cert-shop-orientation"
+    ],
+    "expiryMonths": 24,
+    "sortOrder": 2,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "cert-laser-cutter",
+    "slug": "laser-cutter",
+    "name": "Laser Cutter",
+    "description": "CO₂ laser operation, material compatibility, fire safety, and cleanup.",
+    "knowledgeOnly": false,
+    "requiresCertificationIds": [
+      "cert-shop-orientation"
+    ],
+    "expiryMonths": 12,
+    "sortOrder": 3,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "cert-woodshop-basics",
+    "slug": "woodshop-basics",
+    "name": "Woodshop Basics",
+    "description": "Foundational woodshop safety, PPE, and shared tool etiquette.",
+    "knowledgeOnly": false,
+    "requiresCertificationIds": [
+      "cert-shop-orientation"
+    ],
+    "expiryMonths": 24,
+    "sortOrder": 4,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "cert-table-saw",
+    "slug": "table-saw",
+    "name": "Table Saw",
+    "description": "Table saw setup, rip/crosscut technique, push sticks, and kickback prevention.",
+    "knowledgeOnly": false,
+    "requiresCertificationIds": [
+      "cert-shop-orientation",
+      "cert-woodshop-basics"
+    ],
+    "expiryMonths": 12,
+    "sortOrder": 5,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "cert-sewing-machines",
+    "slug": "sewing-machines",
+    "name": "Sewing Machines",
+    "description": "Threading, tension, stitch selection, and safe use of shop sewing machines.",
+    "knowledgeOnly": false,
+    "requiresCertificationIds": [
+      "cert-shop-orientation"
+    ],
+    "expiryMonths": 24,
+    "sortOrder": 6,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "cert-embroidery-machine",
+    "slug": "embroidery-machine",
+    "name": "Embroidery Machine",
+    "description": "Hooping, digitizing basics, thread paths, and embroidery machine care.",
+    "knowledgeOnly": false,
+    "requiresCertificationIds": [
+      "cert-shop-orientation"
+    ],
+    "expiryMonths": 24,
+    "sortOrder": 7,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "cert-vinyl-cutter",
+    "slug": "vinyl-cutter",
+    "name": "Vinyl Cutter",
+    "description": "Vinyl cutting, weeding, transfer tape, and cutter maintenance.",
+    "knowledgeOnly": false,
+    "requiresCertificationIds": [
+      "cert-shop-orientation"
+    ],
+    "expiryMonths": 24,
+    "sortOrder": 8,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "cert-sublimation",
+    "slug": "sublimation",
+    "name": "Sublimation",
+    "description": "Sublimation printer, heat press temperatures, and substrate prep.",
+    "knowledgeOnly": false,
+    "requiresCertificationIds": [
+      "cert-shop-orientation"
+    ],
+    "expiryMonths": 24,
+    "sortOrder": 9,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  }
+]

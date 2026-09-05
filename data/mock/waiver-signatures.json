@@ -1,0 +1,167 @@
+[
+  {
+    "id": "ws-admin",
+    "userId": "u-admin",
+    "version": "2026.1",
+    "signedAt": "2026-01-05T10:00:00-07:00",
+    "fullNameTyped": "Avery Admin",
+    "ip": "203.0.113.92",
+    "userAgent": "Mozilla/5.0 (fixture)",
+    "createdAt": "2026-01-05T10:00:00-07:00",
+    "updatedAt": "2026-01-05T10:00:00-07:00"
+  },
+  {
+    "id": "ws-staff",
+    "userId": "u-staff",
+    "version": "2026.1",
+    "signedAt": "2026-01-05T10:05:00-07:00",
+    "fullNameTyped": "Sam Stafford",
+    "ip": "203.0.113.91",
+    "userAgent": "Mozilla/5.0 (fixture)",
+    "createdAt": "2026-01-05T10:05:00-07:00",
+    "updatedAt": "2026-01-05T10:05:00-07:00"
+  },
+  {
+    "id": "ws-maya",
+    "userId": "u-maya",
+    "version": "2026.1",
+    "signedAt": "2026-01-10T11:00:00-07:00",
+    "fullNameTyped": "Maya Chen",
+    "ip": "203.0.113.143",
+    "userAgent": "Mozilla/5.0 (fixture)",
+    "createdAt": "2026-01-10T11:00:00-07:00",
+    "updatedAt": "2026-01-10T11:00:00-07:00"
+  },
+  {
+    "id": "ws-jordan",
+    "userId": "u-jordan",
+    "version": "2026.1",
+    "signedAt": "2026-01-12T11:00:00-07:00",
+    "fullNameTyped": "Jordan Lee",
+    "ip": "203.0.113.135",
+    "userAgent": "Mozilla/5.0 (fixture)",
+    "createdAt": "2026-01-12T11:00:00-07:00",
+    "updatedAt": "2026-01-12T11:00:00-07:00"
+  },
+  {
+    "id": "ws-sam",
+    "userId": "u-sam",
+    "version": "2026.1",
+    "signedAt": "2026-01-15T11:00:00-07:00",
+    "fullNameTyped": "Sam Patel",
+    "ip": "203.0.113.196",
+    "userAgent": "Mozilla/5.0 (fixture)",
+    "createdAt": "2026-01-15T11:00:00-07:00",
+    "updatedAt": "2026-01-15T11:00:00-07:00"
+  },
+  {
+    "id": "ws-riley",
+    "userId": "u-riley",
+    "version": "2026.1",
+    "signedAt": "2026-08-20T10:30:00-07:00",
+    "fullNameTyped": "Riley Brooks",
+    "ip": "203.0.113.154",
+    "userAgent": "Mozilla/5.0 (fixture)",
+    "createdAt": "2026-08-20T10:30:00-07:00",
+    "updatedAt": "2026-08-20T10:30:00-07:00"
+  },
+  {
+    "id": "ws-nova",
+    "userId": "u-nova",
+    "version": "2026.1",
+    "signedAt": "2026-01-20T11:00:00-07:00",
+    "fullNameTyped": "Nova Park",
+    "ip": "203.0.113.95",
+    "userAgent": "Mozilla/5.0 (fixture)",
+    "createdAt": "2026-01-20T11:00:00-07:00",
+    "updatedAt": "2026-01-20T11:00:00-07:00"
+  },
+  {
+    "id": "ws-kai",
+    "userId": "u-kai",
+    "version": "2026.1",
+    "signedAt": "2026-01-22T11:00:00-07:00",
+    "fullNameTyped": "Kai Nakamura",
+    "ip": "203.0.113.88",
+    "userAgent": "Mozilla/5.0 (fixture)",
+    "createdAt": "2026-01-22T11:00:00-07:00",
+    "updatedAt": "2026-01-22T11:00:00-07:00"
+  },
+  {
+    "id": "ws-alex",
+    "userId": "u-alex",
+    "version": "2026.1",
+    "signedAt": "2026-01-08T11:00:00-07:00",
+    "fullNameTyped": "Alex Rivera",
+    "ip": "203.0.113.25",
+    "userAgent": "Mozilla/5.0 (fixture)",
+    "createdAt": "2026-01-08T11:00:00-07:00",
+    "updatedAt": "2026-01-08T11:00:00-07:00"
+  },
+  {
+    "id": "ws-casey",
+    "userId": "u-casey",
+    "version": "2026.1",
+    "signedAt": "2026-01-09T11:00:00-07:00",
+    "fullNameTyped": "Casey Nguyen",
+    "ip": "203.0.113.170",
+    "userAgent": "Mozilla/5.0 (fixture)",
+    "createdAt": "2026-01-09T11:00:00-07:00",
+    "updatedAt": "2026-01-09T11:00:00-07:00"
+  },
+  {
+    "id": "ws-taylor",
+    "userId": "u-taylor",
+    "version": "2026.1",
+    "signedAt": "2026-01-11T11:00:00-07:00",
+    "fullNameTyped": "Taylor Kim",
+    "ip": "203.0.113.14",
+    "userAgent": "Mozilla/5.0 (fixture)",
+    "createdAt": "2026-01-11T11:00:00-07:00",
+    "updatedAt": "2026-01-11T11:00:00-07:00"
+  },
+  {
+    "id": "ws-morgan",
+    "userId": "u-morgan",
+    "version": "2026.1",
+    "signedAt": "2026-07-03T11:00:00-07:00",
+    "fullNameTyped": "Morgan Ellis",
+    "ip": "203.0.113.71",
+    "userAgent": "Mozilla/5.0 (fixture)",
+    "createdAt": "2026-07-03T11:00:00-07:00",
+    "updatedAt": "2026-07-03T11:00:00-07:00"
+  },
+  {
+    "id": "ws-jamie-old",
+    "userId": "u-jamie",
+    "version": "2025.2",
+    "signedAt": "2025-02-01T11:00:00-07:00",
+    "fullNameTyped": "Jamie Ortiz",
+    "ip": "203.0.113.135",
+    "userAgent": "Mozilla/5.0 (fixture)",
+    "createdAt": "2025-02-01T11:00:00-07:00",
+    "updatedAt": "2025-02-01T11:00:00-07:00"
+  },
+  {
+    "id": "ws-drew",
+    "userId": "u-drew",
+    "version": "2026.1",
+    "signedAt": "2026-01-18T11:00:00-07:00",
+    "fullNameTyped": "Drew Santos",
+    "ip": "203.0.113.163",
+    "userAgent": "Mozilla/5.0 (fixture)",
+    "createdAt": "2026-01-18T11:00:00-07:00",
+    "updatedAt": "2026-01-18T11:00:00-07:00"
+  },
+  {
+    "id": "ws-quinn",
+    "userId": "u-quinn",
+    "version": "2026.1",
+    "signedAt": "2026-01-19T11:00:00-07:00",
+    "fullNameTyped": "Quinn Walsh",
+    "ip": "203.0.113.198",
+    "userAgent": "Mozilla/5.0 (fixture)",
+    "createdAt": "2026-01-19T11:00:00-07:00",
+    "updatedAt": "2026-01-19T11:00:00-07:00"
+  }
+]

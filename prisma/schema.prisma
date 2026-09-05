@@ -1,0 +1,534 @@
+// Prisma schema for The Box Portal.
+// SQLite in dev, Postgres in prod via DATABASE_URL — no engine-specific features.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ── Auth.js ──────────────────────────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ── Domain ───────────────────────────────────────────────────────────────────
+
+model User {
+  id                       String    @id @default(cuid())
+  email                    String    @unique
+  emailVerified            DateTime?
+  image                    String?
+  firstName                String    @default("")
+  lastName                 String    @default("")
+  displayName              String    @default("")
+  phone                    String?
+  role                     String    @default("member") // member | staff | admin
+  status                   String    @default("pending") // active | lapsed | suspended | pending
+  tier                     String?
+  billingInterval          String?
+  householdPrimaryUserId   String?
+  shopAccess               Boolean   @default(false)
+  dayPassCreditExpiresAt   DateTime?
+  scholarshipExpiresAt     DateTime?
+  emergencyContactName     String?
+  emergencyContactPhone    String?
+  emergencyContactRelation String?
+  profileComplete          Boolean   @default(false)
+  notes                    String?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  deletedAt                DateTime?
+
+  householdPrimary User?  @relation("Household", fields: [householdPrimaryUserId], references: [id])
+  householdMembers User[] @relation("Household")
+
+  accounts               Account[]
+  sessions               Session[]
+  badges                 Badge[]
+  waiverSignatures       WaiverSignature[]
+  policyAcknowledgements PolicyAcknowledgement[]
+  userCertifications     UserCertification[]
+  checkoffsGiven         UserCertification[]     @relation("CheckoffBy")
+  revocationsGiven       UserCertification[]     @relation("RevokedBy")
+  reservations           Reservation[]           @relation("ReservationUser")
+  reservationsCreated    Reservation[]           @relation("ReservationCreatedBy")
+  maintenanceCreated     MaintenanceBlock[]
+  usageSessions          UsageSession[]
+  accessLogs             AccessLog[]
+  classesInstructed      ClassSession[]
+  bookings               Booking[]
+  bookingsMarkedPaid     Booking[]               @relation("BookingPaidBy")
+  lessonProgress         LessonProgress[]
+  quizAttempts           QuizAttempt[]
+  volunteerInterests     VolunteerInterest[]
+  volunteerReviews       VolunteerInterest[]     @relation("VolunteerReviewedBy")
+  auditEventsAsActor     AuditEvent[]            @relation("AuditActor")
+  auditEventsAsSubject   AuditEvent[]            @relation("AuditSubject")
+}
+
+model Badge {
+  id        String    @id
+  uid       String    @unique
+  label     String?
+  userId    String?
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  user      User?     @relation(fields: [userId], references: [id])
+  usageSessions UsageSession[]
+}
+
+model WaiverSignature {
+  id            String    @id
+  userId        String
+  version       String
+  signedAt      DateTime
+  fullNameTyped String
+  ip            String
+  userAgent     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+  user          User      @relation(fields: [userId], references: [id])
+}
+
+model PolicyAcknowledgement {
+  id              String    @id
+  userId          String
+  policySlug      String
+  version         String
+  acknowledgedAt  DateTime
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+  user            User      @relation(fields: [userId], references: [id])
+}
+
+model Certification {
+  id                       String    @id
+  slug                     String    @unique
+  name                     String
+  description              String
+  knowledgeOnly            Boolean   @default(false)
+  requiresCertificationIds String // JSON array
+  expiryMonths             Int?
+  sortOrder                Int       @default(0)
+  active                   Boolean   @default(true)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  deletedAt                DateTime?
+  userCertifications       UserCertification[]
+  learningModules          LearningModule[]
+}
+
+model UserCertification {
+  id               String    @id
+  userId           String
+  certificationId  String
+  status           String
+  knowledgePassedAt DateTime?
+  checkedOffAt     DateTime?
+  checkedOffById   String?
+  expiresAt        DateTime?
+  revokedAt        DateTime?
+  revokedById      String?
+  revokeReason     String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+  user             User      @relation(fields: [userId], references: [id])
+  certification    Certification @relation(fields: [certificationId], references: [id])
+  checkedOffBy     User?     @relation("CheckoffBy", fields: [checkedOffById], references: [id])
+  revokedBy        User?     @relation("RevokedBy", fields: [revokedById], references: [id])
+
+  @@unique([userId, certificationId])
+}
+
+model Machine {
+  id                        String    @id
+  name                      String
+  area                      String
+  requiredCertificationIds  String // JSON array
+  readerKey                 String    @unique
+  active                    Boolean   @default(true)
+  reservationRecommended    Boolean   @default(false)
+  reservationRequired       Boolean   @default(false)
+  locationLabel             String    @default("")
+  gettingStartedVideoUrl    String?
+  sortOrder                 Int       @default(0)
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+  deletedAt                 DateTime?
+  reservations              Reservation[]
+  maintenanceBlocks         MaintenanceBlock[]
+  usageSessions             UsageSession[]
+  accessLogs                AccessLog[]
+}
+
+model Reservation {
+  id           String    @id
+  userId       String
+  machineId    String
+  startsAt     DateTime
+  endsAt       DateTime
+  status       String
+  createdById  String
+  cancelledAt  DateTime?
+  cancelReason String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  user         User      @relation("ReservationUser", fields: [userId], references: [id])
+  machine      Machine   @relation(fields: [machineId], references: [id])
+  createdBy    User      @relation("ReservationCreatedBy", fields: [createdById], references: [id])
+  usageSessions UsageSession[]
+}
+
+model MaintenanceBlock {
+  id          String    @id
+  machineId   String
+  startsAt    DateTime
+  endsAt      DateTime
+  reason      String
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  machine     Machine   @relation(fields: [machineId], references: [id])
+  createdBy   User      @relation(fields: [createdById], references: [id])
+}
+
+model UsageSession {
+  id            String    @id
+  userId        String
+  machineId     String
+  badgeId       String
+  startedAt     DateTime
+  endedAt       DateTime?
+  reservationId String?
+  endedBy       String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+  user          User      @relation(fields: [userId], references: [id])
+  machine       Machine   @relation(fields: [machineId], references: [id])
+  badge         Badge     @relation(fields: [badgeId], references: [id])
+  reservation   Reservation? @relation(fields: [reservationId], references: [id])
+}
+
+model AccessLog {
+  id                 String    @id
+  readerKey          String
+  machineId          String?
+  badgeUid           String
+  userId             String?
+  allow              Boolean
+  reason             String?
+  reservationNotice  String?
+  sessionId          String?
+  requestedAt        DateTime
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+  machine            Machine?  @relation(fields: [machineId], references: [id])
+  user               User?     @relation(fields: [userId], references: [id])
+}
+
+model ClassSession {
+  id                            String    @id
+  title                         String
+  slug                          String    @unique
+  descriptionSlug               String
+  category                      String
+  instructorId                  String
+  startsAt                      DateTime
+  endsAt                        DateTime
+  capacity                      Int
+  priceCents                    Int       @default(0)
+  zeffyUrl                      String?
+  prerequisiteCertificationIds  String // JSON array
+  location                      String
+  cancellationCutoffHours       Int?
+  published                     Boolean   @default(true)
+  createdAt                     DateTime  @default(now())
+  updatedAt                     DateTime  @updatedAt
+  deletedAt                     DateTime?
+  instructor                    User      @relation(fields: [instructorId], references: [id])
+  bookings                      Booking[]
+}
+
+model Booking {
+  id                    String    @id
+  classSessionId        String
+  userId                String
+  status                String
+  waitlistPosition      Int?
+  paidAt                DateTime?
+  paidMarkedById        String?
+  paymentHoldExpiresAt  DateTime?
+  cancelledAt           DateTime?
+  attendedAt            DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  deletedAt             DateTime?
+  classSession          ClassSession @relation(fields: [classSessionId], references: [id])
+  user                  User      @relation(fields: [userId], references: [id])
+  paidMarkedBy          User?     @relation("BookingPaidBy", fields: [paidMarkedById], references: [id])
+}
+
+model LearningModule {
+  id                    String    @id
+  slug                  String    @unique
+  title                 String
+  summary               String
+  certificationId       String
+  knowledgeOnly         Boolean   @default(false)
+  published             Boolean   @default(false)
+  passThresholdPercent  Int       @default(80)
+  attemptLimit          Int       @default(3)
+  sortOrder             Int       @default(0)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  deletedAt             DateTime?
+  certification         Certification @relation(fields: [certificationId], references: [id])
+  lessons               Lesson[]
+  questions             Question[]
+  quizAttempts          QuizAttempt[]
+}
+
+model Lesson {
+  id                String    @id
+  moduleId          String
+  slug              String
+  title             String
+  contentSlug       String
+  sortOrder         Int       @default(0)
+  estimatedMinutes  Int       @default(10)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+  module            LearningModule @relation(fields: [moduleId], references: [id])
+  progress          LessonProgress[]
+
+  @@unique([moduleId, slug])
+}
+
+model Question {
+  id           String    @id
+  moduleId     String
+  prompt       String
+  choices      String // JSON array
+  correctIndex Int
+  explanation  String?
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  module       LearningModule @relation(fields: [moduleId], references: [id])
+}
+
+model LessonProgress {
+  id          String    @id
+  userId      String
+  lessonId    String
+  completedAt DateTime
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  user        User      @relation(fields: [userId], references: [id])
+  lesson      Lesson    @relation(fields: [lessonId], references: [id])
+
+  @@unique([userId, lessonId])
+}
+
+model QuizAttempt {
+  id           String    @id
+  userId       String
+  moduleId     String
+  questionIds  String // JSON array
+  answers      String // JSON array
+  scorePercent Int
+  passed       Boolean
+  startedAt    DateTime
+  submittedAt  DateTime
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  user         User      @relation(fields: [userId], references: [id])
+  module       LearningModule @relation(fields: [moduleId], references: [id])
+}
+
+model ContentPage {
+  id           String    @id
+  notionId     String?
+  slug         String    @unique
+  title        String
+  html         String
+  markdownPath String?
+  category     String
+  version      String    @default("1")
+  syncedAt     DateTime?
+  published    Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+}
+
+model VolunteerRole {
+  id          String    @id
+  slug        String    @unique
+  title       String
+  contentSlug String
+  active      Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  interests   VolunteerInterest[]
+}
+
+model VolunteerInterest {
+  id           String    @id
+  name         String
+  email        String
+  phone        String?
+  roleId       String?
+  message      String
+  status       String    @default("new")
+  userId       String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  role         VolunteerRole? @relation(fields: [roleId], references: [id])
+  user         User?     @relation(fields: [userId], references: [id])
+  reviewedBy   User?     @relation("VolunteerReviewedBy", fields: [reviewedById], references: [id])
+}
+
+model MembershipProduct {
+  id               String    @id
+  tier             String
+  name             String
+  summary          String
+  priceCents       Int
+  billingInterval  String
+  annualPriceCents Int?
+  shopAccess       Boolean   @default(true)
+  phase            Int       @default(1)
+  visibleOnJoin    Boolean   @default(true)
+  joinable         Boolean   @default(true)
+  highlight        Boolean   @default(false)
+  sortOrder        Int       @default(0)
+  isAddOn          Boolean   @default(false)
+  cappedSeats      Int?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+}
+
+model OrgSettings {
+  id                              String   @id @default("default")
+  orgName                         String
+  paymentUrl                      String
+  donationUrl                     String
+  scholarshipDonationUrl          String
+  contactEmail                    String
+  hoursContentSlug                String
+  currentWaiverVersion            String
+  memberExpectationsPolicySlug    String
+  quizPassThresholdPercent        Int      @default(80)
+  quizAttemptLimit                Int      @default(3)
+  quizQuestionCount               Int      @default(10)
+  classCancellationCutoffHours    Int      @default(24)
+  paymentHoldHours                Int      @default(48)
+  reservationHorizonDays          Int      @default(14)
+  maxHoursPerDay                  Int      @default(3)
+  maxOpenReservations             Int      @default(3)
+  reservationSlotMinutes          Int      @default(30)
+  communitySeatCap                Int      @default(12)
+  makerMonthlyCents               Int      @default(4000)
+  patronScholarshipSurchargeCents Int      @default(2000)
+  scholarshipFundBalanceCents     Int      @default(0)
+  scholarshipSeatsAwarded         Int      @default(0)
+  showPhase3Tiers                 Boolean  @default(true)
+  updatedAt                       DateTime @updatedAt
+}
+
+model AuditEvent {
+  id            String    @id
+  action        String
+  actorId       String?
+  subjectUserId String?
+  entityType    String
+  entityId      String
+  metadata      String? // JSON
+  occurredAt    DateTime
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+  actor         User?     @relation("AuditActor", fields: [actorId], references: [id])
+  subjectUser   User?     @relation("AuditSubject", fields: [subjectUserId], references: [id])
+}
+
+model PromoSlide {
+  id        String    @id
+  title     String
+  body      String
+  imageUrl  String?
+  qrUrl     String?
+  startsAt  DateTime
+  endsAt    DateTime
+  active    Boolean   @default(true)
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
+
+model DisplayConfig {
+  id                         String   @id @default("default")
+  panelOrder                 String // JSON array of DisplayPanelId
+  cadenceSeconds             Int      @default(12)
+  pinnedPanel                String?
+  nameDisplayMode            String   @default("first")
+  membershipEveryNRotations  Int      @default(3)
+  updatedAt                  DateTime @updatedAt
+}

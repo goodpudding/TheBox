@@ -1,0 +1,30 @@
+[
+  {
+    "id": "mod-shop-orientation",
+    "slug": "shop-orientation",
+    "title": "Shop Orientation",
+    "summary": "Safety, culture, and access rules for The Box makerspace.",
+    "certificationId": "cert-shop-orientation",
+    "knowledgeOnly": true,
+    "published": true,
+    "passThresholdPercent": 80,
+    "attemptLimit": 3,
+    "sortOrder": 1,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "mod-3d-printing",
+    "slug": "3d-printing",
+    "title": "3D Printing Knowledge",
+    "summary": "FDM/resin workflows, materials, and shop printer etiquette.",
+    "certificationId": "cert-3d-printing",
+    "knowledgeOnly": false,
+    "published": true,
+    "passThresholdPercent": 80,
+    "attemptLimit": 3,
+    "sortOrder": 2,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  }
+]

@@ -1,0 +1,168 @@
+[
+  {
+    "id": "class-orient-0906",
+    "title": "Shop Orientation",
+    "slug": "shop-orientation-2026-09-06",
+    "descriptionSlug": "class-shop-orientation",
+    "category": "orientation",
+    "instructorId": "u-staff",
+    "startsAt": "2026-09-06T10:00:00-07:00",
+    "endsAt": "2026-09-06T11:30:00-07:00",
+    "capacity": 12,
+    "priceCents": 0,
+    "zeffyUrl": null,
+    "prerequisiteCertificationIds": [],
+    "location": "The Box — Main Floor",
+    "cancellationCutoffHours": 24,
+    "published": true,
+    "createdAt": "2026-08-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "class-3d-0907",
+    "title": "Intro to 3D Printing",
+    "slug": "3d-printing-intro-2026-09-07",
+    "descriptionSlug": "class-3d-printing-intro",
+    "category": "workshop",
+    "instructorId": "u-staff",
+    "startsAt": "2026-09-07T13:00:00-07:00",
+    "endsAt": "2026-09-07T15:00:00-07:00",
+    "capacity": 8,
+    "priceCents": 3500,
+    "zeffyUrl": "https://www.zeffy.com/en-US/donation-form/example-the-box",
+    "prerequisiteCertificationIds": [
+      "cert-shop-orientation"
+    ],
+    "location": "The Box — 3D Corner",
+    "cancellationCutoffHours": 24,
+    "published": true,
+    "createdAt": "2026-08-01T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "class-laser-0910",
+    "title": "Laser Cutter Basics",
+    "slug": "laser-basics-2026-09-10",
+    "descriptionSlug": "class-laser-basics",
+    "category": "certification_checkoff",
+    "instructorId": "u-admin",
+    "startsAt": "2026-09-10T17:00:00-07:00",
+    "endsAt": "2026-09-10T19:00:00-07:00",
+    "capacity": 4,
+    "priceCents": 4500,
+    "zeffyUrl": "https://www.zeffy.com/en-US/donation-form/example-the-box",
+    "prerequisiteCertificationIds": [
+      "cert-shop-orientation"
+    ],
+    "location": "The Box — Laser Bay",
+    "cancellationCutoffHours": 24,
+    "published": true,
+    "createdAt": "2026-08-05T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "class-wood-0913",
+    "title": "Woodshop Safety & Basics",
+    "slug": "woodshop-safety-2026-09-13",
+    "descriptionSlug": "class-woodshop-safety",
+    "category": "workshop",
+    "instructorId": "u-staff",
+    "startsAt": "2026-09-13T11:00:00-07:00",
+    "endsAt": "2026-09-13T13:30:00-07:00",
+    "capacity": 6,
+    "priceCents": 4000,
+    "zeffyUrl": "https://www.zeffy.com/en-US/donation-form/example-the-box",
+    "prerequisiteCertificationIds": [
+      "cert-shop-orientation"
+    ],
+    "location": "The Box — Woodshop",
+    "cancellationCutoffHours": 24,
+    "published": true,
+    "createdAt": "2026-08-05T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "class-sewing-0914",
+    "title": "Sewing Machine Basics",
+    "slug": "sewing-basics-2026-09-14",
+    "descriptionSlug": "class-sewing-basics",
+    "category": "workshop",
+    "instructorId": "u-staff",
+    "startsAt": "2026-09-14T14:00:00-07:00",
+    "endsAt": "2026-09-14T16:00:00-07:00",
+    "capacity": 6,
+    "priceCents": 2500,
+    "zeffyUrl": "https://www.zeffy.com/en-US/donation-form/example-the-box",
+    "prerequisiteCertificationIds": [
+      "cert-shop-orientation"
+    ],
+    "location": "The Box — Textiles",
+    "cancellationCutoffHours": 24,
+    "published": true,
+    "createdAt": "2026-08-10T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "class-open-0917",
+    "title": "Open Studio Night",
+    "slug": "open-studio-2026-09-17",
+    "descriptionSlug": "class-open-studio-night",
+    "category": "open_studio",
+    "instructorId": "u-staff",
+    "startsAt": "2026-09-17T17:00:00-07:00",
+    "endsAt": "2026-09-17T20:00:00-07:00",
+    "capacity": 20,
+    "priceCents": 0,
+    "zeffyUrl": null,
+    "prerequisiteCertificationIds": [
+      "cert-shop-orientation"
+    ],
+    "location": "The Box — All Areas",
+    "cancellationCutoffHours": 12,
+    "published": true,
+    "createdAt": "2026-08-10T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "class-emb-0920",
+    "title": "Embroidery Machine Intro",
+    "slug": "embroidery-intro-2026-09-20",
+    "descriptionSlug": "class-embroidery-intro",
+    "category": "workshop",
+    "instructorId": "u-staff",
+    "startsAt": "2026-09-20T11:00:00-07:00",
+    "endsAt": "2026-09-20T13:00:00-07:00",
+    "capacity": 4,
+    "priceCents": 3000,
+    "zeffyUrl": "https://www.zeffy.com/en-US/donation-form/example-the-box",
+    "prerequisiteCertificationIds": [
+      "cert-shop-orientation"
+    ],
+    "location": "The Box — Textiles",
+    "cancellationCutoffHours": 24,
+    "published": true,
+    "createdAt": "2026-08-12T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "class-sub-0924",
+    "title": "Sublimation Workshop",
+    "slug": "sublimation-workshop-2026-09-24",
+    "descriptionSlug": "class-sublimation-workshop",
+    "category": "workshop",
+    "instructorId": "u-admin",
+    "startsAt": "2026-09-24T15:00:00-07:00",
+    "endsAt": "2026-09-24T17:30:00-07:00",
+    "capacity": 6,
+    "priceCents": 5000,
+    "zeffyUrl": "https://www.zeffy.com/en-US/donation-form/example-the-box",
+    "prerequisiteCertificationIds": [
+      "cert-shop-orientation"
+    ],
+    "location": "The Box — Sublimation Station",
+    "cancellationCutoffHours": 24,
+    "published": true,
+    "createdAt": "2026-08-15T10:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  }
+]
