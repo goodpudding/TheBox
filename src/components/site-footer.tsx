@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { SocialLinks } from "@/components/project-highlights";
 
 export function SiteFooter() {
   return (
@@ -29,9 +30,13 @@ export function SiteFooter() {
           Membership, classes, and machine access live here — the rest of our
           public story lives on discoverburien.org.
         </p>
+        <SocialLinks tone="dark" className="mt-5 text-white/90" />
         <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 font-display text-sm">
           <Link href="/events" className="hover:text-primary transition-colors">
             Events
+          </Link>
+          <Link href="/made" className="hover:text-primary transition-colors">
+            Made here
           </Link>
           <Link href="/join" className="hover:text-primary transition-colors">
             Join

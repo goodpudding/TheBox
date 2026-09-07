@@ -106,6 +106,22 @@ export default function JoinPage() {
           </div>
         </section>
 
+        <section className="mb-14">
+          <p className="eyebrow">Made at The Box</p>
+          <h2 className="mt-2 font-display text-2xl font-semibold text-brown">
+            See what members are building
+          </h2>
+          <p className="mt-3 max-w-2xl text-secondary leading-relaxed">
+            Laser cuts, prints, textiles, and woodshop firsts — a living gallery
+            of work from the space.
+          </p>
+          <div className="mt-6">
+            <Button asChild variant="secondary">
+              <Link href="/made">Browse Made here</Link>
+            </Button>
+          </div>
+        </section>
+
         {fund ? (
           <p className="anim-rise-delay-2 max-w-2xl border-l-4 border-primary bg-primary/10 px-5 py-4 font-display text-base text-brown">
             Patrons are currently funding{" "}
