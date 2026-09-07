@@ -1,9 +1,6 @@
 import { test, expect } from "@playwright/test";
 
 async function switchUser(page: import("@playwright/test").Page, label: string) {
-  const select = page.locator("select").filter({ hasText: "Guest" }).or(
-    page.locator(".fixed.bottom-0 select"),
-  );
   await expect(page.getByText("Dev · Switch user")).toBeVisible();
   const toolbarSelect = page.locator("div.fixed.bottom-0 select");
   const options = toolbarSelect.locator("option");
@@ -14,6 +11,7 @@ async function switchUser(page: import("@playwright/test").Page, label: string) 
       const value = await options.nth(i).getAttribute("value");
       if (value != null) {
         await toolbarSelect.selectOption(value);
+        await expect(toolbarSelect).toHaveValue(value);
         return;
       }
     }
