@@ -40,7 +40,7 @@ test.describe("The Box Portal critical paths (mock)", () => {
     await page.getByLabel("First name").fill("Walk");
     await page.getByLabel("Last name").fill("In");
     await page.getByLabel("Email").fill(email);
-    await page.getByLabel("Phone").fill("206-555-1212");
+    await page.getByLabel("Phone", { exact: true }).fill("206-555-1212");
     await page.getByLabel("Emergency contact name").fill("Pat Contact");
     await page.getByLabel("Emergency contact phone").fill("206-555-3434");
     await page.getByLabel("Relationship").fill("Friend");
