@@ -28,7 +28,6 @@ export default function AdminMembersPage() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     void provider.adminListMembers(query).then((rows) => {
       if (!cancelled) {
         setMembers(rows);
