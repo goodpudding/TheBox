@@ -18,6 +18,7 @@ const baseUser: User = {
   status: "active",
   tier: "maker",
   shopAccess: true,
+  newsletterOptIn: false,
   profileComplete: true,
   createdAt: "2026-01-01T00:00:00-07:00",
   updatedAt: "2026-01-01T00:00:00-07:00",

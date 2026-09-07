@@ -31,6 +31,8 @@ import type {
   QuestionInput,
   QuizAttemptResult,
   QuizPayload,
+  RegisterWithWaiverInput,
+  RegisterWithWaiverResult,
   ReservationFilters,
   ReserveInput,
   RevokeInput,
@@ -395,6 +397,9 @@ export class MockDataProvider implements DataProvider {
     user.emergencyContactName = data.emergencyContactName;
     user.emergencyContactPhone = data.emergencyContactPhone;
     user.emergencyContactRelation = data.emergencyContactRelation;
+    if (data.newsletterOptIn !== undefined) {
+      user.newsletterOptIn = data.newsletterOptIn;
+    }
     user.profileComplete = Boolean(
       user.firstName &&
         user.lastName &&
@@ -457,13 +462,17 @@ export class MockDataProvider implements DataProvider {
       throw new Error("You must agree to the waiver to sign");
     }
     this.requireUser(input.userId);
+    const fullNameTyped = input.fullNameTyped.trim();
+    if (fullNameTyped.length < 3) {
+      throw new Error("Type your full legal name as your signature");
+    }
     const now = this.now();
     const sig: WaiverSignature = {
       id: this.id("ws"),
       userId: input.userId,
       version: this.state.settings.currentWaiverVersion,
       signedAt: now,
-      fullNameTyped: input.fullNameTyped,
+      fullNameTyped,
       ip: input.ip,
       userAgent: input.userAgent,
       createdAt: now,
@@ -479,6 +488,100 @@ export class MockDataProvider implements DataProvider {
       metadata: { version: sig.version },
     });
     return sig;
+  }
+
+  async registerWithWaiver(
+    input: RegisterWithWaiverInput,
+  ): Promise<RegisterWithWaiverResult> {
+    if (!input.agreed) {
+      throw new Error("You must agree to the waiver to register");
+    }
+
+    const firstName = input.firstName.trim();
+    const lastName = input.lastName.trim();
+    const email = input.email.trim().toLowerCase();
+    const phone = input.phone?.trim() ?? "";
+    const emergencyContactName = input.emergencyContactName?.trim() ?? "";
+    const emergencyContactPhone = input.emergencyContactPhone?.trim() ?? "";
+    const emergencyContactRelation =
+      input.emergencyContactRelation?.trim() ?? "";
+    const fullNameTyped = input.fullNameTyped.trim();
+
+    if (!firstName || !lastName || !email || !phone) {
+      throw new Error("Name, email, and phone are required");
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new Error("Enter a valid email address");
+    }
+    if (!emergencyContactName || !emergencyContactPhone) {
+      throw new Error("Emergency contact name and phone are required");
+    }
+    if (fullNameTyped.length < 3) {
+      throw new Error("Type your full legal name as your signature");
+    }
+
+    const now = this.now();
+    let created = false;
+    let user = this.state.users.find(
+      (u) => u.email.toLowerCase() === email,
+    );
+
+    if (!user) {
+      created = true;
+      user = {
+        id: this.id("u"),
+        email,
+        firstName,
+        lastName,
+        displayName: `${firstName} ${lastName}`.trim(),
+        phone,
+        role: "member",
+        status: "pending",
+        tier: null,
+        billingInterval: null,
+        shopAccess: false,
+        emergencyContactName,
+        emergencyContactPhone,
+        emergencyContactRelation,
+        newsletterOptIn: Boolean(input.newsletterOptIn),
+        profileComplete: true,
+        createdAt: now,
+        updatedAt: now,
+      };
+      this.state.users.push(user);
+      this.pushAudit({
+        action: "member_registered",
+        actorId: user.id,
+        subjectUserId: user.id,
+        entityType: "User",
+        entityId: user.id,
+        metadata: {
+          source: "qr_registration",
+          newsletterOptIn: user.newsletterOptIn,
+        },
+      });
+    } else {
+      user.firstName = firstName;
+      user.lastName = lastName;
+      user.displayName = `${firstName} ${lastName}`.trim();
+      user.phone = phone;
+      user.emergencyContactName = emergencyContactName;
+      user.emergencyContactPhone = emergencyContactPhone;
+      user.emergencyContactRelation = emergencyContactRelation;
+      user.newsletterOptIn = Boolean(input.newsletterOptIn);
+      user.profileComplete = true;
+      this.touch(user);
+    }
+
+    const waiverSignature = await this.signWaiver({
+      userId: user.id,
+      fullNameTyped,
+      agreed: true,
+      ip: input.ip,
+      userAgent: input.userAgent,
+    });
+
+    return { user, waiverSignature, created };
   }
 
   async listWaiverHistory(userId: string): Promise<WaiverSignature[]> {

@@ -180,6 +180,7 @@ export default function AdminMemberDetailPage() {
         emergencyContactRelation: String(
           form.get("emergencyContactRelation") ?? "",
         ),
+        newsletterOptIn: form.get("newsletterOptIn") === "on",
       });
       setMember(updated);
       bump();
@@ -313,6 +314,9 @@ export default function AdminMemberDetailPage() {
         <StatusPill tone={member.shopAccess ? "ok" : "muted"}>
           {member.shopAccess ? "Shop access" : "No shop access"}
         </StatusPill>
+        <StatusPill tone={member.newsletterOptIn ? "ok" : "muted"}>
+          {member.newsletterOptIn ? "Newsletter" : "No newsletter"}
+        </StatusPill>
       </div>
 
       {error ? (
@@ -385,6 +389,16 @@ export default function AdminMemberDetailPage() {
               key={`ph-${member.id}-${revision}`}
             />
           </div>
+          <label className="flex items-start gap-3 text-sm text-charcoal">
+            <input
+              type="checkbox"
+              name="newsletterOptIn"
+              className="mt-1 h-4 w-4 rounded border-border accent-[var(--color-button)]"
+              defaultChecked={member.newsletterOptIn}
+              key={`newsletter-${member.id}-${revision}`}
+            />
+            <span>Send this member The Box newsletter.</span>
+          </label>
           <p className="eyebrow pt-2">Emergency contact</p>
           <div className="space-y-2">
             <Label htmlFor="emergencyContactName">Name</Label>
