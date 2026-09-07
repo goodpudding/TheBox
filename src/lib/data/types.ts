@@ -79,6 +79,7 @@ export type AccessDenyReason =
   | "reservation_required";
 
 export type AuditAction =
+  | "member_registered"
   | "waiver_signed"
   | "policy_acknowledged"
   | "cert_knowledge_passed"
@@ -130,6 +131,7 @@ export interface User extends Timestamps {
   emergencyContactName?: string;
   emergencyContactPhone?: string;
   emergencyContactRelation?: string;
+  newsletterOptIn: boolean;
   profileComplete: boolean;
   /** Fixture annotation only; ignored by runtime */
   _notes?: string;

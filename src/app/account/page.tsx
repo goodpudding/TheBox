@@ -57,6 +57,7 @@ function AccountBody() {
         emergencyContactRelation: String(
           form.get("emergencyContactRelation") ?? "",
         ),
+        newsletterOptIn: form.get("newsletterOptIn") === "on",
       });
       await refreshUser();
       bump();
@@ -90,6 +91,9 @@ function AccountBody() {
         </StatusPill>
         <StatusPill tone={currentUser.shopAccess ? "ok" : "muted"}>
           {currentUser.shopAccess ? "Shop access" : "No shop access"}
+        </StatusPill>
+        <StatusPill tone={currentUser.newsletterOptIn ? "ok" : "muted"}>
+          {currentUser.newsletterOptIn ? "Newsletter" : "No newsletter"}
         </StatusPill>
       </div>
 
@@ -144,6 +148,19 @@ function AccountBody() {
             key={`ph-${currentUser.id}-${revision}`}
           />
         </div>
+        <label className="flex items-start gap-3 text-sm text-charcoal">
+          <input
+            type="checkbox"
+            name="newsletterOptIn"
+            className="mt-1 h-4 w-4 rounded border-border accent-[var(--color-button)]"
+            defaultChecked={currentUser.newsletterOptIn}
+            key={`newsletter-${currentUser.id}-${revision}`}
+          />
+          <span>
+            Send me The Box newsletter with open hours, classes, and member
+            updates.
+          </span>
+        </label>
         <p className="eyebrow pt-4">Emergency contact</p>
         <div className="space-y-2">
           <Label htmlFor="emergencyContactName">Name</Label>

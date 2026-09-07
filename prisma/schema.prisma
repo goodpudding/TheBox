@@ -68,6 +68,7 @@ model User {
   emergencyContactName     String?
   emergencyContactPhone    String?
   emergencyContactRelation String?
+  newsletterOptIn          Boolean   @default(false)
   profileComplete          Boolean   @default(false)
   notes                    String?
   createdAt                DateTime  @default(now())

@@ -52,6 +52,7 @@ export interface ProfileInput {
   emergencyContactName?: string;
   emergencyContactPhone?: string;
   emergencyContactRelation?: string;
+  newsletterOptIn?: boolean;
 }
 
 export interface SignWaiverInput {
@@ -60,6 +61,20 @@ export interface SignWaiverInput {
   agreed: boolean;
   ip: string;
   userAgent?: string;
+}
+
+export interface RegisterWithWaiverInput extends ProfileInput {
+  email: string;
+  fullNameTyped: string;
+  agreed: boolean;
+  ip: string;
+  userAgent?: string;
+}
+
+export interface RegisterWithWaiverResult {
+  user: User;
+  waiverSignature: WaiverSignature;
+  created: boolean;
 }
 
 export interface AckPolicyInput {
@@ -381,6 +396,9 @@ export interface DataProvider {
   updateMemberProfile(id: string, data: ProfileInput): Promise<User>;
   getWaiver(version?: string): Promise<ContentPage>;
   signWaiver(input: SignWaiverInput): Promise<WaiverSignature>;
+  registerWithWaiver(
+    input: RegisterWithWaiverInput,
+  ): Promise<RegisterWithWaiverResult>;
   listWaiverHistory(userId: string): Promise<WaiverSignature[]>;
   acknowledgePolicy(input: AckPolicyInput): Promise<PolicyAcknowledgement>;
   listBadges(userId: string): Promise<Badge[]>;

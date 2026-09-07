@@ -178,7 +178,10 @@ function withDisplayLiveOverlays(
 /** Load the static mock fixture bundle (module-level imports; do not mutate). */
 export function loadFixtures(): MockFixtureBundle {
   const base: MockFixtureBundle = {
-    users: users as MockFixtureBundle["users"],
+    users: (users as Array<Record<string, unknown>>).map((u) => ({
+      ...u,
+      newsletterOptIn: Boolean(u.newsletterOptIn),
+    })) as MockFixtureBundle["users"],
     badges: badges as MockFixtureBundle["badges"],
     certifications: certifications as MockFixtureBundle["certifications"],
     userCertifications:

@@ -28,7 +28,6 @@ export default function AdminMembersPage() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     void provider.adminListMembers(query).then((rows) => {
       if (!cancelled) {
         setMembers(rows);
@@ -62,14 +61,15 @@ export default function AdminMembersPage() {
         ) : members.length === 0 ? (
           <p className="text-secondary">No members match that search.</p>
         ) : (
-          <table className="w-full min-w-[40rem] text-left text-sm">
+          <table className="w-full min-w-[46rem] text-left text-sm">
             <thead>
               <tr className="border-b border-border font-display text-xs uppercase tracking-wider text-secondary">
                 <th className="py-3 pr-4 font-semibold">Name</th>
                 <th className="py-3 pr-4 font-semibold">Email</th>
                 <th className="py-3 pr-4 font-semibold">Role</th>
                 <th className="py-3 pr-4 font-semibold">Status</th>
-                <th className="py-3 font-semibold">Tier</th>
+                <th className="py-3 pr-4 font-semibold">Tier</th>
+                <th className="py-3 font-semibold">Newsletter</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -88,7 +88,10 @@ export default function AdminMembersPage() {
                   <td className="py-3 pr-4">
                     <StatusPill tone={statusTone(m.status)}>{m.status}</StatusPill>
                   </td>
-                  <td className="py-3 text-charcoal">{formatTier(m.tier)}</td>
+                  <td className="py-3 pr-4 text-charcoal">{formatTier(m.tier)}</td>
+                  <td className="py-3 text-charcoal">
+                    {m.newsletterOptIn ? "Opted in" : "No"}
+                  </td>
                 </tr>
               ))}
             </tbody>

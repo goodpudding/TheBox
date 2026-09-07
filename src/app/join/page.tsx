@@ -76,6 +76,9 @@ export default function JoinPage() {
               </a>
             </Button>
             <Button asChild variant="secondary" size="lg">
+              <Link href="/register">Register + waiver</Link>
+            </Button>
+            <Button asChild variant="secondary" size="lg">
               <a
                 href="https://discoverburien.org"
                 target="_blank"
@@ -198,6 +201,13 @@ export default function JoinPage() {
               Payments stay on our external checkout (Zeffy). This portal manages
               account, waiver, certifications, and shop access after staff
               activate you.
+            </li>
+            <li>
+              Visiting in person? Scan the front-desk QR code or use{" "}
+              <Link href="/register" className="text-primary-text underline">
+                Register + waiver
+              </Link>{" "}
+              to create your account record before checkout or activation.
             </li>
             <li>
               Class tickets include a day pass good for 30 days; join in that

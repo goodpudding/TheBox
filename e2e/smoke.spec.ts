@@ -1,9 +1,6 @@
 import { test, expect } from "@playwright/test";
 
 async function switchUser(page: import("@playwright/test").Page, label: string) {
-  const select = page.locator("select").filter({ hasText: "Guest" }).or(
-    page.locator(".fixed.bottom-0 select"),
-  );
   await expect(page.getByText("Dev · Switch user")).toBeVisible();
   const toolbarSelect = page.locator("div.fixed.bottom-0 select");
   const options = toolbarSelect.locator("option");
@@ -14,6 +11,7 @@ async function switchUser(page: import("@playwright/test").Page, label: string) 
       const value = await options.nth(i).getAttribute("value");
       if (value != null) {
         await toolbarSelect.selectOption(value);
+        await expect(toolbarSelect).toHaveValue(value);
         return;
       }
     }
@@ -22,6 +20,46 @@ async function switchUser(page: import("@playwright/test").Page, label: string) 
 }
 
 test.describe("The Box Portal critical paths (mock)", () => {
+  test("walk-in registration creates a pending member with waiver and newsletter opt-in", async ({
+    page,
+  }) => {
+    const email = `walkin-${Date.now()}@example.com`;
+
+    await page.goto("/register");
+    await expect(
+      page.getByRole("heading", { name: /Register and sign the waiver/i }),
+    ).toBeVisible();
+    const waiverBox = page.getByTestId("registration-waiver");
+    await waiverBox.evaluate((el) => {
+      el.scrollTop = el.scrollHeight;
+      el.dispatchEvent(new Event("scroll"));
+    });
+
+    await page.getByLabel("First name").fill("Walk");
+    await page.getByLabel("Last name").fill("In");
+    await page.getByLabel("Email").fill(email);
+    await page.getByLabel("Phone", { exact: true }).fill("206-555-1212");
+    await page.getByLabel("Emergency contact name").fill("Pat Contact");
+    await page.getByLabel("Emergency contact phone").fill("206-555-3434");
+    await page.getByLabel("Relationship").fill("Friend");
+    await page.getByLabel("Type your full legal name").fill("Walk In");
+    await page.getByLabel(/I have read this waiver/).check();
+    await page.getByLabel(/Send me The Box newsletter/).check();
+    await page
+      .getByRole("button", { name: "Create account & sign waiver" })
+      .click();
+
+    await expect(page.getByText("Account created.")).toBeVisible();
+    await expect(page.getByText("Newsletter preference: yes")).toBeVisible();
+
+    await switchUser(page, "Sam Stafford");
+    await page.getByRole("link", { name: "Admin" }).click();
+    await expect(page).toHaveURL(/\/admin\/members/);
+    await page.getByLabel("Search").fill(email);
+    await expect(page.getByRole("cell", { name: email })).toBeVisible();
+    await expect(page.getByRole("cell", { name: "Opted in" })).toBeVisible();
+  });
+
   test("onboarding: Avery completes profile → waiver → expectations", async ({
     page,
   }) => {

@@ -151,6 +151,7 @@ function mapUser(row: {
   emergencyContactName: string | null;
   emergencyContactPhone: string | null;
   emergencyContactRelation: string | null;
+  newsletterOptIn: boolean;
   profileComplete: boolean;
   notes: string | null;
   createdAt: Date;
@@ -167,6 +168,7 @@ function mapUser(row: {
     status: row.status as MembershipStatus,
     tier: (row.tier as MembershipTier | null) ?? null,
     shopAccess: row.shopAccess,
+    newsletterOptIn: row.newsletterOptIn,
     profileComplete: row.profileComplete,
     createdAt: toIsoRequired(row.createdAt),
     updatedAt: toIsoRequired(row.updatedAt),
@@ -683,6 +685,7 @@ export async function persistBundleToPrisma(
         emergencyContactName: u.emergencyContactName ?? null,
         emergencyContactPhone: u.emergencyContactPhone ?? null,
         emergencyContactRelation: u.emergencyContactRelation ?? null,
+        newsletterOptIn: u.newsletterOptIn,
         profileComplete: u.profileComplete,
         notes: u._notes ?? null,
         createdAt: asDate(u.createdAt) ?? new Date(),
