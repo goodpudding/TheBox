@@ -53,7 +53,8 @@ test.describe("The Box Portal critical paths (mock)", () => {
     await expect(page.getByText("Newsletter preference: yes")).toBeVisible();
 
     await switchUser(page, "Sam Stafford");
-    await page.goto("/admin/members");
+    await page.getByRole("link", { name: "Admin" }).click();
+    await expect(page).toHaveURL(/\/admin\/members/);
     await page.getByLabel("Search").fill(email);
     await expect(page.getByRole("cell", { name: email })).toBeVisible();
     await expect(page.getByRole("cell", { name: "Opted in" })).toBeVisible();
