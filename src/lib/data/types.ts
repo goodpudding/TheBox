@@ -54,7 +54,20 @@ export type MachineArea =
   | "laser"
   | "woodshop"
   | "textiles_vinyl"
-  | "sublimation";
+  | "sublimation"
+  | "cnc_plasma"
+  | "hand_tools";
+
+export type VideoProvider = "youtube";
+export type VideoRole = "primary" | "supporting" | "conditional";
+export type EquipmentStatus = "confirmed" | "unconfirmed";
+export type QuestionSource = "video" | "shop-policy";
+
+export type PublishBlocker =
+  | "answerPending"
+  | "primaryVideoUnreviewed"
+  | "equipmentUnconfirmed"
+  | "gapLesson";
 
 export type VolunteerInterestStatus =
   | "new"
@@ -89,6 +102,8 @@ export type AuditAction =
   | "badge_linked"
   | "badge_unlinked"
   | "booking_marked_paid"
+  | "booking_paid_zeffy"
+  | "booking_created_zeffy"
   | "reservation_overridden"
   | "maintenance_created"
   | "tool_champion_requested"
@@ -102,6 +117,15 @@ export type ToolChampionStatus =
   | "completed"
   | "withdrawn"
   | "declined";
+
+/** Demand board before a ClassSession exists. */
+export type ClassInterestStatus =
+  | "pending"
+  | "open"
+  | "ready"
+  | "expired"
+  | "scheduled"
+  | "cancelled";
 
 export interface Timestamps {
   createdAt: ISODateTime;
@@ -124,6 +148,11 @@ export interface User extends Timestamps {
   householdPrimaryUserId?: string | null;
   /** Friend (and similar) have no machine access even when status is active. */
   shopAccess: boolean;
+  /**
+   * Orthogonal to role/status — shop instructors can publish interest boards
+   * even without an active membership.
+   */
+  isTeacher: boolean;
   /** Day-pass credit toward first month if joining within this window. */
   dayPassCreditExpiresAt?: ISODateTime | null;
   scholarshipExpiresAt?: ISODateTime | null;
@@ -219,10 +248,21 @@ export interface Machine extends Timestamps {
   reservationRecommended: boolean;
   /** Hard gate — badge start denied without an overlapping booked reservation. */
   reservationRequired: boolean;
+  /**
+   * Heat/blade machines must be watched every second they run.
+   * Printers may run unattended. Drives /reserve + lobby badges and
+   * blocks attended machines from booking past closing.
+   */
+  attendedOperationRequired: boolean;
   /** Physical place in the shop, e.g. "Woodshop · Bay A". */
   locationLabel: string;
   /** External getting-started video (YouTube/Vimeo/etc.), if any. */
   gettingStartedVideoUrl: string | null;
+  /**
+   * Max length of a single reservation in hours (e.g. 5 for FDM printers).
+   * Falls back to OrgSettings.maxHoursPerDay when null.
+   */
+  maxReservationHours: number | null;
   sortOrder: number;
 }
 
@@ -297,6 +337,8 @@ export interface ClassSession extends Timestamps {
   capacity: number;
   priceCents: number;
   zeffyUrl?: string | null;
+  /** Zeffy campaign UUID — links calendar Register + payment webhooks. */
+  zeffyCampaignId?: string | null;
   prerequisiteCertificationIds: string[];
   location: string;
   cancellationCutoffHours: number | null;
@@ -311,9 +353,44 @@ export interface Booking extends Timestamps {
   waitlistPosition?: number | null;
   paidAt?: ISODateTime | null;
   paidMarkedById?: string | null;
+  /** Zeffy payment id — idempotency key for webhook/sync. */
+  zeffyPaymentId?: string | null;
   paymentHoldExpiresAt?: ISODateTime | null;
   cancelledAt?: ISODateTime | null;
   attendedAt?: ISODateTime | null;
+}
+
+/** Community demand board — becomes a ClassSession after staff schedules. */
+export interface ClassInterestBoard extends Timestamps {
+  id: string;
+  title: string;
+  summary: string;
+  category: ClassCategory;
+  status: ClassInterestStatus;
+  threshold: number;
+  /** Null for guest / email-form suggestions. */
+  proposedByUserId?: string | null;
+  contactName: string;
+  contactEmail: string;
+  /** Teacher who may instruct once scheduled. */
+  instructorHintUserId?: string | null;
+  opensAt?: ISODateTime | null;
+  closesAt?: ISODateTime | null;
+  scheduledClassSessionId?: string | null;
+  /** After schedule: only interest list may book until this time. */
+  priorityBookingEndsAt?: ISODateTime | null;
+  resuggestedFromId?: string | null;
+  reviewedById?: string | null;
+  reviewedAt?: ISODateTime | null;
+  staffNotes?: string | null;
+}
+
+export interface ClassInterestSignup extends Timestamps {
+  id: string;
+  boardId: string;
+  userId?: string | null;
+  email: string;
+  displayName: string;
 }
 
 export interface LearningModule extends Timestamps {
@@ -324,6 +401,8 @@ export interface LearningModule extends Timestamps {
   certificationId: string;
   knowledgeOnly: boolean;
   published: boolean;
+  /** Confirmed shop equipment vs placeholder certs (embroidery/sublimation). */
+  equipmentStatus: EquipmentStatus;
   passThresholdPercent: number;
   attemptLimit: number;
   sortOrder: number;
@@ -337,6 +416,25 @@ export interface Lesson extends Timestamps {
   contentSlug: string;
   sortOrder: number;
   estimatedMinutes: number;
+  /** Empty placeholder lesson — blocks publish until staff write content. */
+  gap?: boolean;
+}
+
+export interface LessonVideo extends Timestamps {
+  id: string;
+  lessonId: string;
+  order: number;
+  provider: VideoProvider;
+  youtubeId: string;
+  url: string;
+  title: string;
+  channel: string;
+  role: VideoRole;
+  condition?: string | null;
+  durationSeconds?: number | null;
+  verifiedAt?: ISODateTime | null;
+  staffReviewed: boolean;
+  notes?: string | null;
 }
 
 export interface Question extends Timestamps {
@@ -345,8 +443,15 @@ export interface Question extends Timestamps {
   prompt: string;
   choices: string[];
   correctIndex: number;
+  /** Multi-select correct indexes when type is multi; otherwise [correctIndex]. */
+  correctIndexes?: number[];
   explanation?: string;
   active: boolean;
+  safetyCritical: boolean;
+  source: QuestionSource;
+  sourceVideoId?: string | null;
+  verifyAgainstVideo: boolean;
+  answerPending: boolean;
 }
 
 export interface LessonProgress extends Timestamps {
@@ -356,14 +461,24 @@ export interface LessonProgress extends Timestamps {
   completedAt: ISODateTime;
 }
 
+/** Honor-system watch mark — unlocks quiz when all primary videos are watched. */
+export interface VideoWatch extends Timestamps {
+  id: string;
+  userId: string;
+  videoId: string;
+  watchedAt: ISODateTime;
+}
+
 export interface QuizAttempt extends Timestamps {
   id: string;
   userId: string;
   moduleId: string;
   questionIds: string[];
-  answers: (number | null)[];
+  answers: (number | number[] | null)[];
   scorePercent: number;
   passed: boolean;
+  thresholdMet?: boolean;
+  safetyCriticalMissedIds?: string[];
   startedAt: ISODateTime;
   submittedAt: ISODateTime;
 }
@@ -380,7 +495,10 @@ export type ContentCategory =
 
 export interface ContentPage extends Timestamps {
   id: string;
+  /** Legacy Notion page id (Notion CMS is deprecated; kept for fixture compatibility). */
   notionId?: string | null;
+  /** Google Drive file id when the page is synced from the Drive CMS. */
+  googleFileId?: string | null;
   slug: string;
   title: string;
   html: string;
@@ -427,6 +545,8 @@ export interface OrgSettings {
   quizPassThresholdPercent: number;
   quizAttemptLimit: number;
   quizQuestionCount: number;
+  /** When true, pass requires every safetyCritical question correct. */
+  requireSafetyCriticalAll: boolean;
   classCancellationCutoffHours: number;
   paymentHoldHours: number;
   reservationHorizonDays: number;
@@ -521,10 +641,14 @@ export interface MockFixtureBundle {
   accessLogs: AccessLog[];
   classSessions: ClassSession[];
   bookings: Booking[];
+  classInterestBoards: ClassInterestBoard[];
+  classInterestSignups: ClassInterestSignup[];
   learningModules: LearningModule[];
   lessons: Lesson[];
+  lessonVideos: LessonVideo[];
   questions: Question[];
   lessonProgress: LessonProgress[];
+  videoWatches: VideoWatch[];
   quizAttempts: QuizAttempt[];
   volunteerRoles: VolunteerRole[];
   volunteerInterests: VolunteerInterest[];

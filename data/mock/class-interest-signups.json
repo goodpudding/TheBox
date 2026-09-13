@@ -1,0 +1,110 @@
+[
+  {
+    "id": "cis-laser-1",
+    "boardId": "interest-laser-multilayer",
+    "userId": "u-maya",
+    "email": "maya.chen@example.com",
+    "displayName": "Maya Chen",
+    "createdAt": "2026-08-21T09:00:00-07:00",
+    "updatedAt": "2026-08-21T09:00:00-07:00"
+  },
+  {
+    "id": "cis-laser-2",
+    "boardId": "interest-laser-multilayer",
+    "userId": "u-jordan",
+    "email": "jordan.lee@example.com",
+    "displayName": "Jordan Lee",
+    "createdAt": "2026-08-22T12:00:00-07:00",
+    "updatedAt": "2026-08-22T12:00:00-07:00"
+  },
+  {
+    "id": "cis-laser-3",
+    "boardId": "interest-laser-multilayer",
+    "userId": "u-sam",
+    "email": "sam.patel@example.com",
+    "displayName": "Sam Patel",
+    "createdAt": "2026-08-25T18:00:00-07:00",
+    "updatedAt": "2026-08-25T18:00:00-07:00"
+  },
+  {
+    "id": "cis-laser-4",
+    "boardId": "interest-laser-multilayer",
+    "userId": null,
+    "email": "guest.maker@example.com",
+    "displayName": "Guest Maker",
+    "createdAt": "2026-08-28T10:00:00-07:00",
+    "updatedAt": "2026-08-28T10:00:00-07:00"
+  },
+  {
+    "id": "cis-emb-1",
+    "boardId": "interest-embroidery-intro",
+    "userId": "u-maya",
+    "email": "maya.chen@example.com",
+    "displayName": "Maya Chen",
+    "createdAt": "2026-08-05T11:00:00-07:00",
+    "updatedAt": "2026-08-05T11:00:00-07:00"
+  },
+  {
+    "id": "cis-emb-2",
+    "boardId": "interest-embroidery-intro",
+    "userId": "u-jordan",
+    "email": "jordan.lee@example.com",
+    "displayName": "Jordan Lee",
+    "createdAt": "2026-08-06T11:00:00-07:00",
+    "updatedAt": "2026-08-06T11:00:00-07:00"
+  },
+  {
+    "id": "cis-emb-3",
+    "boardId": "interest-embroidery-intro",
+    "userId": "u-sam",
+    "email": "sam.patel@example.com",
+    "displayName": "Sam Patel",
+    "createdAt": "2026-08-07T11:00:00-07:00",
+    "updatedAt": "2026-08-07T11:00:00-07:00"
+  },
+  {
+    "id": "cis-emb-4",
+    "boardId": "interest-embroidery-intro",
+    "userId": "u-quinn",
+    "email": "quinn.walsh@example.com",
+    "displayName": "Quinn Walsh",
+    "createdAt": "2026-08-08T11:00:00-07:00",
+    "updatedAt": "2026-08-08T11:00:00-07:00"
+  },
+  {
+    "id": "cis-emb-5",
+    "boardId": "interest-embroidery-intro",
+    "userId": null,
+    "email": "pat.sewing@example.com",
+    "displayName": "Pat Sewing",
+    "createdAt": "2026-08-09T11:00:00-07:00",
+    "updatedAt": "2026-08-09T11:00:00-07:00"
+  },
+  {
+    "id": "cis-emb-6",
+    "boardId": "interest-embroidery-intro",
+    "userId": null,
+    "email": "lee.thread@example.com",
+    "displayName": "Lee Thread",
+    "createdAt": "2026-08-10T11:00:00-07:00",
+    "updatedAt": "2026-08-10T11:00:00-07:00"
+  },
+  {
+    "id": "cis-cnc-1",
+    "boardId": "interest-cnc-expired",
+    "userId": "u-jordan",
+    "email": "jordan.lee@example.com",
+    "displayName": "Jordan Lee",
+    "createdAt": "2026-06-05T10:00:00-07:00",
+    "updatedAt": "2026-06-05T10:00:00-07:00"
+  },
+  {
+    "id": "cis-cnc-2",
+    "boardId": "interest-cnc-expired",
+    "userId": "u-maya",
+    "email": "maya.chen@example.com",
+    "displayName": "Maya Chen",
+    "createdAt": "2026-06-10T10:00:00-07:00",
+    "updatedAt": "2026-06-10T10:00:00-07:00"
+  }
+]

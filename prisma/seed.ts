@@ -7,6 +7,8 @@ import { readFileSync } from "fs";
 import { join } from "path";
 
 const prisma = new PrismaClient();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const prismaLoose = prisma as any;
 const mockDir = join(process.cwd(), "data", "mock");
 
 function readJson<T>(name: string): T {
@@ -43,6 +45,7 @@ async function main() {
         tier: (u.tier as string) ?? null,
         billingInterval: (u.billingInterval as string) ?? null,
         shopAccess: Boolean(u.shopAccess ?? true),
+        isTeacher: Boolean(u.isTeacher ?? false),
         dayPassCreditExpiresAt: asDate(u.dayPassCreditExpiresAt as string),
         scholarshipExpiresAt: asDate(u.scholarshipExpiresAt as string),
         emergencyContactName: (u.emergencyContactName as string) ?? null,
@@ -52,7 +55,7 @@ async function main() {
         notes: (u._notes as string) ?? null,
         createdAt: asDate(u.createdAt as string) ?? new Date(),
         updatedAt: asDate(u.updatedAt as string) ?? new Date(),
-      },
+      } as never,
       update: {
         email: String(u.email),
         firstName: String(u.firstName),
@@ -64,9 +67,10 @@ async function main() {
         tier: (u.tier as string) ?? null,
         billingInterval: (u.billingInterval as string) ?? null,
         shopAccess: Boolean(u.shopAccess ?? true),
+        isTeacher: Boolean(u.isTeacher ?? false),
         profileComplete: Boolean(u.profileComplete),
         notes: (u._notes as string) ?? null,
-      },
+      } as never,
     });
   }
   // Second pass: household links
@@ -143,15 +147,20 @@ async function main() {
         active: Boolean(m.active ?? true),
         reservationRecommended: Boolean(m.reservationRecommended),
         reservationRequired: Boolean(m.reservationRequired),
+        attendedOperationRequired: Boolean(m.attendedOperationRequired),
         locationLabel: String(m.locationLabel ?? ""),
         gettingStartedVideoUrl:
           m.gettingStartedVideoUrl == null
             ? null
             : String(m.gettingStartedVideoUrl),
+        maxReservationHours:
+          m.maxReservationHours == null
+            ? null
+            : Number(m.maxReservationHours),
         sortOrder: Number(m.sortOrder ?? 0),
         createdAt: asDate(m.createdAt as string) ?? new Date(),
         updatedAt: asDate(m.updatedAt as string) ?? new Date(),
-      },
+      } as never,
       update: {
         name: String(m.name),
         area: String(m.area),
@@ -160,13 +169,18 @@ async function main() {
         active: Boolean(m.active ?? true),
         reservationRecommended: Boolean(m.reservationRecommended),
         reservationRequired: Boolean(m.reservationRequired),
+        attendedOperationRequired: Boolean(m.attendedOperationRequired),
         locationLabel: String(m.locationLabel ?? ""),
         gettingStartedVideoUrl:
           m.gettingStartedVideoUrl == null
             ? null
             : String(m.gettingStartedVideoUrl),
+        maxReservationHours:
+          m.maxReservationHours == null
+            ? null
+            : Number(m.maxReservationHours),
         sortOrder: Number(m.sortOrder ?? 0),
-      },
+      } as never,
     });
   }
 
@@ -209,6 +223,7 @@ async function main() {
       create: {
         id: String(p.id),
         notionId: (p.notionId as string) ?? null,
+        googleFileId: (p.googleFileId as string) ?? null,
         slug: String(p.slug),
         title: String(p.title),
         html: String(p.html ?? ""),
@@ -247,6 +262,9 @@ async function main() {
       quizPassThresholdPercent: Number(settings.quizPassThresholdPercent),
       quizAttemptLimit: Number(settings.quizAttemptLimit),
       quizQuestionCount: Number(settings.quizQuestionCount),
+      requireSafetyCriticalAll: Boolean(
+        settings.requireSafetyCriticalAll ?? true,
+      ),
       classCancellationCutoffHours: Number(settings.classCancellationCutoffHours),
       paymentHoldHours: Number(settings.paymentHoldHours),
       reservationHorizonDays: Number(settings.reservationHorizonDays),
@@ -364,6 +382,7 @@ async function main() {
         capacity: Number(c.capacity),
         priceCents: Number(c.priceCents),
         zeffyUrl: (c.zeffyUrl as string) ?? null,
+        zeffyCampaignId: (c.zeffyCampaignId as string) ?? null,
         prerequisiteCertificationIds: jsonArr(c.prerequisiteCertificationIds),
         location: String(c.location),
         cancellationCutoffHours: (c.cancellationCutoffHours as number) ?? null,
@@ -391,6 +410,7 @@ async function main() {
         waitlistPosition: (b.waitlistPosition as number) ?? null,
         paidAt: asDate(b.paidAt as string),
         paidMarkedById: (b.paidMarkedById as string) ?? null,
+        zeffyPaymentId: (b.zeffyPaymentId as string) ?? null,
         paymentHoldExpiresAt: asDate(b.paymentHoldExpiresAt as string),
         cancelledAt: asDate(b.cancelledAt as string),
         attendedAt: asDate(b.attendedAt as string),
@@ -449,6 +469,7 @@ async function main() {
         certificationId: String(m.certificationId),
         knowledgeOnly: Boolean(m.knowledgeOnly),
         published: Boolean(m.published),
+        equipmentStatus: String(m.equipmentStatus ?? "confirmed"),
         passThresholdPercent: Number(m.passThresholdPercent),
         attemptLimit: Number(m.attemptLimit),
         sortOrder: Number(m.sortOrder),
@@ -458,6 +479,7 @@ async function main() {
       update: {
         title: String(m.title),
         published: Boolean(m.published),
+        equipmentStatus: String(m.equipmentStatus ?? "confirmed"),
       },
     }),
   );
@@ -473,10 +495,45 @@ async function main() {
         contentSlug: String(l.contentSlug),
         sortOrder: Number(l.sortOrder),
         estimatedMinutes: Number(l.estimatedMinutes),
+        gap: Boolean(l.gap ?? false),
         createdAt: asDate(l.createdAt as string) ?? new Date(),
         updatedAt: asDate(l.updatedAt as string) ?? new Date(),
       },
-      update: { title: String(l.title), contentSlug: String(l.contentSlug) },
+      update: {
+        title: String(l.title),
+        contentSlug: String(l.contentSlug),
+        gap: Boolean(l.gap ?? false),
+      },
+    }),
+  );
+
+  await seedSimple("lesson-videos.json", (v) =>
+    prisma.lessonVideo.upsert({
+      where: { id: String(v.id) },
+      create: {
+        id: String(v.id),
+        lessonId: String(v.lessonId),
+        order: Number(v.order ?? 0),
+        provider: String(v.provider ?? "youtube"),
+        youtubeId: String(v.youtubeId),
+        url: String(v.url),
+        title: String(v.title),
+        channel: String(v.channel),
+        role: String(v.role ?? "primary"),
+        condition: (v.condition as string) ?? null,
+        durationSeconds: (v.durationSeconds as number) ?? null,
+        verifiedAt: asDate(v.verifiedAt as string),
+        staffReviewed: Boolean(v.staffReviewed ?? false),
+        notes: (v.notes as string) ?? null,
+        createdAt: asDate(v.createdAt as string) ?? new Date(),
+        updatedAt: asDate(v.updatedAt as string) ?? new Date(),
+      },
+      update: {
+        title: String(v.title),
+        staffReviewed: Boolean(v.staffReviewed ?? false),
+        role: String(v.role ?? "primary"),
+        order: Number(v.order ?? 0),
+      },
     }),
   );
 
@@ -489,8 +546,14 @@ async function main() {
         prompt: String(q.prompt),
         choices: jsonArr(q.choices),
         correctIndex: Number(q.correctIndex),
+        correctIndexes: jsonArr(q.correctIndexes ?? [q.correctIndex]),
         explanation: (q.explanation as string) ?? null,
         active: Boolean(q.active ?? true),
+        safetyCritical: Boolean(q.safetyCritical ?? false),
+        source: String(q.source ?? "video"),
+        sourceVideoId: (q.sourceVideoId as string) ?? null,
+        verifyAgainstVideo: Boolean(q.verifyAgainstVideo ?? true),
+        answerPending: Boolean(q.answerPending ?? false),
         createdAt: asDate(q.createdAt as string) ?? new Date(),
         updatedAt: asDate(q.updatedAt as string) ?? new Date(),
       },
@@ -498,7 +561,10 @@ async function main() {
         prompt: String(q.prompt),
         choices: jsonArr(q.choices),
         correctIndex: Number(q.correctIndex),
+        correctIndexes: jsonArr(q.correctIndexes ?? [q.correctIndex]),
         active: Boolean(q.active ?? true),
+        safetyCritical: Boolean(q.safetyCritical ?? false),
+        answerPending: Boolean(q.answerPending ?? false),
       },
     }),
   );
@@ -518,6 +584,21 @@ async function main() {
     }),
   );
 
+  await seedSimple("video-watches.json", (w) =>
+    prisma.videoWatch.upsert({
+      where: { id: String(w.id) },
+      create: {
+        id: String(w.id),
+        userId: String(w.userId),
+        videoId: String(w.videoId),
+        watchedAt: asDate(w.watchedAt as string)!,
+        createdAt: asDate(w.createdAt as string) ?? new Date(),
+        updatedAt: asDate(w.updatedAt as string) ?? new Date(),
+      },
+      update: { watchedAt: asDate(w.watchedAt as string)! },
+    }),
+  );
+
   await seedSimple("quiz-attempts.json", (a) =>
     prisma.quizAttempt.upsert({
       where: { id: String(a.id) },
@@ -529,12 +610,19 @@ async function main() {
         answers: jsonArr(a.answers),
         scorePercent: Number(a.scorePercent),
         passed: Boolean(a.passed),
+        thresholdMet: Boolean(a.thresholdMet ?? a.passed),
+        safetyCriticalMissedIds: jsonArr(a.safetyCriticalMissedIds ?? []),
         startedAt: asDate(a.startedAt as string)!,
         submittedAt: asDate(a.submittedAt as string)!,
         createdAt: asDate(a.createdAt as string) ?? new Date(),
         updatedAt: asDate(a.updatedAt as string) ?? new Date(),
       },
-      update: { scorePercent: Number(a.scorePercent), passed: Boolean(a.passed) },
+      update: {
+        scorePercent: Number(a.scorePercent),
+        passed: Boolean(a.passed),
+        thresholdMet: Boolean(a.thresholdMet ?? a.passed),
+        safetyCriticalMissedIds: jsonArr(a.safetyCriticalMissedIds ?? []),
+      },
     }),
   );
 
@@ -695,6 +783,69 @@ async function main() {
       ),
     },
   });
+
+  try {
+    const boards = readJson<Array<Record<string, unknown>>>(
+      "class-interest-boards.json",
+    );
+    for (const b of boards) {
+      await prismaLoose.classInterestBoard.upsert({
+        where: { id: String(b.id) },
+        create: {
+          id: String(b.id),
+          title: String(b.title),
+          summary: String(b.summary),
+          category: String(b.category),
+          status: String(b.status),
+          threshold: Number(b.threshold ?? 8),
+          proposedByUserId: (b.proposedByUserId as string) ?? null,
+          contactName: String(b.contactName),
+          contactEmail: String(b.contactEmail),
+          instructorHintUserId: (b.instructorHintUserId as string) ?? null,
+          opensAt: asDate(b.opensAt as string),
+          closesAt: asDate(b.closesAt as string),
+          scheduledClassSessionId:
+            (b.scheduledClassSessionId as string) ?? null,
+          priorityBookingEndsAt: asDate(b.priorityBookingEndsAt as string),
+          resuggestedFromId: (b.resuggestedFromId as string) ?? null,
+          reviewedById: (b.reviewedById as string) ?? null,
+          reviewedAt: asDate(b.reviewedAt as string),
+          staffNotes: (b.staffNotes as string) ?? null,
+          createdAt: asDate(b.createdAt as string) ?? new Date(),
+          updatedAt: asDate(b.updatedAt as string) ?? new Date(),
+        },
+        update: {
+          title: String(b.title),
+          summary: String(b.summary),
+          status: String(b.status),
+          threshold: Number(b.threshold ?? 8),
+        },
+      });
+    }
+    const signups = readJson<Array<Record<string, unknown>>>(
+      "class-interest-signups.json",
+    );
+    for (const s of signups) {
+      await prismaLoose.classInterestSignup.upsert({
+        where: { id: String(s.id) },
+        create: {
+          id: String(s.id),
+          boardId: String(s.boardId),
+          userId: (s.userId as string) ?? null,
+          email: String(s.email),
+          displayName: String(s.displayName),
+          createdAt: asDate(s.createdAt as string) ?? new Date(),
+          updatedAt: asDate(s.updatedAt as string) ?? new Date(),
+        },
+        update: {
+          email: String(s.email),
+          displayName: String(s.displayName),
+        },
+      });
+    }
+  } catch (err) {
+    console.warn("Skipping class interest seed (migrate schema first):", err);
+  }
 
   console.log("Seed complete.");
 }

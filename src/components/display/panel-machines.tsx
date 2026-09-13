@@ -57,6 +57,11 @@ export function PanelMachines({
             <p className="font-display text-[clamp(1rem,1.8vw,1.6rem)] font-semibold leading-tight text-brown">
               {m.name}
             </p>
+            {m.attendedOperationRequired ? (
+              <p className="mt-[0.4vh] font-display text-[clamp(0.7rem,1.1vw,0.95rem)] font-semibold uppercase tracking-[0.08em] text-secondary">
+                Attend while running
+              </p>
+            ) : null}
             <p className="mt-[0.8vh] font-display text-[clamp(0.85rem,1.35vw,1.2rem)] text-secondary">
               {statusCopy(m)}
             </p>

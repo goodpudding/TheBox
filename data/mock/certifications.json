@@ -10,13 +10,13 @@
     "sortOrder": 1,
     "active": true,
     "createdAt": "2025-06-01T10:00:00-07:00",
-    "updatedAt": "2026-09-04T12:00:00-07:00"
+    "updatedAt": "2026-09-07T12:00:00-07:00"
   },
   {
-    "id": "cert-3d-printing",
-    "slug": "3d-printing",
-    "name": "3D Printing",
-    "description": "FDM and resin printer setup, slicing basics, and safe material handling.",
+    "id": "cert-hand-tools-drill-press",
+    "slug": "hand-tools-drill-press",
+    "name": "Hand Tools and Drill Press",
+    "description": "Drill press and handheld power tool safety for shared shop use.",
     "knowledgeOnly": false,
     "requiresCertificationIds": [
       "cert-shop-orientation"
@@ -24,38 +24,68 @@
     "expiryMonths": 24,
     "sortOrder": 2,
     "active": true,
-    "createdAt": "2025-06-01T10:00:00-07:00",
-    "updatedAt": "2026-09-04T12:00:00-07:00"
+    "createdAt": "2026-09-07T12:00:00-07:00",
+    "updatedAt": "2026-09-07T12:00:00-07:00"
   },
   {
-    "id": "cert-laser-cutter",
-    "slug": "laser-cutter",
-    "name": "Laser Cutter",
-    "description": "CO₂ laser operation, material compatibility, fire safety, and cleanup.",
-    "knowledgeOnly": false,
-    "requiresCertificationIds": [
-      "cert-shop-orientation"
-    ],
-    "expiryMonths": 12,
-    "sortOrder": 3,
-    "active": true,
-    "createdAt": "2025-06-01T10:00:00-07:00",
-    "updatedAt": "2026-09-04T12:00:00-07:00"
-  },
-  {
-    "id": "cert-woodshop-basics",
-    "slug": "woodshop-basics",
-    "name": "Woodshop Basics",
-    "description": "Foundational woodshop safety, PPE, and shared tool etiquette.",
+    "id": "cert-3d-printing",
+    "slug": "3d-printing",
+    "name": "3D Printing (FDM)",
+    "description": "Prusa FDM setup, PrusaSlicer, first-layer checks, and filament basics. Resin is a separate cert.",
     "knowledgeOnly": false,
     "requiresCertificationIds": [
       "cert-shop-orientation"
     ],
     "expiryMonths": 24,
-    "sortOrder": 4,
+    "sortOrder": 3,
     "active": true,
     "createdAt": "2025-06-01T10:00:00-07:00",
-    "updatedAt": "2026-09-04T12:00:00-07:00"
+    "updatedAt": "2026-09-07T12:00:00-07:00"
+  },
+  {
+    "id": "cert-resin-printing",
+    "slug": "resin-printing",
+    "name": "Resin Printing",
+    "description": "Elegoo Saturn resin safety, PPE, wash/cure, and Chitubox workflow. Separate from FDM.",
+    "knowledgeOnly": false,
+    "requiresCertificationIds": [
+      "cert-shop-orientation"
+    ],
+    "expiryMonths": 12,
+    "sortOrder": 4,
+    "active": true,
+    "createdAt": "2026-09-07T12:00:00-07:00",
+    "updatedAt": "2026-09-07T12:00:00-07:00"
+  },
+  {
+    "id": "cert-laser-cutter",
+    "slug": "laser-cutter",
+    "name": "Laser Cutter",
+    "description": "Epilog Fusion Pro operation, never-cut materials, fire safety, and CorelDRAW/Inkscape workflow.",
+    "knowledgeOnly": false,
+    "requiresCertificationIds": [
+      "cert-shop-orientation"
+    ],
+    "expiryMonths": 12,
+    "sortOrder": 5,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-07T12:00:00-07:00"
+  },
+  {
+    "id": "cert-woodshop-basics",
+    "slug": "woodshop-basics",
+    "name": "Woodshop Basics",
+    "description": "Band saw, miter saw, jointer, planer, and router table safety.",
+    "knowledgeOnly": false,
+    "requiresCertificationIds": [
+      "cert-shop-orientation"
+    ],
+    "expiryMonths": 24,
+    "sortOrder": 6,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-07T12:00:00-07:00"
   },
   {
     "id": "cert-table-saw",
@@ -68,10 +98,25 @@
       "cert-woodshop-basics"
     ],
     "expiryMonths": 12,
-    "sortOrder": 5,
+    "sortOrder": 7,
     "active": true,
     "createdAt": "2025-06-01T10:00:00-07:00",
-    "updatedAt": "2026-09-04T12:00:00-07:00"
+    "updatedAt": "2026-09-07T12:00:00-07:00"
+  },
+  {
+    "id": "cert-cnc-plasma",
+    "slug": "cnc-plasma",
+    "name": "CNC Plasma",
+    "description": "Avid Pro6060 plasma hazards, Mach4 operation, and VCarve toolpaths. Solo OK; unattended never.",
+    "knowledgeOnly": false,
+    "requiresCertificationIds": [
+      "cert-shop-orientation"
+    ],
+    "expiryMonths": 12,
+    "sortOrder": 8,
+    "active": true,
+    "createdAt": "2026-09-07T12:00:00-07:00",
+    "updatedAt": "2026-09-07T12:00:00-07:00"
   },
   {
     "id": "cert-sewing-machines",
@@ -83,10 +128,25 @@
       "cert-shop-orientation"
     ],
     "expiryMonths": 24,
-    "sortOrder": 6,
+    "sortOrder": 9,
     "active": true,
     "createdAt": "2025-06-01T10:00:00-07:00",
-    "updatedAt": "2026-09-04T12:00:00-07:00"
+    "updatedAt": "2026-09-07T12:00:00-07:00"
+  },
+  {
+    "id": "cert-vinyl-cutter",
+    "slug": "vinyl-cutter",
+    "name": "Vinyl Cutter",
+    "description": "Silhouette Cameo cutting, weeding, transfer tape, and cutter care.",
+    "knowledgeOnly": false,
+    "requiresCertificationIds": [
+      "cert-shop-orientation"
+    ],
+    "expiryMonths": 24,
+    "sortOrder": 10,
+    "active": true,
+    "createdAt": "2025-06-01T10:00:00-07:00",
+    "updatedAt": "2026-09-07T12:00:00-07:00"
   },
   {
     "id": "cert-embroidery-machine",
@@ -98,25 +158,10 @@
       "cert-shop-orientation"
     ],
     "expiryMonths": 24,
-    "sortOrder": 7,
+    "sortOrder": 11,
     "active": true,
     "createdAt": "2025-06-01T10:00:00-07:00",
-    "updatedAt": "2026-09-04T12:00:00-07:00"
-  },
-  {
-    "id": "cert-vinyl-cutter",
-    "slug": "vinyl-cutter",
-    "name": "Vinyl Cutter",
-    "description": "Vinyl cutting, weeding, transfer tape, and cutter maintenance.",
-    "knowledgeOnly": false,
-    "requiresCertificationIds": [
-      "cert-shop-orientation"
-    ],
-    "expiryMonths": 24,
-    "sortOrder": 8,
-    "active": true,
-    "createdAt": "2025-06-01T10:00:00-07:00",
-    "updatedAt": "2026-09-04T12:00:00-07:00"
+    "updatedAt": "2026-09-07T12:00:00-07:00"
   },
   {
     "id": "cert-sublimation",
@@ -128,9 +173,9 @@
       "cert-shop-orientation"
     ],
     "expiryMonths": 24,
-    "sortOrder": 9,
+    "sortOrder": 12,
     "active": true,
     "createdAt": "2025-06-01T10:00:00-07:00",
-    "updatedAt": "2026-09-04T12:00:00-07:00"
+    "updatedAt": "2026-09-07T12:00:00-07:00"
   }
 ]

@@ -17,8 +17,12 @@ import { ScheduleXCalendar, useNextCalendarApp } from "@schedule-x/react";
 import "@schedule-x/theme-default/dist/index.css";
 
 import { useData } from "@/components/providers";
+import { StatusPill } from "@/components/status-pill";
+import { formatDateTime } from "@/lib/format";
 import { formatMoney, cn } from "@/lib/utils";
 import type { ClassCategory, ClassSessionView } from "@/lib/data";
+
+type LayoutMode = "calendar" | "list";
 
 const CATEGORIES: { id: ClassCategory | "all"; label: string }[] = [
   { id: "all", label: "All" },
@@ -115,10 +119,25 @@ function toCalendarEvent(session: ClassSessionView): CalendarEvent {
   };
 }
 
+function sessionPriceLabel(session: ClassSessionView) {
+  return session.priceCents === 0 ? "Free" : formatMoney(session.priceCents);
+}
+
+function sessionSeatsLabel(session: ClassSessionView) {
+  if (session.spotsRemaining > 0) {
+    return `${session.spotsRemaining} spot${session.spotsRemaining === 1 ? "" : "s"} left`;
+  }
+  if (session.waitlistCount > 0) {
+    return `Full · ${session.waitlistCount} on waitlist`;
+  }
+  return "Full · join waitlist";
+}
+
 export function EventsCalendar() {
   const { provider, currentUser, revision } = useData();
   const [classes, setClasses] = useState<ClassSessionView[] | null>(null);
   const [category, setCategory] = useState<ClassCategory | "all">("all");
+  const [layout, setLayout] = useState<LayoutMode>("calendar");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const eventModal = useMemo(() => createEventModalPlugin(), []);
@@ -168,6 +187,16 @@ export function EventsCalendar() {
     return classes.filter((c) => c.category === category);
   }, [classes, category]);
 
+  const listSessions = useMemo(() => {
+    const now = Date.now();
+    return [...filtered]
+      .filter((s) => new Date(s.startsAt).getTime() >= now)
+      .sort(
+        (a, b) =>
+          new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
+      );
+  }, [filtered]);
+
   useEffect(() => {
     if (!calendar) return;
     calendar.events.set(filtered.map(toCalendarEvent));
@@ -181,83 +210,178 @@ export function EventsCalendar() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap gap-2">
-        {CATEGORIES.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            onClick={() => setCategory(c.id)}
-            className={cn(
-              "font-display rounded-full px-4 py-2 text-sm font-medium transition-colors",
-              category === c.id
-                ? "bg-primary/15 text-primary-text"
-                : "text-secondary hover:text-brown",
-            )}
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="sx-calendar overflow-hidden rounded-2xl border border-border bg-surface">
-        <ScheduleXCalendar calendarApp={calendar} />
-      </div>
-
-      {selected ? (
-        <aside className="rounded-2xl border border-border bg-surface px-5 py-5 sm:px-6">
-          <p className="eyebrow">{CATEGORY_LABEL[selected.category]}</p>
-          <h3 className="mt-2 font-display text-2xl font-semibold text-brown">
-            {selected.title}
-          </h3>
-          <p className="mt-2 text-secondary">
-            {selected.location} ·{" "}
-            {selected.priceCents === 0
-              ? "Free"
-              : formatMoney(selected.priceCents)}
-            {selected.spotsRemaining <= 0
-              ? " · Waitlist"
-              : ` · ${selected.spotsRemaining} spots left`}
-          </p>
-          <div className="mt-5 flex flex-wrap gap-3">
-            {selected.zeffyUrl ? (
-              <a
-                href={selected.zeffyUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-display inline-flex h-11 items-center rounded-full bg-button px-5 text-sm font-semibold text-white hover:bg-button-hover"
-              >
-                Register
-              </a>
-            ) : null}
-            {currentUser ? (
-              <Link
-                href={`/classes/${selected.id}`}
-                className="font-display inline-flex h-11 items-center rounded-full border border-border px-5 text-sm font-semibold text-brown"
-              >
-                Member details
-              </Link>
-            ) : (
-              <Link
-                href="/login"
-                className="font-display inline-flex h-11 items-center rounded-full border border-border px-5 text-sm font-semibold text-brown"
-              >
-                Sign in to book
-              </Link>
-            )}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
+          {CATEGORIES.map((c) => (
             <button
+              key={c.id}
               type="button"
-              onClick={() => setSelectedId(null)}
-              className="font-display text-sm text-secondary underline"
+              onClick={() => setCategory(c.id)}
+              className={cn(
+                "font-display rounded-full px-4 py-2 text-sm font-medium transition-colors",
+                category === c.id
+                  ? "bg-primary/15 text-primary-text"
+                  : "text-secondary hover:text-brown",
+              )}
             >
-              Clear
+              {c.label}
             </button>
+          ))}
+        </div>
+
+        <div
+          role="group"
+          aria-label="Calendar layout"
+          className="inline-flex rounded-full border border-border bg-surface p-1"
+        >
+          {(
+            [
+              { id: "calendar", label: "Calendar" },
+              { id: "list", label: "List" },
+            ] as const
+          ).map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              aria-pressed={layout === option.id}
+              onClick={() => setLayout(option.id)}
+              className={cn(
+                "font-display rounded-full px-4 py-1.5 text-sm font-semibold transition-colors",
+                layout === option.id
+                  ? "bg-button text-white"
+                  : "text-secondary hover:text-brown",
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {layout === "calendar" ? (
+        <>
+          <div className="sx-calendar overflow-hidden rounded-2xl border border-border bg-surface">
+            <ScheduleXCalendar calendarApp={calendar} />
           </div>
-        </aside>
-      ) : (
-        <p className="text-sm text-secondary">
-          Click an event for details and registration. Use Month, Week, Day, or
-          List in the calendar toolbar.
+
+          {selected ? (
+            <aside className="rounded-2xl border border-border bg-surface px-5 py-5 sm:px-6">
+              <p className="eyebrow">{CATEGORY_LABEL[selected.category]}</p>
+              <h3 className="mt-2 font-display text-2xl font-semibold text-brown">
+                {selected.title}
+              </h3>
+              <p className="mt-2 text-secondary">
+                {selected.location} · {sessionPriceLabel(selected)}
+                {selected.spotsRemaining <= 0
+                  ? " · Waitlist"
+                  : ` · ${selected.spotsRemaining} spots left`}
+              </p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                {selected.zeffyUrl ? (
+                  <a
+                    href={selected.zeffyUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-display inline-flex h-11 items-center rounded-full bg-button px-5 text-sm font-semibold text-white hover:bg-button-hover"
+                  >
+                    Register
+                  </a>
+                ) : null}
+                {currentUser ? (
+                  <Link
+                    href={`/classes/${selected.id}`}
+                    className="font-display inline-flex h-11 items-center rounded-full border border-border px-5 text-sm font-semibold text-brown"
+                  >
+                    Member details
+                  </Link>
+                ) : (
+                  <Link
+                    href="/login"
+                    className="font-display inline-flex h-11 items-center rounded-full border border-border px-5 text-sm font-semibold text-brown"
+                  >
+                    Sign in to book
+                  </Link>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setSelectedId(null)}
+                  className="font-display text-sm text-secondary underline"
+                >
+                  Clear
+                </button>
+              </div>
+            </aside>
+          ) : (
+            <p className="text-sm text-secondary">
+              Click an event for details and registration. Use Month, Week, Day,
+              or List in the calendar toolbar.
+            </p>
+          )}
+        </>
+      ) : listSessions.length === 0 ? (
+        <p className="text-secondary">
+          No upcoming events
+          {category !== "all"
+            ? ` in ${CATEGORIES.find((c) => c.id === category)?.label ?? category}`
+            : ""}
+          .
         </p>
+      ) : (
+        <ul className="divide-y divide-border border-y border-border">
+          {listSessions.map((session) => (
+            <li key={session.id} className="py-6">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedId(session.id)}
+                    className="text-left font-display text-xl font-semibold text-brown hover:text-primary-text"
+                  >
+                    {session.title}
+                  </button>
+                  <p className="mt-1 text-sm text-secondary">
+                    {formatDateTime(session.startsAt)}
+                    {session.location ? ` · ${session.location}` : ""}
+                  </p>
+                </div>
+                <StatusPill tone="muted">
+                  {CATEGORY_LABEL[session.category]}
+                </StatusPill>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-charcoal">
+                <span>{sessionPriceLabel(session)}</span>
+                <span>{sessionSeatsLabel(session)}</span>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-4">
+                {session.zeffyUrl ? (
+                  <a
+                    href={session.zeffyUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-display text-sm font-semibold text-primary-text hover:underline"
+                  >
+                    Register on Zeffy →
+                  </a>
+                ) : null}
+                {currentUser ? (
+                  <Link
+                    href={`/classes/${session.id}`}
+                    className="font-display text-sm font-semibold text-brown hover:underline"
+                  >
+                    Member details →
+                  </Link>
+                ) : (
+                  <Link
+                    href="/login"
+                    className="font-display text-sm font-semibold text-brown hover:underline"
+                  >
+                    Sign in to book →
+                  </Link>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

@@ -12,14 +12,23 @@ import { formatTier } from "@/lib/utils";
 import { SHOP_LEAD_COMPLETED_TOOLS } from "@/lib/data";
 import type {
   Booking,
+  ClassInterestBoardView,
   ClassSession,
   OrgSettings,
+  PendingCheckoff,
   Reservation,
   UsageSession,
   UserCertificationView,
 } from "@/lib/data";
+import { PendingCheckoffQueue } from "@/components/pending-checkoff-queue";
 
-type Callout = { tone: "warn" | "danger" | "info"; text: string; href?: string };
+type Callout = {
+  tone: "warn" | "danger" | "info";
+  text: string;
+  href?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+};
 
 export default function DashboardPage() {
   return (
@@ -30,7 +39,7 @@ export default function DashboardPage() {
 }
 
 function DashboardBody() {
-  const { provider, currentUser, revision } = useData();
+  const { provider, currentUser, revision, bump } = useData();
   const [settings, setSettings] = useState<OrgSettings | null>(null);
   const [certs, setCerts] = useState<UserCertificationView[]>([]);
   const [nextReservation, setNextReservation] = useState<
@@ -44,12 +53,19 @@ function DashboardBody() {
     (UsageSession & { machineName?: string })[]
   >([]);
   const [callouts, setCallouts] = useState<Callout[]>([]);
+  const [interestMine, setInterestMine] = useState<ClassInterestBoardView[]>(
+    [],
+  );
   const [waiverOk, setWaiverOk] = useState(false);
   const [championProgress, setChampionProgress] = useState<{
     completedCount: number;
     shopLeadEligible: boolean;
     canScheduleMaintenance: boolean;
   } | null>(null);
+  const [pendingCheckoffs, setPendingCheckoffs] = useState<PendingCheckoff[]>(
+    [],
+  );
+  const [showCheckoffQueue, setShowCheckoffQueue] = useState(false);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -157,6 +173,58 @@ function DashboardBody() {
           text: "You have a class booking awaiting payment confirmation.",
         });
       }
+
+      const myBoards = await provider.listInterestBoards({
+        proposedByUserId: currentUser.id,
+      });
+      setInterestMine(myBoards);
+      for (const board of myBoards) {
+        if (board.status === "expired") {
+          notes.push({
+            tone: "info",
+            text: `“${board.title}” didn’t hit ${board.threshold} pre-signups. You can resuggest it for another round.`,
+            href: `/interest`,
+            actionLabel: "Resuggest",
+            onAction: () => {
+              void (async () => {
+                await provider.resuggestInterestBoard(
+                  board.id,
+                  currentUser.id,
+                );
+                bump();
+              })();
+            },
+          });
+        } else if (board.status === "ready") {
+          notes.push({
+            tone: "info",
+            text: `“${board.title}” hit the interest threshold — staff can schedule it.`,
+            href: "/interest",
+          });
+        } else if (board.status === "open") {
+          notes.push({
+            tone: "info",
+            text: `Your interest board “${board.title}” is open (${board.interestCount}/${board.threshold}).`,
+            href: `/interest/${board.id}`,
+          });
+        } else if (board.status === "pending") {
+          notes.push({
+            tone: "info",
+            text: `Your class idea “${board.title}” is awaiting staff review.`,
+            href: "/interest",
+          });
+        } else if (
+          board.status === "scheduled" &&
+          board.scheduledClassSessionId
+        ) {
+          notes.push({
+            tone: "info",
+            text: `“${board.title}” was scheduled — priority booking may be open for the interest list.`,
+            href: `/classes/${board.scheduledClassSessionId}`,
+          });
+        }
+      }
+
       const expiring = certList.filter(
         (c) =>
           c.status === "expired" ||
@@ -170,20 +238,20 @@ function DashboardBody() {
         if (c.status === "knowledge_passed") {
           notes.push({
             tone: "info",
-            text: `${c.certification.name}: knowledge test passed — book a hands-on checkoff.`,
-            href: "/certifications",
+            text: `${c.certification.name}: knowledge test passed — awaiting hands-on checkoff.`,
+            href: "/learn",
           });
         } else if (c.status === "expired") {
           notes.push({
             tone: "warn",
             text: `${c.certification.name} certification expired.`,
-            href: "/certifications",
+            href: "/learn",
           });
         } else {
           notes.push({
             tone: "info",
             text: `${c.certification.name} expires ${c.expiresAt ? formatDateTime(c.expiresAt) : "soon"}.`,
-            href: "/certifications",
+            href: "/learn",
           });
         }
       }
@@ -219,21 +287,57 @@ function DashboardBody() {
           href: "/volunteer",
         });
       }
+
+      const isStaff =
+        currentUser.role === "staff" || currentUser.role === "admin";
+      const showQueue =
+        isStaff || champ.activeMachineIds.length > 0;
+      setShowCheckoffQueue(showQueue);
+      if (showQueue) {
+        setPendingCheckoffs(
+          await provider.listPendingCheckoffs(currentUser.id),
+        );
+      } else {
+        setPendingCheckoffs([]);
+      }
       setCallouts(notes);
     })();
   }, [currentUser, provider, revision]);
 
   if (!currentUser) return null;
 
+  const sessionCount = recentUsage.length;
+  const roleEyebrow =
+    currentUser.role === "admin"
+      ? "Admin dashboard"
+      : currentUser.role === "staff"
+        ? "Staff dashboard"
+        : "Your dashboard";
+
   return (
     <PageShell>
       <PageHero
-        eyebrow="Dashboard"
+        eyebrow={roleEyebrow}
         title={`Hi, ${currentUser.firstName}`}
-        description="Your membership, certifications, and what’s next in the shop."
+        description="Your membership, skills progress, and what’s next in the shop."
       />
 
       <div className="mt-8 flex flex-wrap gap-2">
+        <StatusPill
+          tone={
+            currentUser.role === "admin"
+              ? "danger"
+              : currentUser.role === "staff"
+                ? "warn"
+                : "ok"
+          }
+        >
+          {currentUser.role === "admin"
+            ? "Admin account"
+            : currentUser.role === "staff"
+              ? "Staff account"
+              : "Member account"}
+        </StatusPill>
         <StatusPill
           tone={
             currentUser.status === "active"
@@ -254,6 +358,42 @@ function DashboardBody() {
         ) : null}
       </div>
 
+      <section className="mt-10 rounded-[1.75rem] border border-primary/25 bg-primary/10 px-5 py-6 sm:px-7">
+        <p className="eyebrow">Your stuff</p>
+        <h2 className="mt-2 font-display text-xl font-semibold text-brown">
+          Personal links &amp; stats
+        </h2>
+        <p className="mt-2 max-w-2xl text-sm text-secondary leading-relaxed">
+          These pages are about you — not the public site. Track time on
+          machines, skills, and account settings here.
+        </p>
+        <div className="mt-5 flex flex-wrap gap-3">
+          <Button asChild>
+            <Link href="/usage">
+              Usage
+              {sessionCount > 0 ? ` · ${sessionCount} recent` : ""}
+            </Link>
+          </Button>
+          <Button asChild variant="secondary">
+            <Link href="/learn">Skills &amp; learn</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/account">Account</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/interest">
+              Interest
+              {interestMine.length > 0 ? ` · ${interestMine.length}` : ""}
+            </Link>
+          </Button>
+          {championProgress?.canScheduleMaintenance ? (
+            <Button asChild variant="outline">
+              <Link href="/maintenance">Maintenance</Link>
+            </Button>
+          ) : null}
+        </div>
+      </section>
+
       {callouts.length > 0 ? (
         <ul className="mt-8 space-y-3">
           {callouts.map((c, i) => (
@@ -271,6 +411,17 @@ function DashboardBody() {
                 <a href={c.href} className="underline-offset-2 hover:underline">
                   {c.text}
                 </a>
+              ) : c.onAction ? (
+                <span className="flex flex-wrap items-center gap-3">
+                  <span>{c.text}</span>
+                  <button
+                    type="button"
+                    className="font-display text-sm font-semibold text-primary-text underline-offset-2 hover:underline"
+                    onClick={c.onAction}
+                  >
+                    {c.actionLabel ?? "Continue"}
+                  </button>
+                </span>
               ) : c.href ? (
                 <Link href={c.href} className="underline-offset-2 hover:underline">
                   {c.text}
@@ -338,12 +489,12 @@ function DashboardBody() {
 
       <section className="mt-12">
         <div className="flex items-baseline justify-between gap-4">
-          <p className="eyebrow">Active certifications</p>
+          <p className="eyebrow">Skills progress</p>
           <Link
-            href="/certifications"
+            href="/learn"
             className="font-display text-sm text-primary-text hover:underline"
           >
-            View all
+            Open Learn
           </Link>
         </div>
         {certs.length > 0 ? (
@@ -357,13 +508,37 @@ function DashboardBody() {
         ) : (
           <p className="mt-3 text-secondary">
             None yet.{" "}
-            <Link href="/certifications" className="text-primary-text underline">
+            <Link href="/learn" className="text-primary-text underline">
               Start with Shop Orientation
             </Link>
             .
           </p>
         )}
       </section>
+
+      {showCheckoffQueue ? (
+        <section className="mt-12">
+          <p className="eyebrow">Ready for checkoff</p>
+          <p className="mt-2 max-w-xl text-sm text-secondary leading-relaxed">
+            {currentUser.role === "staff" || currentUser.role === "admin"
+              ? "Members who passed a knowledge quiz and need hands-on checkoff."
+              : "Members waiting on checkoff for machines you champion. You can record checkoff for those certs."}
+            {pendingCheckoffs.length > 0
+              ? ` ${pendingCheckoffs.length} waiting.`
+              : ""}
+          </p>
+          <PendingCheckoffQueue
+            className="mt-4"
+            memberHref={
+              currentUser.role === "staff" || currentUser.role === "admin"
+                ? (id) => `/admin/members/${id}`
+                : undefined
+            }
+            allowInlineCheckoff
+            emptyMessage="No one is waiting on checkoff for your machines right now."
+          />
+        </section>
+      ) : null}
 
       <section className="mt-12">
         <div className="flex items-baseline justify-between gap-4">
@@ -372,7 +547,7 @@ function DashboardBody() {
             href="/usage"
             className="font-display text-sm text-primary-text hover:underline"
           >
-            Full history
+            Full history &amp; monthly totals
           </Link>
         </div>
         {recentUsage.length > 0 ? (
@@ -397,14 +572,6 @@ function DashboardBody() {
       </section>
 
       <div className="mt-12 flex flex-wrap gap-3">
-        {championProgress?.canScheduleMaintenance ? (
-          <Button asChild>
-            <Link href="/maintenance">Schedule maintenance</Link>
-          </Button>
-        ) : null}
-        <Button asChild variant="secondary">
-          <Link href="/account">Account</Link>
-        </Button>
         <Button asChild variant="outline">
           <a
             href={settings?.paymentUrl ?? "#"}

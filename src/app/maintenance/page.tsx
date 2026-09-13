@@ -102,14 +102,14 @@ function MaintenanceBody() {
         <PageHero
           eyebrow="Maintenance"
           title="Machine downtime"
-          description="Shop Stewards and active Tool Champions can block machines for cleaning, repair, or training setup."
+          description="Staff and Shop Stewards can block machines for cleaning, repair, or training setup."
         />
         <p className="mt-8 max-w-xl text-secondary leading-relaxed">
-          You don&apos;t have maintenance scheduling yet.{" "}
+          You don&apos;t have maintenance scheduling. Ask staff about{" "}
           <Link href="/volunteer" className="text-primary-text underline">
-            Apply as a Tool Champion
+            Shop Steward
           </Link>{" "}
-          (or ask staff about Shop Steward shifts).
+          shifts if you want to help cover the floor.
         </p>
       </PageShell>
     );
@@ -122,7 +122,7 @@ function MaintenanceBody() {
       <PageHero
         eyebrow="Maintenance"
         title="Block a machine"
-        description="Reserve downtime so members can’t book over cleaning, blade changes, or repair. Shop Stewards can cover any machine; Tool Champions cover the ones they’re championing."
+        description="Reserve downtime so members can’t book over cleaning, blade changes, or repair. Staff and Shop Stewards can cover any machine."
       />
 
       <form onSubmit={onSubmit} className="mt-10 max-w-xl space-y-5">

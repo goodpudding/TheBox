@@ -94,6 +94,17 @@ function ClassesBody() {
         description="Orientation, workshops, checkoffs, and open studio. Book a seat or join the waitlist when a class fills up."
       />
 
+      <p className="mt-4 text-sm text-secondary">
+        Want something that isn’t scheduled yet?{" "}
+        <Link
+          href="/interest"
+          className="font-display font-semibold text-primary-text hover:underline"
+        >
+          Join or suggest on the interest board
+        </Link>
+        .
+      </p>
+
       <div className="mt-10 flex flex-wrap gap-2">
         {CATEGORIES.map((c) => (
           <button

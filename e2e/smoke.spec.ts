@@ -82,13 +82,25 @@ test.describe("The Box Portal critical paths (mock)", () => {
     });
   });
 
-  test("learn module page loads for Maya", async ({ page }) => {
+  test("learn index shows empty state for members while modules are draft", async ({
+    page,
+  }) => {
     await page.goto("/join");
     await switchUser(page, "Maya Chen");
     await page.goto("/learn");
-    await expect(page.getByText(/Shop Orientation|3D Printing/i).first()).toBeVisible({
+    await expect(
+      page.getByText(/No published modules yet/i),
+    ).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("admin learn lists draft modules with readiness", async ({ page }) => {
+    await page.goto("/join");
+    await switchUser(page, "Avery Admin");
+    await page.goto("/admin/learn");
+    await expect(page.getByText("Shop Orientation")).toBeVisible({
       timeout: 15_000,
     });
+    await expect(page.getByText(/Draft/i).first()).toBeVisible();
   });
 
   test("reader sim deny for outdated waiver (Jamie)", async ({ page }) => {

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AdminShell } from "@/components/admin-shell";
+import { PendingCheckoffQueue } from "@/components/pending-checkoff-queue";
 import { StatusPill } from "@/components/status-pill";
 import { useData } from "@/components/providers";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,22 @@ export default function AdminMembersPage() {
       title="Members"
       description="Search members, open a profile, and manage status, badges, and certifications."
     >
+      <section className="mb-10">
+        <h2 className="font-display text-lg font-semibold text-brown">
+          Ready for checkoff
+        </h2>
+        <p className="mt-1 max-w-xl text-sm text-secondary leading-relaxed">
+          Members who passed a knowledge quiz and still need hands-on checkoff.
+          Tool champions can also clear these from their dashboard for machines
+          they steward.
+        </p>
+        <PendingCheckoffQueue
+          className="mt-4"
+          memberHref={(id) => `/admin/members/${id}`}
+          allowInlineCheckoff
+        />
+      </section>
+
       <div className="max-w-md space-y-2">
         <Label htmlFor="member-search">Search</Label>
         <Input

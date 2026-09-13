@@ -9,7 +9,13 @@ import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
 import { formatDateTime } from "@/lib/format";
-import type { Machine, MachineArea, OrgSettings, Reservation } from "@/lib/data";
+import type {
+  DisplayMachineStatus,
+  Machine,
+  MachineArea,
+  OrgSettings,
+  Reservation,
+} from "@/lib/data";
 
 function formatTime(iso: string): string {
   try {
@@ -25,6 +31,8 @@ const AREA_ORDER: MachineArea[] = [
   "woodshop",
   "textiles_vinyl",
   "sublimation",
+  "cnc_plasma",
+  "hand_tools",
 ];
 
 const AREA_LABEL: Record<MachineArea, string> = {
@@ -33,7 +41,26 @@ const AREA_LABEL: Record<MachineArea, string> = {
   woodshop: "Woodshop",
   textiles_vinyl: "Textiles & vinyl",
   sublimation: "Sublimation",
+  cnc_plasma: "CNC & plasma",
+  hand_tools: "Hand tools",
 };
+
+function floorStatusPill(
+  status: DisplayMachineStatus["status"] | undefined,
+): { tone: "ok" | "warn" | "info" | "muted" | "danger"; label: string } {
+  switch (status) {
+    case "in_use":
+      return { tone: "warn", label: "In use now" };
+    case "reserved":
+      return { tone: "info", label: "Reserved now" };
+    case "maintenance":
+      return { tone: "danger", label: "Maintenance" };
+    case "available":
+      return { tone: "ok", label: "Open now" };
+    default:
+      return { tone: "muted", label: "Status unknown" };
+  }
+}
 
 export default function ReservePage() {
   return (
@@ -47,6 +74,7 @@ function ReserveBody() {
   const { provider, currentUser, revision, bump } = useData();
   const [machines, setMachines] = useState<Machine[] | null>(null);
   const [settings, setSettings] = useState<OrgSettings | null>(null);
+  const [floor, setFloor] = useState<DisplayMachineStatus[]>([]);
   const [reservations, setReservations] = useState<
     (Reservation & { machineName?: string })[]
   >([]);
@@ -57,21 +85,23 @@ function ReserveBody() {
     if (!currentUser) return;
     let cancelled = false;
     void (async () => {
-      const [m, s, res] = await Promise.all([
+      const [m, s, res, status] = await Promise.all([
         provider.listMachines(),
         provider.getSettings(),
         provider.listReservations({
           userId: currentUser.id,
           status: "booked",
         }),
+        provider.getMachineStatus(),
       ]);
       if (cancelled) return;
       setMachines(m);
       setSettings(s);
+      setFloor(status);
       const map = Object.fromEntries(m.map((x) => [x.id, x.name]));
       setReservations(
         res
-          .filter((r) => new Date(r.startsAt).getTime() >= Date.now())
+          .filter((r) => new Date(r.endsAt).getTime() >= Date.now())
           .sort(
             (a, b) =>
               new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
@@ -83,6 +113,11 @@ function ReserveBody() {
       cancelled = true;
     };
   }, [currentUser, provider, revision]);
+
+  const floorById = useMemo(
+    () => Object.fromEntries(floor.map((f) => [f.id, f])),
+    [floor],
+  );
 
   const grouped = useMemo(() => {
     if (!machines) return null;
@@ -114,53 +149,62 @@ function ReserveBody() {
       <PageHero
         eyebrow="Reserve"
         title="Machine priority holds"
-        description="A reservation signals priority for that machine — it is not exclusive lockout. Walk-ups may still use open equipment when no one with a hold is present."
+        description="See what’s open or booked right now, then pick a time. A reservation is priority — not exclusive lockout."
       />
 
       {settings ? (
         <p className="mt-6 max-w-2xl text-sm text-secondary leading-relaxed">
-          Book up to {settings.reservationHorizonDays} days ahead,{" "}
-          {settings.maxHoursPerDay} hours per day, and{" "}
+          Book up to {settings.reservationHorizonDays} days ahead. Length caps
+          depend on the machine (3D printers up to 5 hours). You may hold{" "}
           {settings.maxOpenReservations} open reservation
-          {settings.maxOpenReservations === 1 ? "" : "s"} at a time. Slots are{" "}
-          {settings.reservationSlotMinutes} minutes.
+          {settings.maxOpenReservations === 1 ? "" : "s"} at a time.
         </p>
       ) : null}
 
       <section className="mt-12">
         <h2 className="font-display text-xl font-semibold text-brown">
-          Your upcoming reservations
+          Your reservations
         </h2>
         {reservations.length === 0 ? (
-          <p className="mt-4 text-secondary text-sm">
-            No upcoming reservations.
-          </p>
+          <p className="mt-4 text-secondary text-sm">No active reservations.</p>
         ) : (
           <ul className="mt-4 divide-y divide-border border-y border-border">
-            {reservations.map((r) => (
-              <li
-                key={r.id}
-                className="flex flex-wrap items-center justify-between gap-3 py-4"
-              >
-                <div>
-                  <p className="font-display font-semibold text-brown">
-                    {r.machineName ?? r.machineId}
-                  </p>
-                  <p className="mt-1 text-sm text-secondary">
-                    {formatDateTime(r.startsAt)} – {formatTime(r.endsAt)}
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  disabled={cancellingId === r.id}
-                  onClick={() => void onCancel(r.id)}
+            {reservations.map((r) => {
+              const live =
+                new Date(r.startsAt).getTime() <= Date.now() &&
+                new Date(r.endsAt).getTime() > Date.now();
+              return (
+                <li
+                  key={r.id}
+                  className="flex flex-wrap items-center justify-between gap-3 py-4"
                 >
-                  Cancel
-                </Button>
-              </li>
-            ))}
+                  <div>
+                    <p className="font-display font-semibold text-brown">
+                      {r.machineName ?? r.machineId}
+                    </p>
+                    <p className="mt-1 text-sm text-secondary">
+                      {formatDateTime(r.startsAt)} – {formatTime(r.endsAt)}
+                    </p>
+                    {live ? (
+                      <div className="mt-2">
+                        <StatusPill tone="warn">Happening now</StatusPill>
+                      </div>
+                    ) : null}
+                  </div>
+                  {new Date(r.startsAt).getTime() > Date.now() ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={cancellingId === r.id}
+                      onClick={() => void onCancel(r.id)}
+                    >
+                      Cancel
+                    </Button>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         )}
         {cancelError ? (
@@ -186,40 +230,55 @@ function ReserveBody() {
                   {group.label}
                 </h3>
                 <ul className="mt-3 divide-y divide-border border-y border-border">
-                  {group.machines.map((m) => (
-                    <li
-                      key={m.id}
-                      className="flex flex-wrap items-center justify-between gap-3 py-4"
-                    >
-                      <div>
+                  {group.machines.map((m) => {
+                    const live = floorById[m.id];
+                    const pill = floorStatusPill(live?.status);
+                    const maxHours =
+                      m.maxReservationHours ?? settings?.maxHoursPerDay ?? 3;
+                    return (
+                      <li
+                        key={m.id}
+                        className="flex flex-wrap items-center justify-between gap-3 py-4"
+                      >
+                        <div className="min-w-0">
+                          <Link
+                            href={`/reserve/${m.id}`}
+                            className="font-display text-base font-semibold text-brown hover:text-primary-text"
+                          >
+                            {m.name}
+                          </Link>
+                          <p className="mt-1 text-sm text-secondary">
+                            {m.locationLabel || "Shop floor"} · up to {maxHours}{" "}
+                            hr
+                          </p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <StatusPill tone={pill.tone}>{pill.label}</StatusPill>
+                            {live?.status === "reserved" && live.reservedAt ? (
+                              <StatusPill tone="muted">
+                                From {formatTime(live.reservedAt)}
+                              </StatusPill>
+                            ) : null}
+                            {live?.status === "in_use" && live.displayName ? (
+                              <StatusPill tone="muted">
+                                {live.displayName}
+                              </StatusPill>
+                            ) : null}
+                            {m.reservationRequired ? (
+                              <StatusPill tone="warn">
+                                Reservation required
+                              </StatusPill>
+                            ) : null}
+                          </div>
+                        </div>
                         <Link
                           href={`/reserve/${m.id}`}
-                          className="font-display text-base font-semibold text-brown hover:text-primary-text"
+                          className="font-display text-sm font-semibold text-primary-text hover:underline"
                         >
-                          {m.name}
+                          See times →
                         </Link>
-                        {m.reservationRequired ? (
-                          <div className="mt-2">
-                            <StatusPill tone="warn">
-                              Reservation required
-                            </StatusPill>
-                          </div>
-                        ) : m.reservationRecommended ? (
-                          <div className="mt-2">
-                            <StatusPill tone="info">
-                              Reservation recommended
-                            </StatusPill>
-                          </div>
-                        ) : null}
-                      </div>
-                      <Link
-                        href={`/reserve/${m.id}`}
-                        className="font-display text-sm font-semibold text-primary-text hover:underline"
-                      >
-                        Pick a time →
-                      </Link>
-                    </li>
-                  ))}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             ))}
