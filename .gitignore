@@ -58,3 +58,6 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+
+# ESP32 reader local secrets
+firmware/**/secrets.h

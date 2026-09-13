@@ -13,6 +13,7 @@ import { formatMoney } from "@/lib/utils";
 import type {
   Certification,
   ClassCategory,
+  ClassInterestBoardView,
   ClassSessionView,
   ContentPage,
 } from "@/lib/data";
@@ -67,6 +68,8 @@ function ClassDetailBody() {
   );
   const [description, setDescription] = useState<ContentPage | null>(null);
   const [certs, setCerts] = useState<Certification[]>([]);
+  const [interestBoard, setInterestBoard] =
+    useState<ClassInterestBoardView | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -76,13 +79,17 @@ function ClassDetailBody() {
     let cancelled = false;
     void (async () => {
       try {
-        const [s, certList] = await Promise.all([
+        const [s, certList, boards] = await Promise.all([
           provider.getClass(id),
           provider.listCertifications(),
+          provider.listInterestBoards({ status: "scheduled" }),
         ]);
         if (cancelled) return;
         setSession(s);
         setCerts(certList);
+        setInterestBoard(
+          boards.find((b) => b.scheduledClassSessionId === id) ?? null,
+        );
         if (s?.descriptionSlug) {
           const page = await provider.getContentBySlug(s.descriptionSlug);
           if (!cancelled) setDescription(page);
@@ -139,6 +146,9 @@ function ClassDetailBody() {
   });
   const price =
     session.priceCents <= 0 ? "Free" : formatMoney(session.priceCents);
+  const priorityActive =
+    interestBoard?.priorityBookingEndsAt != null &&
+    new Date(interestBoard.priorityBookingEndsAt).getTime() > Date.now();
 
   async function onBook() {
     if (!currentUser || !session) return;
@@ -206,6 +216,21 @@ function ClassDetailBody() {
         />
         <StatusPill tone="muted">{price}</StatusPill>
       </div>
+
+      {priorityActive ? (
+        <p className="mt-6 max-w-2xl rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-brown">
+          Priority booking is open for the interest list until{" "}
+          {formatDateTime(interestBoard!.priorityBookingEndsAt!)}. If you
+          signed up on the{" "}
+          <Link
+            href={`/interest/${interestBoard!.id}`}
+            className="font-semibold underline-offset-2 hover:underline"
+          >
+            interest board
+          </Link>
+          , book now. Public registration opens after that window.
+        </p>
+      ) : null}
 
       <dl className="mt-10 grid gap-4 sm:grid-cols-2 max-w-2xl text-sm">
         <div>

@@ -63,6 +63,8 @@ model User {
   billingInterval          String?
   householdPrimaryUserId   String?
   shopAccess               Boolean   @default(false)
+  /** Orthogonal instructor flag — not a role replacement. */
+  isTeacher                Boolean   @default(false)
   dayPassCreditExpiresAt   DateTime?
   scholarshipExpiresAt     DateTime?
   emergencyContactName     String?
@@ -94,11 +96,16 @@ model User {
   bookings               Booking[]
   bookingsMarkedPaid     Booking[]               @relation("BookingPaidBy")
   lessonProgress         LessonProgress[]
+  videoWatches           VideoWatch[]
   quizAttempts           QuizAttempt[]
   volunteerInterests     VolunteerInterest[]
   volunteerReviews       VolunteerInterest[]     @relation("VolunteerReviewedBy")
   auditEventsAsActor     AuditEvent[]            @relation("AuditActor")
   auditEventsAsSubject   AuditEvent[]            @relation("AuditSubject")
+  classInterestProposed  ClassInterestBoard[]    @relation("InterestProposedBy")
+  classInterestInstruct  ClassInterestBoard[]    @relation("InterestInstructorHint")
+  classInterestReviewed  ClassInterestBoard[]    @relation("InterestReviewedBy")
+  classInterestSignups   ClassInterestSignup[]
 }
 
 model Badge {
@@ -189,8 +196,11 @@ model Machine {
   active                    Boolean   @default(true)
   reservationRecommended    Boolean   @default(false)
   reservationRequired       Boolean   @default(false)
+  attendedOperationRequired Boolean   @default(false)
   locationLabel             String    @default("")
   gettingStartedVideoUrl    String?
+  /** Max single reservation length in hours; null = use org maxHoursPerDay. */
+  maxReservationHours       Int?
   sortOrder                 Int       @default(0)
   createdAt                 DateTime  @default(now())
   updatedAt                 DateTime  @updatedAt
@@ -282,6 +292,7 @@ model ClassSession {
   capacity                      Int
   priceCents                    Int       @default(0)
   zeffyUrl                      String?
+  zeffyCampaignId               String?
   prerequisiteCertificationIds  String // JSON array
   location                      String
   cancellationCutoffHours       Int?
@@ -291,6 +302,8 @@ model ClassSession {
   deletedAt                     DateTime?
   instructor                    User      @relation(fields: [instructorId], references: [id])
   bookings                      Booking[]
+
+  @@index([zeffyCampaignId])
 }
 
 model Booking {
@@ -301,6 +314,7 @@ model Booking {
   waitlistPosition      Int?
   paidAt                DateTime?
   paidMarkedById        String?
+  zeffyPaymentId        String?
   paymentHoldExpiresAt  DateTime?
   cancelledAt           DateTime?
   attendedAt            DateTime?
@@ -310,6 +324,70 @@ model Booking {
   classSession          ClassSession @relation(fields: [classSessionId], references: [id])
   user                  User      @relation(fields: [userId], references: [id])
   paidMarkedBy          User?     @relation("BookingPaidBy", fields: [paidMarkedById], references: [id])
+
+  @@index([zeffyPaymentId])
+}
+
+model ClassInterestBoard {
+  id                       String    @id
+  title                    String
+  summary                  String
+  category                 String
+  status                   String    @default("pending")
+  threshold                Int       @default(8)
+  proposedByUserId         String?
+  contactName              String
+  contactEmail             String
+  instructorHintUserId     String?
+  opensAt                  DateTime?
+  closesAt                 DateTime?
+  scheduledClassSessionId  String?
+  priorityBookingEndsAt    DateTime?
+  resuggestedFromId        String?
+  reviewedById             String?
+  reviewedAt               DateTime?
+  staffNotes               String?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  deletedAt                DateTime?
+
+  proposedBy     User?                 @relation("InterestProposedBy", fields: [proposedByUserId], references: [id])
+  instructorHint User?                 @relation("InterestInstructorHint", fields: [instructorHintUserId], references: [id])
+  reviewedBy     User?                 @relation("InterestReviewedBy", fields: [reviewedById], references: [id])
+  signups        ClassInterestSignup[]
+
+  @@index([status])
+  @@index([scheduledClassSessionId])
+}
+
+model ClassInterestSignup {
+  id          String    @id
+  boardId     String
+  userId      String?
+  email       String
+  displayName String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  board ClassInterestBoard @relation(fields: [boardId], references: [id])
+  user  User?              @relation(fields: [userId], references: [id])
+
+  @@index([boardId])
+  @@index([email])
+}
+
+model ZeffyWebhookEvent {
+  id          String   @id
+  type        String
+  paymentId   String?
+  status      String
+  detail      String?
+  payloadJson String
+  receivedAt  DateTime @default(now())
+  processedAt DateTime?
+
+  @@index([paymentId])
 }
 
 model LearningModule {
@@ -320,6 +398,7 @@ model LearningModule {
   certificationId       String
   knowledgeOnly         Boolean   @default(false)
   published             Boolean   @default(false)
+  equipmentStatus       String    @default("confirmed")
   passThresholdPercent  Int       @default(80)
   attemptLimit          Int       @default(3)
   sortOrder             Int       @default(0)
@@ -340,27 +419,59 @@ model Lesson {
   contentSlug       String
   sortOrder         Int       @default(0)
   estimatedMinutes  Int       @default(10)
+  gap               Boolean   @default(false)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   deletedAt         DateTime?
   module            LearningModule @relation(fields: [moduleId], references: [id])
   progress          LessonProgress[]
+  videos            LessonVideo[]
 
   @@unique([moduleId, slug])
 }
 
+model LessonVideo {
+  id              String    @id
+  lessonId        String
+  order           Int       @default(0)
+  provider        String    @default("youtube")
+  youtubeId       String
+  url             String
+  title           String
+  channel         String
+  role            String    @default("primary")
+  condition       String?
+  durationSeconds Int?
+  verifiedAt      DateTime?
+  staffReviewed   Boolean   @default(false)
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+  lesson          Lesson    @relation(fields: [lessonId], references: [id])
+  watches         VideoWatch[]
+
+  @@index([lessonId])
+}
+
 model Question {
-  id           String    @id
-  moduleId     String
-  prompt       String
-  choices      String // JSON array
-  correctIndex Int
-  explanation  String?
-  active       Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  deletedAt    DateTime?
-  module       LearningModule @relation(fields: [moduleId], references: [id])
+  id                 String    @id
+  moduleId           String
+  prompt             String
+  choices            String // JSON array
+  correctIndex       Int
+  correctIndexes     String? // JSON array for multi-select
+  explanation        String?
+  active             Boolean   @default(true)
+  safetyCritical     Boolean   @default(false)
+  source             String    @default("video")
+  sourceVideoId      String?
+  verifyAgainstVideo Boolean   @default(true)
+  answerPending      Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+  module             LearningModule @relation(fields: [moduleId], references: [id])
 }
 
 model LessonProgress {
@@ -377,26 +488,43 @@ model LessonProgress {
   @@unique([userId, lessonId])
 }
 
+model VideoWatch {
+  id        String    @id
+  userId    String
+  videoId   String
+  watchedAt DateTime
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  user      User      @relation(fields: [userId], references: [id])
+  video     LessonVideo @relation(fields: [videoId], references: [id])
+
+  @@unique([userId, videoId])
+}
+
 model QuizAttempt {
-  id           String    @id
-  userId       String
-  moduleId     String
-  questionIds  String // JSON array
-  answers      String // JSON array
-  scorePercent Int
-  passed       Boolean
-  startedAt    DateTime
-  submittedAt  DateTime
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  deletedAt    DateTime?
-  user         User      @relation(fields: [userId], references: [id])
-  module       LearningModule @relation(fields: [moduleId], references: [id])
+  id                      String    @id
+  userId                  String
+  moduleId                String
+  questionIds             String // JSON array
+  answers                 String // JSON array
+  scorePercent            Int
+  passed                  Boolean
+  thresholdMet            Boolean   @default(false)
+  safetyCriticalMissedIds String? // JSON array
+  startedAt               DateTime
+  submittedAt             DateTime
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  deletedAt               DateTime?
+  user                    User      @relation(fields: [userId], references: [id])
+  module                  LearningModule @relation(fields: [moduleId], references: [id])
 }
 
 model ContentPage {
   id           String    @id
   notionId     String?
+  googleFileId String?   @unique
   slug         String    @unique
   title        String
   html         String
@@ -477,6 +605,7 @@ model OrgSettings {
   quizPassThresholdPercent        Int      @default(80)
   quizAttemptLimit                Int      @default(3)
   quizQuestionCount               Int      @default(10)
+  requireSafetyCriticalAll        Boolean  @default(true)
   classCancellationCutoffHours    Int      @default(24)
   paymentHoldHours                Int      @default(48)
   reservationHorizonDays          Int      @default(14)

@@ -6,7 +6,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { MakerspaceBanner } from "@/components/brand-logo";
 import { PageShell } from "@/components/page-shell";
-import { UpcomingEvents } from "@/components/upcoming-events";
 import { useData } from "@/components/providers";
 import {
   formatBillingInterval,
@@ -61,96 +60,72 @@ export default function JoinPage() {
               Join The Box
             </h1>
             <p className="mt-4 max-w-lg text-lg leading-relaxed text-secondary">
-              Burien&apos;s community makerspace — memberships, day passes, and
-              ways to support without stepping onto the shop floor.
+              Pick a membership that fits how you make — day passes, Community,
+              Maker, and ways to support the shop.
             </p>
           </div>
           <div className="anim-rise-delay mt-8 flex flex-wrap gap-3">
             <Button asChild size="lg">
+              <a href="#memberships">See memberships</a>
+            </Button>
+            <Button asChild variant="secondary" size="lg">
               <a
                 href={settings?.paymentUrl ?? "#"}
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Join
-              </a>
-            </Button>
-            <Button asChild variant="secondary" size="lg">
-              <a
-                href="https://discoverburien.org"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Take a class
+                Pay &amp; join
               </a>
             </Button>
             <Button asChild variant="outline" size="lg">
-              <Link href="/support">Support</Link>
+              <Link href="/events">Classes &amp; events</Link>
             </Button>
           </div>
         </div>
       </section>
 
       <PageShell className="pt-10 sm:pt-12">
-        <section className="mb-14">
-          <p className="eyebrow">Coming up</p>
+        <section id="memberships" className="mb-14 scroll-mt-24">
+          <p className="eyebrow">Memberships</p>
           <h2 className="mt-2 font-display text-2xl font-semibold text-brown">
-            Classes &amp; open studio
+            Choose how you belong
           </h2>
           <p className="mt-3 max-w-2xl text-secondary leading-relaxed">
-            Drop into a workshop before you join, or start with free shop
-            orientation. Seats are limited.
+            Checkout stays on Zeffy. After you pay, this portal handles your
+            account, waiver, certifications, and shop access.
           </p>
-          <div className="mt-8">
-            <UpcomingEvents limit={5} />
+
+          {fund ? (
+            <p className="anim-rise-delay-2 mt-8 max-w-2xl border-l-4 border-primary bg-primary/10 px-5 py-4 font-display text-base text-brown">
+              Patrons are currently funding{" "}
+              <span className="font-semibold">{fund.seatsAwarded}</span>{" "}
+              scholarship seat{fund.seatsAwarded === 1 ? "" : "s"}
+              {fund.seatsAvailable > 0
+                ? ` · ${fund.seatsAvailable} more seat${fund.seatsAvailable === 1 ? "" : "s"} available from the fund`
+                : ""}
+              .
+            </p>
+          ) : null}
+
+          <div className="mt-10 grid gap-6 lg:grid-cols-2">
+            {current.map((product) => (
+              <TierCard
+                key={product.id}
+                product={product}
+                fund={fund}
+                paymentUrl={settings?.paymentUrl}
+                communityNote={
+                  product.tier === "community" && fund
+                    ? `${fund.communitySeatsUsed} of ${fund.communitySeatCap} Community seats in use`
+                    : undefined
+                }
+              />
+            ))}
           </div>
         </section>
-
-        <section className="mb-14">
-          <p className="eyebrow">Made at The Box</p>
-          <h2 className="mt-2 font-display text-2xl font-semibold text-brown">
-            See what members are building
-          </h2>
-          <p className="mt-3 max-w-2xl text-secondary leading-relaxed">
-            Laser cuts, prints, textiles, and woodshop firsts — a living gallery
-            of work from the space.
-          </p>
-          <div className="mt-6">
-            <Button asChild variant="secondary">
-              <Link href="/made">Browse Made here</Link>
-            </Button>
-          </div>
-        </section>
-
-        {fund ? (
-          <p className="anim-rise-delay-2 max-w-2xl border-l-4 border-primary bg-primary/10 px-5 py-4 font-display text-base text-brown">
-            Patrons are currently funding{" "}
-            <span className="font-semibold">{fund.seatsAwarded}</span> scholarship
-            seat{fund.seatsAwarded === 1 ? "" : "s"}
-            {fund.seatsAvailable > 0
-              ? ` · ${fund.seatsAvailable} more seat${fund.seatsAvailable === 1 ? "" : "s"} available from the fund`
-              : ""}
-            .
-          </p>
-        ) : null}
-
-        <div className="mt-12 grid gap-6 lg:grid-cols-2">
-          {current.map((product) => (
-            <TierCard
-              key={product.id}
-              product={product}
-              fund={fund}
-              communityNote={
-                product.tier === "community" && fund
-                  ? `${fund.communitySeatsUsed} of ${fund.communitySeatCap} Community seats in use`
-                  : undefined
-              }
-            />
-          ))}
-        </div>
 
         {coming.length > 0 ? (
-          <section className="mt-16">
+          <section className="mb-14">
             <p className="eyebrow">Coming in 2027</p>
             <h2 className="mt-2 font-display text-2xl font-semibold text-brown">
               After badge access ships
@@ -167,6 +142,28 @@ export default function JoinPage() {
             </div>
           </section>
         ) : null}
+
+        <section className="mb-14 rounded-[1.75rem] border border-border bg-surface/60 px-6 py-8 sm:px-8">
+          <p className="eyebrow">Not ready to join?</p>
+          <h2 className="mt-2 font-display text-xl font-semibold text-brown">
+            Try a class or open studio first
+          </h2>
+          <p className="mt-3 max-w-2xl text-secondary leading-relaxed">
+            Workshops, orientation, and open studio live on the Events calendar —
+            not buried under memberships.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Button asChild>
+              <Link href="/events">Browse events</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/made">See Made here</Link>
+            </Button>
+            <Button asChild variant="ghost">
+              <Link href="/support">Support without joining</Link>
+            </Button>
+          </div>
+        </section>
 
         <section className="mt-16 grid items-end gap-10 lg:grid-cols-2">
           <div>
@@ -243,11 +240,13 @@ export default function JoinPage() {
 function TierCard({
   product,
   fund,
+  paymentUrl,
   communityNote,
   comingSoon,
 }: {
   product: MembershipProduct;
   fund?: ScholarshipFundSummary | null;
+  paymentUrl?: string | null;
   communityNote?: string;
   comingSoon?: boolean;
 }) {
@@ -257,6 +256,13 @@ function TierCard({
         ? "$0"
         : "Free"
       : formatMoney(product.priceCents);
+
+  const showJoinCta =
+    !comingSoon &&
+    product.joinable &&
+    Boolean(paymentUrl) &&
+    product.tier !== "scholarship" &&
+    product.tier !== "shop_steward";
 
   return (
     <article
@@ -322,6 +328,15 @@ function TierCard({
             Apply on the Volunteer page →
           </Link>
         </p>
+      ) : null}
+      {showJoinCta ? (
+        <div className="mt-6">
+          <Button asChild>
+            <a href={paymentUrl!} target="_blank" rel="noopener noreferrer">
+              Join {product.name}
+            </a>
+          </Button>
+        </div>
       ) : null}
     </article>
   );

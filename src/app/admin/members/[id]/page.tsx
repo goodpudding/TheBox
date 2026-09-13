@@ -84,6 +84,10 @@ export default function AdminMemberDetailPage() {
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editingCertId, setEditingCertId] = useState<string | null>(null);
+  const [revokeReasons, setRevokeReasons] = useState<Record<string, string>>(
+    {},
+  );
 
   useEffect(() => {
     if (!id) return;
@@ -213,6 +217,90 @@ export default function AdminMemberDetailPage() {
     }
   }
 
+  async function onToggleTeacher() {
+    if (!member || !currentUser) return;
+    setPending(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const updated = await provider.adminSetMemberTeacher(
+        member.id,
+        !member.isTeacher,
+        currentUser.id,
+      );
+      setMember(updated);
+      bump();
+      setMessage(
+        updated.isTeacher
+          ? "Marked as teacher — can publish interest boards."
+          : "Teacher flag removed.",
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not update teacher flag",
+      );
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function onCheckoffCert(certificationId: string) {
+    if (!member || !currentUser) return;
+    setPending(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await provider.adminRecordCheckoff({
+        userId: member.id,
+        certificationId,
+        actorId: currentUser.id,
+      });
+      setEditingCertId(null);
+      bump();
+      setMessage("Checkoff recorded — member is certified.");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not record checkoff",
+      );
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function onRevokeCert(certificationId: string) {
+    if (!member || !currentUser) return;
+    const reason = (revokeReasons[certificationId] ?? "").trim();
+    if (!reason) {
+      setError("A revoke reason is required.");
+      return;
+    }
+    setPending(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await provider.adminRevokeCertification({
+        userId: member.id,
+        certificationId,
+        actorId: currentUser.id,
+        reason,
+      });
+      setRevokeReasons((prev) => {
+        const next = { ...prev };
+        delete next[certificationId];
+        return next;
+      });
+      setEditingCertId(null);
+      bump();
+      setMessage("Certification revoked.");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not revoke certification",
+      );
+    } finally {
+      setPending(false);
+    }
+  }
+
   async function linkBadgeById(badgeId: string) {
     if (!member || !currentUser || !badgeId) return;
     setPending(true);
@@ -313,6 +401,9 @@ export default function AdminMemberDetailPage() {
         <StatusPill tone={member.shopAccess ? "ok" : "muted"}>
           {member.shopAccess ? "Shop access" : "No shop access"}
         </StatusPill>
+        <StatusPill tone={member.isTeacher ? "ok" : "muted"}>
+          {member.isTeacher ? "Teacher" : "Not a teacher"}
+        </StatusPill>
       </div>
 
       {error ? (
@@ -343,6 +434,21 @@ export default function AdminMemberDetailPage() {
               </option>
             ))}
           </select>
+        </div>
+        <div className="mt-6">
+          <p className="text-sm text-secondary">
+            Teacher is a modifier (orthogonal to membership role). Teachers can
+            publish class interest boards even without an active member tier.
+          </p>
+          <Button
+            type="button"
+            className="mt-3"
+            variant="outline"
+            disabled={pending || !currentUser}
+            onClick={() => void onToggleTeacher()}
+          >
+            {member.isTeacher ? "Remove teacher flag" : "Mark as teacher"}
+          </Button>
         </div>
       </section>
 
@@ -530,30 +636,152 @@ export default function AdminMemberDetailPage() {
       </HistorySection>
 
       <HistorySection title="Certifications">
+        <p className="mb-3 text-sm text-secondary">
+          Click a certification to record a hands-on checkoff or revoke access.
+          Catalog edits live under{" "}
+          <Link
+            href="/admin/certifications"
+            className="text-primary-text hover:underline"
+          >
+            Admin → Certifications
+          </Link>
+          .
+        </p>
         <ul className="divide-y divide-border border-y border-border">
-          {certs.map((c) => (
-            <li
-              key={c.certificationId}
-              className="flex flex-wrap items-start justify-between gap-2 py-3"
-            >
-              <div>
-                <p className="font-display font-medium text-brown">
-                  {c.certification.name}
-                </p>
-                <p className="text-sm text-secondary">
-                  {c.checkedOffAt
-                    ? `Checked off ${formatDateTime(c.checkedOffAt)}`
-                    : c.knowledgePassedAt
-                      ? `Knowledge ${formatDateTime(c.knowledgePassedAt)}`
-                      : "Not started"}
-                  {c.expiresAt ? ` · Expires ${formatDateTime(c.expiresAt)}` : ""}
-                </p>
-              </div>
-              <StatusPill tone={certTone(c.status)}>
-                {c.status.replace(/_/g, " ")}
-              </StatusPill>
-            </li>
-          ))}
+          {certs.map((c) => {
+            const editing = editingCertId === c.certificationId;
+            const canRevoke =
+              c.status === "certified" ||
+              c.status === "knowledge_passed" ||
+              c.status === "expired";
+            const canCheckoff = c.status !== "certified";
+            return (
+              <li key={c.certificationId} className="py-3">
+                <button
+                  type="button"
+                  className="flex w-full flex-wrap items-start justify-between gap-2 text-left"
+                  onClick={() =>
+                    setEditingCertId(editing ? null : c.certificationId)
+                  }
+                >
+                  <div>
+                    <p className="font-display font-medium text-brown">
+                      {c.certification.name}
+                      <span className="ml-2 font-display text-xs font-normal text-primary-text">
+                        {editing ? "Close" : "Edit"}
+                      </span>
+                    </p>
+                    <p className="text-sm text-secondary">
+                      {c.checkedOffAt
+                        ? `Checked off ${formatDateTime(c.checkedOffAt)}`
+                        : c.knowledgePassedAt
+                          ? `Knowledge ${formatDateTime(c.knowledgePassedAt)}`
+                          : "Not started"}
+                      {c.expiresAt
+                        ? ` · Expires ${formatDateTime(c.expiresAt)}`
+                        : ""}
+                      {c.certification.knowledgeOnly
+                        ? " · knowledge-only"
+                        : ""}
+                    </p>
+                    {c.status === "revoked" && c.revokeReason ? (
+                      <p className="mt-1 text-sm text-accent">
+                        Revoked: {c.revokeReason}
+                      </p>
+                    ) : null}
+                  </div>
+                  <StatusPill tone={certTone(c.status)}>
+                    {c.status.replace(/_/g, " ")}
+                  </StatusPill>
+                </button>
+
+                {editing ? (
+                  <div
+                    className="mt-4 max-w-xl space-y-4 rounded-2xl border border-border bg-surface/60 p-4"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {(canCheckoff || c.status === "certified") && (
+                      <div className="space-y-2">
+                        <p className="font-display text-sm font-semibold text-brown">
+                          {c.status === "certified"
+                            ? "Renew / re-checkoff"
+                            : c.certification.knowledgeOnly
+                              ? "Mark certified"
+                              : "Record hands-on checkoff"}
+                        </p>
+                        <p className="text-sm text-secondary">
+                          Sets status to certified
+                          {c.certification.expiryMonths
+                            ? ` and expires in ~${c.certification.expiryMonths} months`
+                            : " with no expiry"}
+                          . Does not replace a quiz for knowledge tracking, but
+                          grants machine access for this cert.
+                        </p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={pending || !currentUser}
+                          onClick={() =>
+                            void onCheckoffCert(c.certificationId)
+                          }
+                        >
+                          {c.status === "certified"
+                            ? "Renew checkoff"
+                            : "Record checkoff"}
+                        </Button>
+                      </div>
+                    )}
+
+                    {canRevoke ? (
+                      <div className="space-y-2 border-t border-border pt-4">
+                        <p className="font-display text-sm font-semibold text-brown">
+                          Revoke
+                        </p>
+                        <Label htmlFor={`revoke-${c.certificationId}`}>
+                          Reason
+                        </Label>
+                        <Input
+                          id={`revoke-${c.certificationId}`}
+                          value={
+                            revokeReasons[c.certificationId] ?? ""
+                          }
+                          onChange={(e) =>
+                            setRevokeReasons((prev) => ({
+                              ...prev,
+                              [c.certificationId]: e.target.value,
+                            }))
+                          }
+                          placeholder="Why this cert is being revoked"
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          disabled={
+                            pending ||
+                            !currentUser ||
+                            !(revokeReasons[c.certificationId] ?? "").trim()
+                          }
+                          onClick={() =>
+                            void onRevokeCert(c.certificationId)
+                          }
+                        >
+                          Revoke certification
+                        </Button>
+                      </div>
+                    ) : null}
+
+                    {c.status === "not_started" ? (
+                      <p className="text-sm text-secondary">
+                        Member has no quiz pass or checkoff yet. Record a
+                        checkoff to certify them after a hands-on session.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
       </HistorySection>
 

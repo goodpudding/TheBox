@@ -8,6 +8,24 @@ import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
 import type { ContentPage } from "@/lib/data";
 
+function sourceLabel(page: ContentPage): {
+  kind: "drive" | "local" | "none";
+  label: string;
+  href?: string;
+} {
+  if (page.googleFileId) {
+    return {
+      kind: "drive",
+      label: "Google Doc",
+      href: `https://docs.google.com/document/d/${page.googleFileId}/edit`,
+    };
+  }
+  if (page.markdownPath) {
+    return { kind: "local", label: page.markdownPath };
+  }
+  return { kind: "none", label: "—" };
+}
+
 export default function AdminContentPage() {
   const { provider, revision, bump } = useData();
   const [pages, setPages] = useState<ContentPage[]>([]);
@@ -40,17 +58,20 @@ export default function AdminContentPage() {
 
   return (
     <AdminShell
-      title="Content mappings"
-      description="Notion-synced pages (mock: local markdown stand-ins)."
+      title="Content"
+      description="Policy and site pages pulled from the shared Google Drive folder. Demo/mock mode uses local markdown stand-ins until Drive sync is configured."
     >
       <div className="flex flex-wrap items-center gap-4">
         <Button type="button" onClick={() => void onSync()} disabled={pending}>
-          {pending ? "Syncing…" : "Sync now"}
+          {pending ? "Pulling…" : "Pull from Drive"}
         </Button>
         {syncResult ? (
           <p className="text-sm text-secondary">
-            Synced {syncResult.count} pages at{" "}
+            Updated {syncResult.count} pages at{" "}
             {formatDateTime(syncResult.syncedAt)}
+            {" · "}
+            In mock/demo this only refreshes timestamps; production runs the
+            Google Drive pull (`npm run sync:google`).
           </p>
         ) : null}
       </div>
@@ -69,35 +90,49 @@ export default function AdminContentPage() {
               <th className="py-2 pr-3 font-medium">Title</th>
               <th className="py-2 pr-3 font-medium">Category</th>
               <th className="py-2 pr-3 font-medium">Version</th>
-              <th className="py-2 pr-3 font-medium">Synced</th>
-              <th className="py-2 font-medium">Notion id</th>
+              <th className="py-2 pr-3 font-medium">Last pulled</th>
+              <th className="py-2 font-medium">Source</th>
             </tr>
           </thead>
           <tbody>
-            {pages.map((p) => (
-              <tr key={p.id} className="border-b border-border/70">
-                <td className="py-2.5 pr-3 font-mono text-xs text-charcoal">
-                  {p.slug}
-                </td>
-                <td className="py-2.5 pr-3 font-display font-semibold text-brown">
-                  {p.title}
-                </td>
-                <td className="py-2.5 pr-3">
-                  <StatusPill tone="muted">{p.category}</StatusPill>
-                </td>
-                <td className="py-2.5 pr-3">{p.version}</td>
-                <td className="py-2.5 pr-3 text-secondary">
-                  {p.syncedAt ? formatDateTime(p.syncedAt) : "—"}
-                </td>
-                <td className="py-2.5 font-mono text-xs text-secondary">
-                  {p.notionId ?? "—"}
-                </td>
-              </tr>
-            ))}
+            {pages.map((p) => {
+              const source = sourceLabel(p);
+              return (
+                <tr key={p.id} className="border-b border-border/70">
+                  <td className="py-2.5 pr-3 font-mono text-xs text-charcoal">
+                    {p.slug}
+                  </td>
+                  <td className="py-2.5 pr-3 font-display font-semibold text-brown">
+                    {p.title}
+                  </td>
+                  <td className="py-2.5 pr-3">
+                    <StatusPill tone="muted">{p.category}</StatusPill>
+                  </td>
+                  <td className="py-2.5 pr-3">{p.version}</td>
+                  <td className="py-2.5 pr-3 text-secondary">
+                    {p.syncedAt ? formatDateTime(p.syncedAt) : "—"}
+                  </td>
+                  <td className="py-2.5 font-mono text-xs text-secondary">
+                    {source.href ? (
+                      <a
+                        className="text-primary underline-offset-2 hover:underline"
+                        href={source.href}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {source.label}
+                      </a>
+                    ) : (
+                      source.label
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         {pages.length === 0 ? (
-          <p className="mt-4 text-secondary">No content mappings.</p>
+          <p className="mt-4 text-secondary">No content pages yet.</p>
         ) : null}
       </div>
     </AdminShell>

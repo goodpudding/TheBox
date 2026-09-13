@@ -130,27 +130,23 @@ export function isStaffRole(user: User | null | undefined): boolean {
 }
 
 /**
- * Who may block machines for maintenance:
- * staff/admin, Shop Steward membership, or an active Tool Champion.
+ * Who may block machines for maintenance: staff/admin or Shop Steward membership.
+ * Regular members and Tool Champions cannot schedule maintenance.
  */
 export function canScheduleMaintenance(
   user: User | null | undefined,
-  activeChampionMachineIds: string[] = [],
 ): boolean {
   if (!user || user.status !== "active") return false;
   if (isStaffRole(user)) return true;
-  if (user.tier === "shop_steward") return true;
-  return activeChampionMachineIds.length > 0;
+  return user.tier === "shop_steward";
 }
 
-/** Machine IDs this user may put into maintenance (null = any active machine). */
+/** Machine IDs this user may put into maintenance ("all" = any active machine). */
 export function maintenanceMachineScope(
   user: User | null | undefined,
-  activeChampionMachineIds: string[],
 ): "all" | string[] {
-  if (!user) return [];
-  if (isStaffRole(user) || user.tier === "shop_steward") return "all";
-  return activeChampionMachineIds;
+  if (!canScheduleMaintenance(user)) return [];
+  return "all";
 }
 
 export function shopLeadProgress(completedToolCount: number): {

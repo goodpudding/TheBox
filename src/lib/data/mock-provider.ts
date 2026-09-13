@@ -6,6 +6,11 @@ import {
   TOOL_CHAMPION_TERM_MONTHS,
 } from "./access";
 import { cloneFixtures, loadFixtures } from "./load-fixtures";
+import {
+  computePublishReadiness,
+  gradeQuizAttempt,
+  publishBlockersFromReadiness,
+} from "./learning";
 import type {
   AckPolicyInput,
   AllowlistResult,
@@ -14,6 +19,10 @@ import type {
   BookingRosterRow,
   CheckoffInput,
   ClassFilters,
+  ClassInterestBoardAdminUpdate,
+  ClassInterestBoardInput,
+  ClassInterestBoardView,
+  ClassInterestSignupInput,
   ClassSessionInput,
   ClassSessionView,
   CertificationInput,
@@ -25,9 +34,12 @@ import type {
   MachineInput,
   MaintenanceBlockInput,
   ModuleInput,
+  ModulePublishReadiness,
   OnboardingState,
+  PendingCheckoff,
   ProfileInput,
   PromoSlideInput,
+  PublishModuleResult,
   QuestionInput,
   QuizAttemptResult,
   QuizPayload,
@@ -41,10 +53,21 @@ import type {
   UsageFilters,
   UsageTotal,
   UserCertificationView,
+  VideoInput,
   VolunteerInterestAdminUpdate,
   VolunteerInterestInput,
 } from "./provider";
 import { buildDisplayFeed, buildMachineStatuses } from "./display-feed";
+import {
+  boardNeedsExpiry,
+  canProposeInterestBoard,
+  canPublishInterestBoard,
+  CLASS_INTEREST_DEFAULT_THRESHOLD,
+  CLASS_INTEREST_OPEN_DAYS,
+  CLASS_INTEREST_PRIORITY_HOURS,
+  interestSignupCount,
+  isStaffRole,
+} from "./class-interest";
 import type {
   AccessLog,
   AuditAction,
@@ -54,6 +77,9 @@ import type {
   BookingStatus,
   Certification,
   ClassSession,
+  ClassInterestBoard,
+  ClassInterestSignup,
+  ClassInterestStatus,
   ContentPage,
   DisplayConfig,
   DisplayPanelId,
@@ -62,6 +88,7 @@ import type {
   LearningModule,
   Lesson,
   LessonProgress,
+  LessonVideo,
   Machine,
   MaintenanceBlock,
   MembershipProduct,
@@ -78,6 +105,7 @@ import type {
   UsageSession,
   User,
   UserCertification,
+  VideoWatch,
   VolunteerInterest,
   VolunteerRole,
   WaiverSignature,
@@ -105,9 +133,25 @@ interface QuizTokenState {
   userId: string;
   moduleId: string;
   questionIds: string[];
-  correctIndexes: number[];
+  /** Full question objects for multi-select + safety grading. */
+  questions: Question[];
   startedAt: ISODateTime;
   attemptNumber: number;
+}
+
+function endsAfterShopClosing(endsAt: string): boolean {
+  const end = laParts(endsAt);
+  const window = OPENING_HOURS[end.weekday];
+  if (!window) return true;
+  const [, close] = window;
+  return end.hour * 60 + end.minute > close * 60;
+}
+
+function questionCorrectIndexes(q: Question): number[] {
+  if (q.correctIndexes && q.correctIndexes.length > 0) {
+    return q.correctIndexes;
+  }
+  return [q.correctIndex];
 }
 
 function overlaps(
@@ -215,6 +259,8 @@ export class MockDataProvider implements DataProvider {
 
   constructor(bundle: MockFixtureBundle, initialUserId?: string | null) {
     this.state = cloneFixtures(bundle);
+    this.state.lessonVideos ??= [];
+    this.state.videoWatches ??= [];
     this.currentUserId =
       initialUserId === undefined ? "u-maya" : initialUserId;
   }
@@ -319,6 +365,44 @@ export class MockDataProvider implements DataProvider {
     };
   }
 
+  private lessonsForModule(moduleId: string): Lesson[] {
+    return this.state.lessons.filter((l) => l.moduleId === moduleId);
+  }
+
+  private videosForModule(moduleId: string): LessonVideo[] {
+    const lessonIds = new Set(
+      this.lessonsForModule(moduleId).map((l) => l.id),
+    );
+    return this.state.lessonVideos.filter((v) => lessonIds.has(v.lessonId));
+  }
+
+  private primaryVideosForModule(moduleId: string): LessonVideo[] {
+    return this.videosForModule(moduleId).filter((v) => v.role === "primary");
+  }
+
+  private primaryVideosWatched(
+    moduleId: string,
+    userId: string | null,
+  ): boolean {
+    const primaries = this.primaryVideosForModule(moduleId);
+    if (primaries.length === 0) return true;
+    if (userId == null) return false;
+    return primaries.every((v) =>
+      this.state.videoWatches.some(
+        (w) => w.userId === userId && w.videoId === v.id,
+      ),
+    );
+  }
+
+  private publishReadinessFor(mod: LearningModule): ModulePublishReadiness {
+    return computePublishReadiness({
+      module: mod,
+      lessons: this.lessonsForModule(mod.id),
+      videos: this.videosForModule(mod.id),
+      questions: this.state.questions.filter((q) => q.moduleId === mod.id),
+    });
+  }
+
   private moduleView(
     mod: LearningModule,
     userId: string | null,
@@ -326,7 +410,7 @@ export class MockDataProvider implements DataProvider {
     const certification = this.state.certifications.find(
       (c) => c.id === mod.certificationId,
     )!;
-    const lessons = this.state.lessons.filter((l) => l.moduleId === mod.id);
+    const lessons = this.lessonsForModule(mod.id);
     const completedLessonCount =
       userId == null
         ? 0
@@ -341,17 +425,46 @@ export class MockDataProvider implements DataProvider {
         : this.state.quizAttempts.filter(
             (a) => a.userId === userId && a.moduleId === mod.id,
           ).length;
-    const knowledgePassed =
+    const uc =
       userId == null
-        ? false
-        : this.state.userCertifications.some(
-            (uc) =>
-              uc.userId === userId &&
-              uc.certificationId === mod.certificationId &&
-              (uc.status === "knowledge_passed" ||
-                uc.status === "certified" ||
-                !!uc.knowledgePassedAt),
+        ? undefined
+        : this.state.userCertifications.find(
+            (row) =>
+              row.userId === userId &&
+              row.certificationId === mod.certificationId,
           );
+    const knowledgePassed = Boolean(
+      uc &&
+        (uc.status === "knowledge_passed" ||
+          uc.status === "certified" ||
+          !!uc.knowledgePassedAt),
+    );
+    const certified = uc?.status === "certified";
+    const primaryVideosWatched =
+      userId != null && this.primaryVideosWatched(mod.id, userId);
+    const videoWatchCount =
+      userId == null
+        ? 0
+        : this.videosForModule(mod.id).filter((v) =>
+            this.state.videoWatches.some(
+              (w) => w.userId === userId && w.videoId === v.id,
+            ),
+          ).length;
+
+    let memberStatus: LearningModuleView["memberStatus"] = "not_started";
+    if (certified) memberStatus = "certified";
+    else if (knowledgePassed) {
+      // Quiz never grants machine access; always needs staff checkoff messaging.
+      memberStatus = "knowledge_passed_needs_checkoff";
+    } else if (primaryVideosWatched) {
+      memberStatus = "quiz_ready";
+    } else if (
+      completedLessonCount > 0 ||
+      attemptCount > 0 ||
+      videoWatchCount > 0
+    ) {
+      memberStatus = "in_progress";
+    }
 
     return {
       ...mod,
@@ -360,7 +473,124 @@ export class MockDataProvider implements DataProvider {
       completedLessonCount,
       attemptCount,
       knowledgePassed,
+      primaryVideosWatched,
+      memberStatus,
+      publishReadiness: this.publishReadinessFor(mod),
     };
+  }
+
+  private activeChampionUserIdsForMachines(machineIds: string[]): string[] {
+    const now = Date.now();
+    const ids = new Set<string>();
+    for (const t of this.state.toolChampionTerms) {
+      if (
+        t.status === "active" &&
+        machineIds.includes(t.machineId) &&
+        (!t.endsAt || new Date(t.endsAt).getTime() >= now)
+      ) {
+        ids.add(t.userId);
+      }
+    }
+    return [...ids];
+  }
+
+  private canActorCheckoffCert(
+    actorId: string,
+    certificationId: string,
+  ): boolean {
+    const actor = this.state.users.find((u) => u.id === actorId);
+    if (!actor) return false;
+    if (actor.role === "staff" || actor.role === "admin") return true;
+    const activeMachineIds =
+      this.toolChampionProgressFor(actorId).activeMachineIds;
+    return this.state.machines.some(
+      (m) =>
+        activeMachineIds.includes(m.id) &&
+        m.requiredCertificationIds.includes(certificationId),
+    );
+  }
+
+  async listPendingCheckoffs(viewerId: string): Promise<PendingCheckoff[]> {
+    this.requireUser(viewerId);
+    const viewer = this.state.users.find((u) => u.id === viewerId)!;
+    const isStaff = viewer.role === "staff" || viewer.role === "admin";
+    const viewerChampMachines = isStaff
+      ? null
+      : this.toolChampionProgressFor(viewerId).activeMachineIds;
+
+    const knowledgeOnlyCertIds = new Set(
+      this.state.learningModules
+        .filter((m) => m.knowledgeOnly)
+        .map((m) => m.certificationId),
+    );
+
+    const pending = this.state.userCertifications.filter(
+      (uc) =>
+        uc.status === "knowledge_passed" &&
+        !knowledgeOnlyCertIds.has(uc.certificationId),
+    );
+
+    const rows: PendingCheckoff[] = [];
+    for (const uc of pending) {
+      const user = this.state.users.find((u) => u.id === uc.userId);
+      const cert = this.state.certifications.find(
+        (c) => c.id === uc.certificationId,
+      );
+      if (!user || !cert) continue;
+
+      const machines = this.state.machines.filter(
+        (m) =>
+          m.active && m.requiredCertificationIds.includes(uc.certificationId),
+      );
+      const machineIds = machines.map((m) => m.id);
+
+      if (
+        viewerChampMachines &&
+        !machineIds.some((id) => viewerChampMachines.includes(id))
+      ) {
+        continue;
+      }
+
+      const championUserIds =
+        this.activeChampionUserIdsForMachines(machineIds);
+      const championDisplayNames = championUserIds
+        .map(
+          (id) =>
+            this.state.users.find((u) => u.id === id)?.displayName ?? id,
+        )
+        .sort((a, b) => a.localeCompare(b));
+
+      rows.push({
+        userId: user.id,
+        userDisplayName: user.displayName,
+        userEmail: user.email,
+        certificationId: cert.id,
+        certificationName: cert.name,
+        knowledgePassedAt: uc.knowledgePassedAt ?? uc.updatedAt,
+        machineIds,
+        machineNames: machines.map((m) => m.name).sort((a, b) => a.localeCompare(b)),
+        championUserIds,
+        championDisplayNames,
+        canCheckoff: this.canActorCheckoffCert(viewerId, cert.id),
+      });
+    }
+
+    return rows.sort((a, b) => {
+      const t =
+        new Date(a.knowledgePassedAt).getTime() -
+        new Date(b.knowledgePassedAt).getTime();
+      if (t !== 0) return t;
+      return a.userDisplayName.localeCompare(b.userDisplayName);
+    });
+  }
+
+  async recordCheckoff(input: CheckoffInput): Promise<UserCertification> {
+    if (!this.canActorCheckoffCert(input.actorId, input.certificationId)) {
+      throw new Error(
+        "Not allowed to record checkoff for this certification",
+      );
+    }
+    return this.adminRecordCheckoff(input);
   }
 
   // ── Identity ──────────────────────────────────────────────────────────────
@@ -572,6 +802,315 @@ export class MockDataProvider implements DataProvider {
       );
   }
 
+  // ── Class interest boards ─────────────────────────────────────────────────
+
+  private sweepInterestExpiry(): void {
+    const nowMs = Date.now();
+    for (const board of this.state.classInterestBoards) {
+      if (boardNeedsExpiry(board, nowMs)) {
+        board.status = "expired";
+        this.touch(board);
+      }
+    }
+  }
+
+  private toInterestView(
+    board: ClassInterestBoard,
+    viewerUserId?: string | null,
+  ): ClassInterestBoardView {
+    const interestCount = interestSignupCount(
+      board.id,
+      this.state.classInterestSignups,
+    );
+    let viewerSignedUp = false;
+    if (viewerUserId) {
+      const viewer = this.state.users.find((u) => u.id === viewerUserId);
+      viewerSignedUp = this.state.classInterestSignups.some(
+        (s) =>
+          s.boardId === board.id &&
+          !s.deletedAt &&
+          (s.userId === viewerUserId ||
+            (viewer &&
+              s.email.toLowerCase() === viewer.email.toLowerCase())),
+      );
+    }
+    let daysRemaining: number | null = null;
+    if (board.closesAt && (board.status === "open" || board.status === "ready")) {
+      const ms = new Date(board.closesAt).getTime() - Date.now();
+      daysRemaining = Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)));
+    }
+    const proposedBy = board.proposedByUserId
+      ? this.state.users.find((u) => u.id === board.proposedByUserId)
+      : null;
+    const instructor = board.instructorHintUserId
+      ? this.state.users.find((u) => u.id === board.instructorHintUserId)
+      : null;
+    return {
+      ...board,
+      interestCount,
+      viewerSignedUp,
+      daysRemaining,
+      proposedByDisplayName: proposedBy?.displayName ?? board.contactName,
+      instructorHintDisplayName: instructor?.displayName ?? null,
+    };
+  }
+
+  private assertInterestPriority(classSessionId: string, userId: string): void {
+    const board = this.state.classInterestBoards.find(
+      (b) =>
+        b.scheduledClassSessionId === classSessionId &&
+        b.status === "scheduled" &&
+        b.priorityBookingEndsAt &&
+        new Date(b.priorityBookingEndsAt).getTime() > Date.now(),
+    );
+    if (!board) return;
+    const user = this.requireUser(userId);
+    const onList = this.state.classInterestSignups.some(
+      (s) =>
+        s.boardId === board.id &&
+        !s.deletedAt &&
+        (s.userId === userId ||
+          s.email.toLowerCase() === user.email.toLowerCase()),
+    );
+    if (!onList) {
+      const ends = board.priorityBookingEndsAt
+        ? new Date(board.priorityBookingEndsAt).toLocaleString()
+        : "soon";
+      throw new Error(
+        `This class is in a priority window for interest-list signups until ${ends}`,
+      );
+    }
+  }
+
+  async listInterestBoards(filters?: {
+    status?: ClassInterestStatus | ClassInterestStatus[];
+    proposedByUserId?: string;
+    publicOnly?: boolean;
+  }): Promise<ClassInterestBoardView[]> {
+    this.sweepInterestExpiry();
+    const viewerId = this.currentUserId;
+    let boards = this.state.classInterestBoards.filter((b) => !b.deletedAt);
+    if (filters?.publicOnly) {
+      boards = boards.filter(
+        (b) => b.status === "open" || b.status === "ready",
+      );
+    }
+    if (filters?.proposedByUserId) {
+      boards = boards.filter(
+        (b) => b.proposedByUserId === filters.proposedByUserId,
+      );
+    }
+    if (filters?.status) {
+      const set = new Set(
+        Array.isArray(filters.status) ? filters.status : [filters.status],
+      );
+      boards = boards.filter((b) => set.has(b.status));
+    }
+    return boards
+      .map((b) => this.toInterestView(b, viewerId))
+      .sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      );
+  }
+
+  async getInterestBoard(
+    id: string,
+    viewerUserId?: string | null,
+  ): Promise<ClassInterestBoardView | null> {
+    this.sweepInterestExpiry();
+    const board = this.state.classInterestBoards.find(
+      (b) => b.id === id && !b.deletedAt,
+    );
+    if (!board) return null;
+    return this.toInterestView(
+      board,
+      viewerUserId ?? this.currentUserId,
+    );
+  }
+
+  async proposeInterestBoard(
+    input: ClassInterestBoardInput,
+  ): Promise<ClassInterestBoard> {
+    const title = input.title.trim();
+    const summary = input.summary.trim();
+    const contactName = input.contactName.trim();
+    const contactEmail = input.contactEmail.trim().toLowerCase();
+    if (!title || !summary || !contactName || !contactEmail) {
+      throw new Error("Title, summary, name, and email are required");
+    }
+
+    const proposer = input.proposedByUserId
+      ? this.state.users.find((u) => u.id === input.proposedByUserId)
+      : null;
+    if (input.proposedByUserId && !proposer) {
+      throw new Error("Proposer not found");
+    }
+    if (proposer && !canProposeInterestBoard(proposer) && !input.forcePending) {
+      throw new Error("Only active members or teachers can propose classes");
+    }
+
+    const now = this.now();
+    const publishDirect =
+      !input.forcePending && canPublishInterestBoard(proposer ?? null);
+    const threshold =
+      input.threshold ?? CLASS_INTEREST_DEFAULT_THRESHOLD;
+    const opensAt = publishDirect ? now : null;
+    const closesAt = publishDirect
+      ? addHours(now, CLASS_INTEREST_OPEN_DAYS * 24)
+      : null;
+
+    const board: ClassInterestBoard = {
+      id: this.id("interest"),
+      title,
+      summary,
+      category: input.category ?? "workshop",
+      status: publishDirect ? "open" : "pending",
+      threshold,
+      proposedByUserId: input.proposedByUserId ?? null,
+      contactName,
+      contactEmail,
+      instructorHintUserId:
+        input.instructorHintUserId ??
+        (proposer?.isTeacher ? proposer.id : null),
+      opensAt,
+      closesAt,
+      scheduledClassSessionId: null,
+      priorityBookingEndsAt: null,
+      resuggestedFromId: null,
+      reviewedById: null,
+      reviewedAt: null,
+      staffNotes: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.state.classInterestBoards.push(board);
+    return board;
+  }
+
+  async joinInterestBoard(
+    input: ClassInterestSignupInput,
+  ): Promise<ClassInterestSignup> {
+    this.sweepInterestExpiry();
+    const board = this.state.classInterestBoards.find(
+      (b) => b.id === input.boardId && !b.deletedAt,
+    );
+    if (!board) throw new Error("Interest board not found");
+    if (board.status !== "open" && board.status !== "ready") {
+      throw new Error("This interest board is not open for signups");
+    }
+
+    const email = input.email.trim().toLowerCase();
+    const displayName = input.displayName.trim();
+    if (!email || !displayName) {
+      throw new Error("Name and email are required");
+    }
+
+    const existing = this.state.classInterestSignups.find(
+      (s) =>
+        s.boardId === board.id &&
+        !s.deletedAt &&
+        ((input.userId && s.userId === input.userId) ||
+          s.email.toLowerCase() === email),
+    );
+    if (existing) return existing;
+
+    const now = this.now();
+    const signup: ClassInterestSignup = {
+      id: this.id("cis"),
+      boardId: board.id,
+      userId: input.userId ?? null,
+      email,
+      displayName,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.state.classInterestSignups.push(signup);
+
+    const count = interestSignupCount(
+      board.id,
+      this.state.classInterestSignups,
+    );
+    if (board.status === "open" && count >= board.threshold) {
+      board.status = "ready";
+      this.touch(board);
+    }
+    return signup;
+  }
+
+  async leaveInterestBoard(
+    boardId: string,
+    opts: { userId?: string | null; email?: string | null },
+  ): Promise<void> {
+    const email = opts.email?.trim().toLowerCase();
+    const signup = this.state.classInterestSignups.find(
+      (s) =>
+        s.boardId === boardId &&
+        !s.deletedAt &&
+        ((opts.userId && s.userId === opts.userId) ||
+          (email && s.email.toLowerCase() === email)),
+    );
+    if (!signup) return;
+    signup.deletedAt = this.now();
+    this.touch(signup);
+
+    const board = this.state.classInterestBoards.find((b) => b.id === boardId);
+    if (board && board.status === "ready") {
+      const count = interestSignupCount(
+        boardId,
+        this.state.classInterestSignups,
+      );
+      if (count < board.threshold && board.scheduledClassSessionId == null) {
+        const stillOpen =
+          board.closesAt && new Date(board.closesAt).getTime() > Date.now();
+        board.status = stillOpen ? "open" : "expired";
+        this.touch(board);
+      }
+    }
+  }
+
+  async listInterestSignups(boardId: string): Promise<ClassInterestSignup[]> {
+    return this.state.classInterestSignups
+      .filter((s) => s.boardId === boardId && !s.deletedAt)
+      .sort(
+        (a, b) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      );
+  }
+
+  async resuggestInterestBoard(
+    boardId: string,
+    actorUserId: string,
+  ): Promise<ClassInterestBoard> {
+    const prior = this.state.classInterestBoards.find((b) => b.id === boardId);
+    if (!prior) throw new Error("Interest board not found");
+    if (prior.status !== "expired" && prior.status !== "cancelled") {
+      throw new Error("Only expired or cancelled boards can be resuggested");
+    }
+    const actor = this.requireUser(actorUserId);
+    if (
+      prior.proposedByUserId &&
+      prior.proposedByUserId !== actorUserId &&
+      !isStaffRole(actor)
+    ) {
+      throw new Error("Only the original proposer or staff can resuggest");
+    }
+
+    const next = await this.proposeInterestBoard({
+      title: prior.title,
+      summary: prior.summary,
+      category: prior.category,
+      threshold: prior.threshold,
+      proposedByUserId: actorUserId,
+      contactName: actor.displayName,
+      contactEmail: actor.email,
+      instructorHintUserId: prior.instructorHintUserId,
+    });
+    next.resuggestedFromId = prior.id;
+    this.touch(next);
+    return next;
+  }
+
   // ── Usage ─────────────────────────────────────────────────────────────────
 
   async getUsage(userId: string, range?: DateRange): Promise<UsageSession[]> {
@@ -647,6 +1186,8 @@ export class MockDataProvider implements DataProvider {
     if (new Date(session.startsAt).getTime() < Date.now()) {
       throw new Error("Cannot book a class that has already started");
     }
+
+    this.assertInterestPriority(classSessionId, userId);
 
     const existing = this.state.bookings.find(
       (b) =>
@@ -839,6 +1380,15 @@ export class MockDataProvider implements DataProvider {
       throw new Error("Reservation is outside opening hours");
     }
 
+    if (
+      machine.attendedOperationRequired &&
+      endsAfterShopClosing(input.endsAt)
+    ) {
+      throw new Error(
+        "Attended-operation machines cannot be reserved past shop closing",
+      );
+    }
+
     const open = this.state.reservations.filter(
       (r) =>
         r.userId === input.userId &&
@@ -856,9 +1406,20 @@ export class MockDataProvider implements DataProvider {
       .filter((r) => laParts(r.startsAt).dateKey === dayKey)
       .reduce((sum, r) => sum + hoursBetween(r.startsAt, r.endsAt), 0);
     const requested = hoursBetween(input.startsAt, input.endsAt);
-    if (dayHours + requested > this.state.settings.maxHoursPerDay) {
+    const machineMaxHours =
+      machine.maxReservationHours ?? this.state.settings.maxHoursPerDay;
+    if (requested > machineMaxHours + 1e-9) {
       throw new Error(
-        `Maximum of ${this.state.settings.maxHoursPerDay} reservation hours per day`,
+        `This machine can only be reserved for up to ${machineMaxHours} hours at a time`,
+      );
+    }
+    const dayCap = Math.max(
+      this.state.settings.maxHoursPerDay,
+      machineMaxHours,
+    );
+    if (dayHours + requested > dayCap + 1e-9) {
+      throw new Error(
+        `Maximum of ${dayCap} reservation hours per day on this machine`,
       );
     }
 
@@ -1020,6 +1581,16 @@ export class MockDataProvider implements DataProvider {
     const staff = user?.role === "staff" || user?.role === "admin";
     if (!mod.published && !staff) return null;
     const view = this.moduleView(mod, this.currentUserId);
+    const uid = this.currentUserId;
+    const attemptLimit =
+      mod.attemptLimit || this.state.settings.quizAttemptLimit;
+    const attemptCount =
+      uid == null
+        ? 0
+        : this.state.quizAttempts.filter(
+            (a) => a.userId === uid && a.moduleId === mod.id,
+          ).length;
+    const primaryVideosWatched = this.primaryVideosWatched(mod.id, uid);
     const lessons = this.state.lessons
       .filter((l) => l.moduleId === mod.id)
       .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -1028,18 +1599,34 @@ export class MockDataProvider implements DataProvider {
           (c) => c.slug === l.contentSlug,
         );
         const completed =
-          this.currentUserId != null &&
+          uid != null &&
           this.state.lessonProgress.some(
-            (p) =>
-              p.userId === this.currentUserId && p.lessonId === l.id,
+            (p) => p.userId === uid && p.lessonId === l.id,
           );
+        const videos = this.state.lessonVideos
+          .filter((v) => v.lessonId === l.id)
+          .sort((a, b) => a.order - b.order)
+          .map((v) => ({
+            ...v,
+            watched:
+              uid != null &&
+              this.state.videoWatches.some(
+                (w) => w.userId === uid && w.videoId === v.id,
+              ),
+          }));
         return {
           ...l,
           completed,
           html: content?.html ?? "",
+          videos,
         };
       });
-    return { ...view, lessons };
+    return {
+      ...view,
+      lessons,
+      primaryVideosWatched,
+      attemptsRemaining: Math.max(0, attemptLimit - attemptCount),
+    };
   }
 
   async markLessonComplete(
@@ -1066,10 +1653,57 @@ export class MockDataProvider implements DataProvider {
     return progress;
   }
 
+  async markVideoWatched(
+    videoId: string,
+    userId: string,
+  ): Promise<VideoWatch> {
+    this.requireUser(userId);
+    const video = this.state.lessonVideos.find((v) => v.id === videoId);
+    if (!video) throw new Error("Video not found");
+    const existing = this.state.videoWatches.find(
+      (w) => w.userId === userId && w.videoId === videoId,
+    );
+    if (existing) return existing;
+    const now = this.now();
+    const watch: VideoWatch = {
+      id: this.id("vw"),
+      userId,
+      videoId,
+      watchedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.state.videoWatches.push(watch);
+    return watch;
+  }
+
+  async getQuestionBank(moduleId: string): Promise<Question[]> {
+    return this.state.questions.filter(
+      (q) => q.moduleId === moduleId && q.active,
+    );
+  }
+
+  async getModulePublishReadiness(
+    moduleId: string,
+  ): Promise<ModulePublishReadiness> {
+    const mod = this.state.learningModules.find((m) => m.id === moduleId);
+    if (!mod) throw new Error("Module not found");
+    return this.publishReadinessFor(mod);
+  }
+
   async startQuiz(moduleId: string, userId: string): Promise<QuizPayload> {
     this.requireUser(userId);
     const mod = this.state.learningModules.find((m) => m.id === moduleId);
-    if (!mod || !mod.published) throw new Error("Module not found");
+    if (!mod) throw new Error("Module not found");
+    const user = this.requireUser(userId);
+    const staff = user.role === "staff" || user.role === "admin";
+    if (!mod.published && !staff) throw new Error("Module not found");
+
+    if (!this.primaryVideosWatched(moduleId, userId)) {
+      throw new Error(
+        "Watch all required (primary) videos before taking the quiz",
+      );
+    }
 
     const attemptLimit =
       mod.attemptLimit || this.state.settings.quizAttemptLimit;
@@ -1080,8 +1714,9 @@ export class MockDataProvider implements DataProvider {
       throw new Error(`Attempt limit of ${attemptLimit} reached`);
     }
 
+    // Always exclude answerPending from the sampled bank (draft + published).
     const bank = this.state.questions.filter(
-      (q) => q.moduleId === moduleId && q.active,
+      (q) => q.moduleId === moduleId && q.active && !q.answerPending,
     );
     if (bank.length === 0) throw new Error("No quiz questions available");
 
@@ -1098,7 +1733,7 @@ export class MockDataProvider implements DataProvider {
       userId,
       moduleId,
       questionIds: sampled.map((q) => q.id),
-      correctIndexes: sampled.map((q) => q.correctIndex),
+      questions: sampled.map((q) => structuredClone(q)),
       startedAt,
       attemptNumber,
     });
@@ -1110,6 +1745,7 @@ export class MockDataProvider implements DataProvider {
         id: q.id,
         prompt: q.prompt,
         choices: [...q.choices],
+        multi: questionCorrectIndexes(q).length > 1 ? true : undefined,
       })),
       passThresholdPercent:
         mod.passThresholdPercent || this.state.settings.quizPassThresholdPercent,
@@ -1137,26 +1773,28 @@ export class MockDataProvider implements DataProvider {
     const mod = this.state.learningModules.find((m) => m.id === input.moduleId);
     if (!mod) throw new Error("Module not found");
 
-    let correct = 0;
-    for (let i = 0; i < token.correctIndexes.length; i++) {
-      if (input.answers[i] === token.correctIndexes[i]) correct += 1;
-    }
-    const scorePercent = Math.round(
-      (correct / token.correctIndexes.length) * 100,
-    );
     const threshold =
       mod.passThresholdPercent || this.state.settings.quizPassThresholdPercent;
-    const passed = scorePercent >= threshold;
+    const graded = gradeQuizAttempt({
+      questions: token.questions,
+      answers: input.answers,
+      passThresholdPercent: threshold,
+      requireSafetyCriticalAll: this.state.settings.requireSafetyCriticalAll,
+    });
     const now = this.now();
+    const attemptLimit =
+      mod.attemptLimit || this.state.settings.quizAttemptLimit;
 
     const attempt: QuizAttempt = {
       id: this.id("qa"),
       userId: input.userId,
       moduleId: input.moduleId,
       questionIds: [...input.questionIds],
-      answers: [...input.answers],
-      scorePercent,
-      passed,
+      answers: structuredClone(input.answers),
+      scorePercent: graded.scorePct,
+      passed: graded.passed,
+      thresholdMet: graded.thresholdMet,
+      safetyCriticalMissedIds: graded.safetyCriticalMissed.map((q) => q.id),
       startedAt: token.startedAt,
       submittedAt: now,
       createdAt: now,
@@ -1165,8 +1803,13 @@ export class MockDataProvider implements DataProvider {
     this.state.quizAttempts.push(attempt);
     this.quizTokens.delete(input.attemptToken);
 
+    const priorCount = this.state.quizAttempts.filter(
+      (a) => a.userId === input.userId && a.moduleId === input.moduleId,
+    ).length;
+    const attemptsRemaining = Math.max(0, attemptLimit - priorCount);
+
     let knowledgePassed = false;
-    if (passed) {
+    if (graded.passed) {
       let uc = this.state.userCertifications.find(
         (c) =>
           c.userId === input.userId &&
@@ -1183,10 +1826,7 @@ export class MockDataProvider implements DataProvider {
           updatedAt: now,
         };
         this.state.userCertifications.push(uc);
-      } else if (
-        uc.status !== "certified" &&
-        uc.status !== "revoked"
-      ) {
+      } else if (uc.status !== "certified" && uc.status !== "revoked") {
         uc.status = "knowledge_passed";
         uc.knowledgePassedAt = now;
         this.touch(uc);
@@ -1195,20 +1835,7 @@ export class MockDataProvider implements DataProvider {
         this.touch(uc);
       }
 
-      if (mod.knowledgeOnly && uc.status !== "revoked") {
-        uc.status = "certified";
-        uc.checkedOffAt = uc.checkedOffAt ?? now;
-        this.touch(uc);
-        this.pushAudit({
-          action: "cert_checked_off",
-          actorId: input.userId,
-          subjectUserId: input.userId,
-          entityType: "UserCertification",
-          entityId: uc.id,
-          metadata: { via: "knowledge_only_quiz" },
-        });
-      }
-
+      // Never certified from quiz alone (including knowledgeOnly modules).
       knowledgePassed = true;
       this.pushAudit({
         action: "cert_knowledge_passed",
@@ -1216,11 +1843,24 @@ export class MockDataProvider implements DataProvider {
         subjectUserId: input.userId,
         entityType: "UserCertification",
         entityId: uc.id,
-        metadata: { scorePercent, moduleId: mod.id },
+        metadata: {
+          scorePercent: graded.scorePct,
+          moduleId: mod.id,
+          thresholdMet: graded.thresholdMet,
+        },
       });
     }
 
-    return { attempt, passed, scorePercent, knowledgePassed };
+    return {
+      attempt,
+      passed: graded.passed,
+      scorePct: graded.scorePct,
+      scorePercent: graded.scorePct,
+      thresholdMet: graded.thresholdMet,
+      safetyCriticalMissed: graded.safetyCriticalMissed,
+      attemptsRemaining,
+      knowledgePassed,
+    };
   }
 
   // ── Content / volunteer / settings ────────────────────────────────────────
@@ -1333,6 +1973,118 @@ export class MockDataProvider implements DataProvider {
       metadata: { from: prev, to: status },
     });
     return user;
+  }
+
+  async adminSetMemberTeacher(
+    id: string,
+    isTeacher: boolean,
+    actorId: string,
+  ): Promise<User> {
+    this.requireUser(actorId);
+    const user = this.requireUser(id);
+    user.isTeacher = isTeacher;
+    this.touch(user);
+    return user;
+  }
+
+  async adminApproveInterestBoard(
+    id: string,
+    actorId: string,
+    opts?: { threshold?: number; closesAt?: ISODateTime },
+  ): Promise<ClassInterestBoard> {
+    this.requireUser(actorId);
+    const board = this.state.classInterestBoards.find((b) => b.id === id);
+    if (!board) throw new Error("Interest board not found");
+    if (board.status !== "pending") {
+      throw new Error("Only pending proposals can be approved");
+    }
+    const now = this.now();
+    board.status = "open";
+    board.opensAt = now;
+    board.closesAt =
+      opts?.closesAt ?? addHours(now, CLASS_INTEREST_OPEN_DAYS * 24);
+    if (opts?.threshold != null) board.threshold = opts.threshold;
+    board.reviewedById = actorId;
+    board.reviewedAt = now;
+    this.touch(board);
+
+    const count = interestSignupCount(
+      board.id,
+      this.state.classInterestSignups,
+    );
+    if (count >= board.threshold) {
+      board.status = "ready";
+      this.touch(board);
+    }
+    return board;
+  }
+
+  async adminRejectInterestBoard(
+    id: string,
+    actorId: string,
+    notes?: string,
+  ): Promise<ClassInterestBoard> {
+    this.requireUser(actorId);
+    const board = this.state.classInterestBoards.find((b) => b.id === id);
+    if (!board) throw new Error("Interest board not found");
+    board.status = "cancelled";
+    board.reviewedById = actorId;
+    board.reviewedAt = this.now();
+    if (notes != null) board.staffNotes = notes;
+    return this.touch(board);
+  }
+
+  async adminUpdateInterestBoard(
+    id: string,
+    data: ClassInterestBoardAdminUpdate,
+  ): Promise<ClassInterestBoard> {
+    const board = this.state.classInterestBoards.find((b) => b.id === id);
+    if (!board) throw new Error("Interest board not found");
+    if (data.status != null) board.status = data.status;
+    if (data.threshold != null) board.threshold = data.threshold;
+    if (data.closesAt !== undefined) board.closesAt = data.closesAt;
+    if (data.staffNotes !== undefined) board.staffNotes = data.staffNotes;
+    if (data.instructorHintUserId !== undefined) {
+      board.instructorHintUserId = data.instructorHintUserId;
+    }
+    if (data.reviewedById !== undefined) {
+      board.reviewedById = data.reviewedById;
+      board.reviewedAt = this.now();
+    }
+    this.touch(board);
+    if (board.status === "open") {
+      const count = interestSignupCount(
+        board.id,
+        this.state.classInterestSignups,
+      );
+      if (count >= board.threshold) {
+        board.status = "ready";
+        this.touch(board);
+      }
+    }
+    return board;
+  }
+
+  async adminLinkInterestBoardToClass(
+    boardId: string,
+    classSessionId: string,
+    actorId: string,
+  ): Promise<ClassInterestBoard> {
+    this.requireUser(actorId);
+    const board = this.state.classInterestBoards.find((b) => b.id === boardId);
+    if (!board) throw new Error("Interest board not found");
+    const session = this.state.classSessions.find((c) => c.id === classSessionId);
+    if (!session) throw new Error("Class session not found");
+    const now = this.now();
+    board.scheduledClassSessionId = classSessionId;
+    board.status = "scheduled";
+    board.priorityBookingEndsAt = addHours(
+      now,
+      CLASS_INTEREST_PRIORITY_HOURS,
+    );
+    board.reviewedById = actorId;
+    board.reviewedAt = now;
+    return this.touch(board);
   }
 
   async adminListBadges(): Promise<Badge[]> {
@@ -1501,6 +2253,7 @@ export class MockDataProvider implements DataProvider {
       capacity: data.capacity,
       priceCents: data.priceCents ?? 0,
       zeffyUrl: data.zeffyUrl ?? null,
+      zeffyCampaignId: data.zeffyCampaignId ?? null,
       prerequisiteCertificationIds: data.prerequisiteCertificationIds ?? [],
       location: data.location ?? "The Box",
       cancellationCutoffHours: data.cancellationCutoffHours ?? null,
@@ -1555,6 +2308,143 @@ export class MockDataProvider implements DataProvider {
       entityId: booking.id,
     });
     return booking;
+  }
+
+  async findBookingByZeffyPaymentId(
+    paymentId: string,
+  ): Promise<Booking | null> {
+    return (
+      this.state.bookings.find((b) => b.zeffyPaymentId === paymentId) ?? null
+    );
+  }
+
+  async applyZeffyPaymentToBooking(input: {
+    bookingId: string;
+    paymentId: string;
+    paidAt: string;
+  }): Promise<Booking> {
+    const booking = this.state.bookings.find((b) => b.id === input.bookingId);
+    if (!booking) throw new Error("Booking not found");
+    booking.status = "booked";
+    booking.paidAt = input.paidAt;
+    booking.zeffyPaymentId = input.paymentId;
+    booking.paidMarkedById = null;
+    booking.paymentHoldExpiresAt = null;
+    booking.waitlistPosition = null;
+    this.touch(booking);
+    this.pushAudit({
+      action: "booking_paid_zeffy",
+      actorId: "system:zeffy",
+      subjectUserId: booking.userId,
+      entityType: "Booking",
+      entityId: booking.id,
+      metadata: { paymentId: input.paymentId },
+    });
+    return booking;
+  }
+
+  async createBookingFromZeffyPayment(input: {
+    classSessionId: string;
+    userId: string;
+    paymentId: string;
+    paidAt: string;
+  }): Promise<Booking> {
+    const existing = await this.findBookingByZeffyPaymentId(input.paymentId);
+    if (existing) return existing;
+
+    const booking: Booking = {
+      id: this.id("bk"),
+      classSessionId: input.classSessionId,
+      userId: input.userId,
+      status: "booked",
+      paidAt: input.paidAt,
+      zeffyPaymentId: input.paymentId,
+      paidMarkedById: null,
+      createdAt: input.paidAt,
+      updatedAt: input.paidAt,
+    };
+    this.state.bookings.push(booking);
+    this.pushAudit({
+      action: "booking_created_zeffy",
+      actorId: "system:zeffy",
+      subjectUserId: booking.userId,
+      entityType: "Booking",
+      entityId: booking.id,
+      metadata: { paymentId: input.paymentId },
+    });
+    return booking;
+  }
+
+  async applyZeffyTicketPayment(
+    payment: import("@/lib/zeffy/types").ZeffyPayment,
+    paidAtIso?: string,
+  ): Promise<import("@/lib/zeffy/types").ZeffyApplyResult> {
+    const { applyZeffyPaymentToStore } = await import(
+      "@/lib/zeffy/apply-payment"
+    );
+
+    return applyZeffyPaymentToStore(
+      payment,
+      {
+        findBookingByPaymentId: (paymentId) =>
+          this.state.bookings.find((b) => b.zeffyPaymentId === paymentId) ??
+          null,
+        findClassByCampaignId: (campaignId) =>
+          this.state.classSessions.find(
+            (c) => c.zeffyCampaignId === campaignId,
+          ) ?? null,
+        findUserByEmail: (email) =>
+          this.state.users.find((u) => u.email.toLowerCase() === email) ?? null,
+        listBookingsForClass: (classSessionId) =>
+          this.state.bookings.filter((b) => b.classSessionId === classSessionId),
+        createBookedPaid: (input) => {
+          const booking: Booking = {
+            id: this.id("bk"),
+            classSessionId: input.classSessionId,
+            userId: input.userId,
+            status: "booked",
+            paidAt: input.paidAt,
+            zeffyPaymentId: input.paymentId,
+            paidMarkedById: null,
+            createdAt: input.paidAt,
+            updatedAt: input.paidAt,
+          };
+          this.state.bookings.push(booking);
+          this.pushAudit({
+            action: "booking_created_zeffy",
+            actorId: "system:zeffy",
+            subjectUserId: booking.userId,
+            entityType: "Booking",
+            entityId: booking.id,
+            metadata: { paymentId: input.paymentId },
+          });
+          return booking;
+        },
+        markPaidFromZeffy: (input) => {
+          const booking = this.state.bookings.find(
+            (b) => b.id === input.bookingId,
+          );
+          if (!booking) throw new Error("Booking not found");
+          booking.status = "booked";
+          booking.paidAt = input.paidAt;
+          booking.zeffyPaymentId = input.paymentId;
+          booking.paidMarkedById = null;
+          booking.paymentHoldExpiresAt = null;
+          booking.waitlistPosition = null;
+          this.touch(booking);
+          this.pushAudit({
+            action: "booking_paid_zeffy",
+            actorId: "system:zeffy",
+            subjectUserId: booking.userId,
+            entityType: "Booking",
+            entityId: booking.id,
+            metadata: { paymentId: input.paymentId },
+          });
+          return booking;
+        },
+      },
+      paidAtIso,
+    );
   }
 
   async adminMarkAttendance(
@@ -1633,6 +2523,14 @@ export class MockDataProvider implements DataProvider {
     if (new Date(input.endsAt) <= new Date(input.startsAt)) {
       throw new Error("Reservation end must be after start");
     }
+    if (
+      machine.attendedOperationRequired &&
+      endsAfterShopClosing(input.endsAt)
+    ) {
+      throw new Error(
+        "Attended-operation machines cannot be reserved past shop closing",
+      );
+    }
     const conflict = this.state.reservations.find(
       (r) =>
         r.machineId === input.machineId &&
@@ -1683,15 +2581,14 @@ export class MockDataProvider implements DataProvider {
     data: MaintenanceBlockInput,
   ): Promise<MaintenanceBlock> {
     const actor = this.state.users.find((u) => u.id === data.createdById);
-    const progress = this.toolChampionProgressFor(data.createdById);
-    if (!canScheduleMaintenance(actor, progress.activeMachineIds)) {
+    if (!canScheduleMaintenance(actor)) {
       throw new Error(
-        "Only staff, Shop Stewards, or active Tool Champions can schedule maintenance",
+        "Only staff or Shop Stewards can schedule maintenance",
       );
     }
-    const scope = maintenanceMachineScope(actor, progress.activeMachineIds);
+    const scope = maintenanceMachineScope(actor);
     if (scope !== "all" && !scope.includes(data.machineId)) {
-      throw new Error("You can only schedule maintenance on your championed machines");
+      throw new Error("You are not allowed to schedule maintenance on that machine");
     }
     if (new Date(data.endsAt).getTime() <= new Date(data.startsAt).getTime()) {
       throw new Error("Maintenance end must be after start");
@@ -1757,8 +2654,8 @@ export class MockDataProvider implements DataProvider {
       completedMachineIds,
       completedCount: completedMachineIds.length,
       shopLeadEligible: lead.eligible,
-      canScheduleMaintenance: canScheduleMaintenance(user, activeMachineIds),
-      maintenanceMachineIds: maintenanceMachineScope(user, activeMachineIds),
+      canScheduleMaintenance: canScheduleMaintenance(user),
+      maintenanceMachineIds: maintenanceMachineScope(user),
     };
   }
 
@@ -1888,6 +2785,7 @@ export class MockDataProvider implements DataProvider {
       certificationId: data.certificationId,
       knowledgeOnly: data.knowledgeOnly ?? false,
       published: data.published ?? false,
+      equipmentStatus: data.equipmentStatus ?? "confirmed",
       passThresholdPercent:
         data.passThresholdPercent ??
         this.state.settings.quizPassThresholdPercent,
@@ -1921,6 +2819,7 @@ export class MockDataProvider implements DataProvider {
         this.state.lessons.filter((l) => l.moduleId === data.moduleId).length +
           1,
       estimatedMinutes: data.estimatedMinutes ?? 10,
+      gap: data.gap ?? false,
       createdAt: now,
       updatedAt: now,
     };
@@ -1934,22 +2833,44 @@ export class MockDataProvider implements DataProvider {
       const existing = this.state.questions.find((q) => q.id === data.id);
       if (existing) {
         Object.assign(existing, data, { updatedAt: now });
+        if (
+          data.correctIndexes == null &&
+          data.correctIndex != null &&
+          existing.correctIndexes == null
+        ) {
+          existing.correctIndexes = [data.correctIndex];
+        }
         return existing;
       }
     }
+    const correctIndexes =
+      data.correctIndexes ??
+      (data.correctIndex != null ? [data.correctIndex] : [0]);
     const question: Question = {
       id: data.id ?? this.id("q"),
       moduleId: data.moduleId,
       prompt: data.prompt,
       choices: data.choices,
-      correctIndex: data.correctIndex,
+      correctIndex: data.correctIndex ?? correctIndexes[0] ?? 0,
+      correctIndexes,
       explanation: data.explanation,
       active: data.active ?? true,
+      safetyCritical: data.safetyCritical ?? false,
+      source: data.source ?? "video",
+      sourceVideoId: data.sourceVideoId ?? null,
+      verifyAgainstVideo: data.verifyAgainstVideo ?? true,
+      answerPending: data.answerPending ?? false,
       createdAt: now,
       updatedAt: now,
     };
     this.state.questions.push(question);
     return question;
+  }
+
+  async adminDeleteQuestion(id: string): Promise<void> {
+    const idx = this.state.questions.findIndex((q) => q.id === id);
+    if (idx < 0) throw new Error("Question not found");
+    this.state.questions.splice(idx, 1);
   }
 
   async adminListQuestions(moduleId: string): Promise<Question[]> {
@@ -1958,14 +2879,90 @@ export class MockDataProvider implements DataProvider {
       .sort((a, b) => a.prompt.localeCompare(b.prompt));
   }
 
+  async adminUpsertVideo(data: VideoInput): Promise<LessonVideo> {
+    const now = this.now();
+    const lesson = this.state.lessons.find((l) => l.id === data.lessonId);
+    if (!lesson) throw new Error("Lesson not found");
+    if (data.id) {
+      const existing = this.state.lessonVideos.find((v) => v.id === data.id);
+      if (existing) {
+        Object.assign(existing, data, { updatedAt: now });
+        return existing;
+      }
+    }
+    const video: LessonVideo = {
+      id: data.id ?? this.id("vid"),
+      lessonId: data.lessonId,
+      order: data.order,
+      provider: data.provider ?? "youtube",
+      youtubeId: data.youtubeId,
+      url: data.url,
+      title: data.title,
+      channel: data.channel,
+      role: data.role,
+      condition: data.condition ?? null,
+      durationSeconds: data.durationSeconds ?? null,
+      verifiedAt: data.verifiedAt ?? null,
+      staffReviewed: data.staffReviewed ?? false,
+      notes: data.notes ?? null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.state.lessonVideos.push(video);
+    return video;
+  }
+
+  async adminDeleteVideo(id: string): Promise<void> {
+    const idx = this.state.lessonVideos.findIndex((v) => v.id === id);
+    if (idx < 0) throw new Error("Video not found");
+    this.state.videoWatches = this.state.videoWatches.filter(
+      (w) => w.videoId !== id,
+    );
+    this.state.lessonVideos.splice(idx, 1);
+  }
+
+  async adminSetVideoReviewed(
+    videoId: string,
+    reviewed: boolean,
+  ): Promise<LessonVideo> {
+    const video = this.state.lessonVideos.find((v) => v.id === videoId);
+    if (!video) throw new Error("Video not found");
+    video.staffReviewed = reviewed;
+    if (reviewed && !video.verifiedAt) video.verifiedAt = this.now();
+    return this.touch(video);
+  }
+
+  async adminListVideos(moduleId: string): Promise<LessonVideo[]> {
+    return this.videosForModule(moduleId).sort((a, b) => {
+      if (a.lessonId !== b.lessonId) {
+        return a.lessonId.localeCompare(b.lessonId);
+      }
+      return a.order - b.order;
+    });
+  }
+
   async adminPublishModule(
     id: string,
     published: boolean,
-  ): Promise<LearningModule> {
+  ): Promise<PublishModuleResult> {
     const mod = this.state.learningModules.find((m) => m.id === id);
     if (!mod) throw new Error("Module not found");
-    mod.published = published;
-    return this.touch(mod);
+    if (!published) {
+      mod.published = false;
+      this.touch(mod);
+      return { ok: true, module: mod };
+    }
+    const readiness = this.publishReadinessFor(mod);
+    if (!readiness.canPublish) {
+      return {
+        ok: false,
+        readiness,
+        reasons: publishBlockersFromReadiness(readiness),
+      };
+    }
+    mod.published = true;
+    this.touch(mod);
+    return { ok: true, module: mod };
   }
 
   async adminUpsertMachine(data: MachineInput): Promise<Machine> {
@@ -1986,8 +2983,10 @@ export class MockDataProvider implements DataProvider {
       active: data.active ?? true,
       reservationRecommended: data.reservationRecommended ?? false,
       reservationRequired: data.reservationRequired ?? false,
+      attendedOperationRequired: data.attendedOperationRequired ?? false,
       locationLabel: data.locationLabel ?? "",
       gettingStartedVideoUrl: data.gettingStartedVideoUrl ?? null,
+      maxReservationHours: data.maxReservationHours ?? null,
       sortOrder: data.sortOrder ?? this.state.machines.length + 1,
       createdAt: now,
       updatedAt: now,

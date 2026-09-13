@@ -11,10 +11,14 @@ import type {
   Booking,
   Certification,
   ClassSession,
+  ClassInterestBoard,
+  ClassInterestSignup,
   ContentPage,
+  EquipmentStatus,
   LearningModule,
   Lesson,
   LessonProgress,
+  LessonVideo,
   Machine,
   MachineArea,
   MaintenanceBlock,
@@ -26,12 +30,16 @@ import type {
   OrgSettings,
   PolicyAcknowledgement,
   Question,
+  QuestionSource,
   QuizAttempt,
   Reservation,
   Role,
   UsageSession,
   User,
   UserCertification,
+  VideoProvider,
+  VideoRole,
+  VideoWatch,
   VolunteerInterest,
   VolunteerRole,
   WaiverSignature,
@@ -60,6 +68,24 @@ function parseJsonObject(
     return undefined;
   }
 }
+
+/** Read optional columns before `prisma generate` catches up to schema. */
+function col<T>(row: object, key: string, fallback: T): T {
+  const value = (row as Record<string, unknown>)[key];
+  return (value === undefined || value === null ? fallback : value) as T;
+}
+
+/**
+ * Prisma client may lag the schema until `npx prisma generate` succeeds.
+ * Access optional delegates safely.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function prismaTx(tx: Prisma.TransactionClient): any {
+  return tx;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const prismaLoose = prisma as any;
 
 function toIso(date: Date | null | undefined): string | null {
   if (!date) return null;
@@ -91,6 +117,7 @@ function mapOrgSettings(row: {
   quizPassThresholdPercent: number;
   quizAttemptLimit: number;
   quizQuestionCount: number;
+  requireSafetyCriticalAll?: boolean;
   classCancellationCutoffHours: number;
   paymentHoldHours: number;
   reservationHorizonDays: number;
@@ -117,6 +144,7 @@ function mapOrgSettings(row: {
     quizPassThresholdPercent: row.quizPassThresholdPercent,
     quizAttemptLimit: row.quizAttemptLimit,
     quizQuestionCount: row.quizQuestionCount,
+    requireSafetyCriticalAll: row.requireSafetyCriticalAll ?? true,
     classCancellationCutoffHours: row.classCancellationCutoffHours,
     paymentHoldHours: row.paymentHoldHours,
     reservationHorizonDays: row.reservationHorizonDays,
@@ -167,6 +195,9 @@ function mapUser(row: {
     status: row.status as MembershipStatus,
     tier: (row.tier as MembershipTier | null) ?? null,
     shopAccess: row.shopAccess,
+    isTeacher: Boolean(
+      (row as { isTeacher?: boolean }).isTeacher,
+    ),
     profileComplete: row.profileComplete,
     createdAt: toIsoRequired(row.createdAt),
     updatedAt: toIsoRequired(row.updatedAt),
@@ -240,6 +271,13 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
       prisma.lesson.findMany(),
       prisma.question.findMany(),
       prisma.lessonProgress.findMany(),
+    ]);
+  const [lessonVideos, videoWatches, classInterestBoards, classInterestSignups] =
+    await Promise.all([
+      prismaLoose.lessonVideo?.findMany?.() ?? Promise.resolve([]),
+      prismaLoose.videoWatch?.findMany?.() ?? Promise.resolve([]),
+      prismaLoose.classInterestBoard?.findMany?.() ?? Promise.resolve([]),
+      prismaLoose.classInterestSignup?.findMany?.() ?? Promise.resolve([]),
     ]);
   const [
     quizAttempts,
@@ -326,8 +364,12 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
         active: m.active,
         reservationRecommended: m.reservationRecommended,
         reservationRequired: m.reservationRequired,
+        attendedOperationRequired: col(m, "attendedOperationRequired", false),
         locationLabel: m.locationLabel,
         gettingStartedVideoUrl: m.gettingStartedVideoUrl,
+        maxReservationHours: col(m, "maxReservationHours", null) as
+          | number
+          | null,
         sortOrder: m.sortOrder,
         createdAt: toIsoRequired(m.createdAt),
         updatedAt: toIsoRequired(m.updatedAt),
@@ -410,6 +452,7 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
         capacity: c.capacity,
         priceCents: c.priceCents,
         zeffyUrl: c.zeffyUrl,
+        zeffyCampaignId: c.zeffyCampaignId,
         prerequisiteCertificationIds: parseJsonArray(
           c.prerequisiteCertificationIds,
         ),
@@ -430,12 +473,54 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
         waitlistPosition: b.waitlistPosition,
         paidAt: toIso(b.paidAt),
         paidMarkedById: b.paidMarkedById,
+        zeffyPaymentId: b.zeffyPaymentId,
         paymentHoldExpiresAt: toIso(b.paymentHoldExpiresAt),
         cancelledAt: toIso(b.cancelledAt),
         attendedAt: toIso(b.attendedAt),
         createdAt: toIsoRequired(b.createdAt),
         updatedAt: toIsoRequired(b.updatedAt),
         deletedAt: toIso(b.deletedAt),
+      }),
+    ),
+    classInterestBoards: (
+      classInterestBoards as Array<Record<string, unknown>>
+    ).map(
+      (b): ClassInterestBoard => ({
+        id: String(b.id),
+        title: String(b.title),
+        summary: String(b.summary),
+        category: b.category as ClassInterestBoard["category"],
+        status: b.status as ClassInterestBoard["status"],
+        threshold: Number(b.threshold ?? 8),
+        proposedByUserId: (b.proposedByUserId as string) ?? null,
+        contactName: String(b.contactName),
+        contactEmail: String(b.contactEmail),
+        instructorHintUserId: (b.instructorHintUserId as string) ?? null,
+        opensAt: toIso(b.opensAt as Date | null),
+        closesAt: toIso(b.closesAt as Date | null),
+        scheduledClassSessionId: (b.scheduledClassSessionId as string) ?? null,
+        priorityBookingEndsAt: toIso(b.priorityBookingEndsAt as Date | null),
+        resuggestedFromId: (b.resuggestedFromId as string) ?? null,
+        reviewedById: (b.reviewedById as string) ?? null,
+        reviewedAt: toIso(b.reviewedAt as Date | null),
+        staffNotes: (b.staffNotes as string) ?? null,
+        createdAt: toIsoRequired(b.createdAt as Date),
+        updatedAt: toIsoRequired(b.updatedAt as Date),
+        deletedAt: toIso(b.deletedAt as Date | null),
+      }),
+    ),
+    classInterestSignups: (
+      classInterestSignups as Array<Record<string, unknown>>
+    ).map(
+      (s): ClassInterestSignup => ({
+        id: String(s.id),
+        boardId: String(s.boardId),
+        userId: (s.userId as string) ?? null,
+        email: String(s.email),
+        displayName: String(s.displayName),
+        createdAt: toIsoRequired(s.createdAt as Date),
+        updatedAt: toIsoRequired(s.updatedAt as Date),
+        deletedAt: toIso(s.deletedAt as Date | null),
       }),
     ),
     learningModules: learningModules.map(
@@ -447,6 +532,11 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
         certificationId: m.certificationId,
         knowledgeOnly: m.knowledgeOnly,
         published: m.published,
+        equipmentStatus: col(
+          m,
+          "equipmentStatus",
+          "confirmed",
+        ) as EquipmentStatus,
         passThresholdPercent: m.passThresholdPercent,
         attemptLimit: m.attemptLimit,
         sortOrder: m.sortOrder,
@@ -464,25 +554,60 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
         contentSlug: l.contentSlug,
         sortOrder: l.sortOrder,
         estimatedMinutes: l.estimatedMinutes,
+        gap: col(l, "gap", false),
         createdAt: toIsoRequired(l.createdAt),
         updatedAt: toIsoRequired(l.updatedAt),
         deletedAt: toIso(l.deletedAt),
       }),
     ),
-    questions: questions.map(
-      (q): Question => ({
+    lessonVideos: (
+      lessonVideos as Array<Record<string, unknown>>
+    ).map((v): LessonVideo => {
+      return {
+        id: String(v.id),
+        lessonId: String(v.lessonId),
+        order: Number(v.order ?? 0),
+        provider: (v.provider as VideoProvider) ?? "youtube",
+        youtubeId: String(v.youtubeId ?? ""),
+        url: String(v.url ?? ""),
+        title: String(v.title ?? ""),
+        channel: String(v.channel ?? ""),
+        role: (v.role as VideoRole) ?? "primary",
+        condition: (v.condition as string | null | undefined) ?? null,
+        durationSeconds:
+          (v.durationSeconds as number | null | undefined) ?? null,
+        verifiedAt: toIso(v.verifiedAt as Date | null | undefined),
+        staffReviewed: Boolean(v.staffReviewed),
+        notes: (v.notes as string | null | undefined) ?? null,
+        createdAt: toIsoRequired(v.createdAt as Date),
+        updatedAt: toIsoRequired(v.updatedAt as Date),
+        deletedAt: toIso(v.deletedAt as Date | null | undefined),
+      };
+    }),
+    questions: questions.map((q): Question => {
+      const correctIndexes = parseJsonArray<number>(
+        col(q, "correctIndexes", null as string | null),
+      );
+      return {
         id: q.id,
         moduleId: q.moduleId,
         prompt: q.prompt,
         choices: parseJsonArray(q.choices),
         correctIndex: q.correctIndex,
+        correctIndexes:
+          correctIndexes.length > 0 ? correctIndexes : [q.correctIndex],
         explanation: q.explanation ?? undefined,
         active: q.active,
+        safetyCritical: col(q, "safetyCritical", false),
+        source: col(q, "source", "video") as QuestionSource,
+        sourceVideoId: col(q, "sourceVideoId", null as string | null),
+        verifyAgainstVideo: col(q, "verifyAgainstVideo", true),
+        answerPending: col(q, "answerPending", false),
         createdAt: toIsoRequired(q.createdAt),
         updatedAt: toIsoRequired(q.updatedAt),
         deletedAt: toIso(q.deletedAt),
-      }),
-    ),
+      };
+    }),
     lessonProgress: lessonProgress.map(
       (p): LessonProgress => ({
         id: p.id,
@@ -494,15 +619,32 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
         deletedAt: toIso(p.deletedAt),
       }),
     ),
+    videoWatches: (
+      videoWatches as Array<Record<string, unknown>>
+    ).map((w): VideoWatch => {
+      return {
+        id: String(w.id),
+        userId: String(w.userId),
+        videoId: String(w.videoId),
+        watchedAt: toIsoRequired(w.watchedAt as Date),
+        createdAt: toIsoRequired(w.createdAt as Date),
+        updatedAt: toIsoRequired(w.updatedAt as Date),
+        deletedAt: toIso(w.deletedAt as Date | null | undefined),
+      };
+    }),
     quizAttempts: quizAttempts.map(
       (a): QuizAttempt => ({
         id: a.id,
         userId: a.userId,
         moduleId: a.moduleId,
         questionIds: parseJsonArray(a.questionIds),
-        answers: parseJsonArray<number | null>(a.answers),
+        answers: parseJsonArray<number | number[] | null>(a.answers),
         scorePercent: a.scorePercent,
         passed: a.passed,
+        thresholdMet: col(a, "thresholdMet", false),
+        safetyCriticalMissedIds: parseJsonArray(
+          col(a, "safetyCriticalMissedIds", null as string | null),
+        ),
         startedAt: toIsoRequired(a.startedAt),
         submittedAt: toIsoRequired(a.submittedAt),
         createdAt: toIsoRequired(a.createdAt),
@@ -545,6 +687,7 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
       (p): ContentPage => ({
         id: p.id,
         notionId: p.notionId ?? undefined,
+        googleFileId: p.googleFileId ?? undefined,
         slug: p.slug,
         title: p.title,
         html: p.html,
@@ -636,36 +779,41 @@ export async function persistBundleToPrisma(
   bundle: MockFixtureBundle,
 ): Promise<void> {
   await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const db = prismaTx(tx);
     // Children first
-    await tx.auditEvent.deleteMany();
-    await tx.accessLog.deleteMany();
-    await tx.usageSession.deleteMany();
-    await tx.lessonProgress.deleteMany();
-    await tx.quizAttempt.deleteMany();
-    await tx.question.deleteMany();
-    await tx.lesson.deleteMany();
-    await tx.booking.deleteMany();
-    await tx.reservation.deleteMany();
-    await tx.maintenanceBlock.deleteMany();
-    await tx.userCertification.deleteMany();
-    await tx.waiverSignature.deleteMany();
-    await tx.policyAcknowledgement.deleteMany();
-    await tx.volunteerInterest.deleteMany();
-    await tx.badge.deleteMany();
-    await tx.classSession.deleteMany();
-    await tx.learningModule.deleteMany();
-    await tx.volunteerRole.deleteMany();
-    await tx.membershipProduct.deleteMany();
-    await tx.contentPage.deleteMany();
-    await tx.machine.deleteMany();
-    await tx.certification.deleteMany();
-    await tx.user.updateMany({ data: { householdPrimaryUserId: null } });
-    await tx.user.deleteMany();
-    await tx.orgSettings.deleteMany();
+    await db.auditEvent.deleteMany();
+    await db.accessLog.deleteMany();
+    await db.usageSession.deleteMany();
+    if (db.videoWatch) await db.videoWatch.deleteMany();
+    await db.lessonProgress.deleteMany();
+    await db.quizAttempt.deleteMany();
+    await db.question.deleteMany();
+    if (db.lessonVideo) await db.lessonVideo.deleteMany();
+    await db.lesson.deleteMany();
+    await db.booking.deleteMany();
+    await db.reservation.deleteMany();
+    await db.maintenanceBlock.deleteMany();
+    await db.userCertification.deleteMany();
+    await db.waiverSignature.deleteMany();
+    await db.policyAcknowledgement.deleteMany();
+    await db.volunteerInterest.deleteMany();
+    if (db.classInterestSignup) await db.classInterestSignup.deleteMany();
+    if (db.classInterestBoard) await db.classInterestBoard.deleteMany();
+    await db.badge.deleteMany();
+    await db.classSession.deleteMany();
+    await db.learningModule.deleteMany();
+    await db.volunteerRole.deleteMany();
+    await db.membershipProduct.deleteMany();
+    await db.contentPage.deleteMany();
+    await db.machine.deleteMany();
+    await db.certification.deleteMany();
+    await db.user.updateMany({ data: { householdPrimaryUserId: null } });
+    await db.user.deleteMany();
+    await db.orgSettings.deleteMany();
 
     // Parents first — users without household links
     await createManyIfAny(
-      (args) => tx.user.createMany(args),
+      (args) => db.user.createMany(args),
       bundle.users.map((u) => ({
         id: u.id,
         email: u.email,
@@ -678,6 +826,7 @@ export async function persistBundleToPrisma(
         tier: u.tier,
         billingInterval: u.billingInterval ?? null,
         shopAccess: u.shopAccess,
+        isTeacher: u.isTeacher ?? false,
         dayPassCreditExpiresAt: asDate(u.dayPassCreditExpiresAt),
         scholarshipExpiresAt: asDate(u.scholarshipExpiresAt),
         emergencyContactName: u.emergencyContactName ?? null,
@@ -720,22 +869,27 @@ export async function persistBundleToPrisma(
 
     await createManyIfAny(
       (args) => tx.machine.createMany(args),
-      bundle.machines.map((m) => ({
-        id: m.id,
-        name: m.name,
-        area: m.area,
-        requiredCertificationIds: jsonArr(m.requiredCertificationIds),
-        readerKey: m.readerKey,
-        active: m.active,
-        reservationRecommended: m.reservationRecommended,
-        reservationRequired: m.reservationRequired,
-        locationLabel: m.locationLabel,
-        gettingStartedVideoUrl: m.gettingStartedVideoUrl,
-        sortOrder: m.sortOrder,
-        createdAt: asDate(m.createdAt) ?? new Date(),
-        updatedAt: asDate(m.updatedAt) ?? new Date(),
-        deletedAt: asDate(m.deletedAt),
-      })),
+      bundle.machines.map((m) =>
+        ({
+          id: m.id,
+          name: m.name,
+          area: m.area,
+          requiredCertificationIds: jsonArr(m.requiredCertificationIds),
+          readerKey: m.readerKey,
+          active: m.active,
+          reservationRecommended: m.reservationRecommended,
+          reservationRequired: m.reservationRequired,
+          attendedOperationRequired: m.attendedOperationRequired ?? false,
+          locationLabel: m.locationLabel,
+          gettingStartedVideoUrl: m.gettingStartedVideoUrl,
+          maxReservationHours: m.maxReservationHours ?? null,
+          sortOrder: m.sortOrder,
+          createdAt: asDate(m.createdAt) ?? new Date(),
+          updatedAt: asDate(m.updatedAt) ?? new Date(),
+          deletedAt: asDate(m.deletedAt),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        }) as any,
+      ),
     );
 
     await createManyIfAny(
@@ -743,6 +897,7 @@ export async function persistBundleToPrisma(
       bundle.contentPages.map((p) => ({
         id: p.id,
         notionId: p.notionId ?? null,
+        googleFileId: p.googleFileId ?? null,
         slug: p.slug,
         title: p.title,
         html: p.html,
@@ -758,6 +913,8 @@ export async function persistBundleToPrisma(
     );
 
     await tx.orgSettings.create({
+      // Cast: client may lag schema until `prisma generate`.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       data: {
         id: "default",
         orgName: bundle.settings.orgName,
@@ -772,6 +929,8 @@ export async function persistBundleToPrisma(
         quizPassThresholdPercent: bundle.settings.quizPassThresholdPercent,
         quizAttemptLimit: bundle.settings.quizAttemptLimit,
         quizQuestionCount: bundle.settings.quizQuestionCount,
+        requireSafetyCriticalAll:
+          bundle.settings.requireSafetyCriticalAll ?? true,
         classCancellationCutoffHours:
           bundle.settings.classCancellationCutoffHours,
         paymentHoldHours: bundle.settings.paymentHoldHours,
@@ -788,7 +947,7 @@ export async function persistBundleToPrisma(
         scholarshipSeatsAwarded: bundle.settings.scholarshipSeatsAwarded,
         showPhase3Tiers: bundle.settings.showPhase3Tiers,
         updatedAt: asDate(bundle.settings.updatedAt) ?? new Date(),
-      },
+      } as any,
     });
 
     await createManyIfAny(
@@ -832,21 +991,26 @@ export async function persistBundleToPrisma(
 
     await createManyIfAny(
       (args) => tx.learningModule.createMany(args),
-      bundle.learningModules.map((m) => ({
-        id: m.id,
-        slug: m.slug,
-        title: m.title,
-        summary: m.summary,
-        certificationId: m.certificationId,
-        knowledgeOnly: m.knowledgeOnly,
-        published: m.published,
-        passThresholdPercent: m.passThresholdPercent,
-        attemptLimit: m.attemptLimit,
-        sortOrder: m.sortOrder,
-        createdAt: asDate(m.createdAt) ?? new Date(),
-        updatedAt: asDate(m.updatedAt) ?? new Date(),
-        deletedAt: asDate(m.deletedAt),
-      })),
+      bundle.learningModules.map(
+        (m) =>
+          ({
+            id: m.id,
+            slug: m.slug,
+            title: m.title,
+            summary: m.summary,
+            certificationId: m.certificationId,
+            knowledgeOnly: m.knowledgeOnly,
+            published: m.published,
+            equipmentStatus: m.equipmentStatus ?? "confirmed",
+            passThresholdPercent: m.passThresholdPercent,
+            attemptLimit: m.attemptLimit,
+            sortOrder: m.sortOrder,
+            createdAt: asDate(m.createdAt) ?? new Date(),
+            updatedAt: asDate(m.updatedAt) ?? new Date(),
+            deletedAt: asDate(m.deletedAt),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          }) as any,
+      ),
     );
 
     await createManyIfAny(
@@ -863,6 +1027,7 @@ export async function persistBundleToPrisma(
         capacity: c.capacity,
         priceCents: c.priceCents,
         zeffyUrl: c.zeffyUrl ?? null,
+        zeffyCampaignId: c.zeffyCampaignId ?? null,
         prerequisiteCertificationIds: jsonArr(c.prerequisiteCertificationIds),
         location: c.location,
         cancellationCutoffHours: c.cancellationCutoffHours,
@@ -872,6 +1037,50 @@ export async function persistBundleToPrisma(
         deletedAt: asDate(c.deletedAt),
       })),
     );
+
+    if (db.classInterestBoard) {
+      await createManyIfAny(
+        (args) => db.classInterestBoard.createMany(args),
+        (bundle.classInterestBoards ?? []).map((b) => ({
+          id: b.id,
+          title: b.title,
+          summary: b.summary,
+          category: b.category,
+          status: b.status,
+          threshold: b.threshold,
+          proposedByUserId: b.proposedByUserId ?? null,
+          contactName: b.contactName,
+          contactEmail: b.contactEmail,
+          instructorHintUserId: b.instructorHintUserId ?? null,
+          opensAt: asDate(b.opensAt),
+          closesAt: asDate(b.closesAt),
+          scheduledClassSessionId: b.scheduledClassSessionId ?? null,
+          priorityBookingEndsAt: asDate(b.priorityBookingEndsAt),
+          resuggestedFromId: b.resuggestedFromId ?? null,
+          reviewedById: b.reviewedById ?? null,
+          reviewedAt: asDate(b.reviewedAt),
+          staffNotes: b.staffNotes ?? null,
+          createdAt: asDate(b.createdAt) ?? new Date(),
+          updatedAt: asDate(b.updatedAt) ?? new Date(),
+          deletedAt: asDate(b.deletedAt),
+        })),
+      );
+    }
+    if (db.classInterestSignup) {
+      await createManyIfAny(
+        (args) => db.classInterestSignup.createMany(args),
+        (bundle.classInterestSignups ?? []).map((s) => ({
+          id: s.id,
+          boardId: s.boardId,
+          userId: s.userId ?? null,
+          email: s.email,
+          displayName: s.displayName,
+          createdAt: asDate(s.createdAt) ?? new Date(),
+          updatedAt: asDate(s.updatedAt) ?? new Date(),
+          deletedAt: asDate(s.deletedAt),
+        })),
+      );
+    }
 
     await createManyIfAny(
       (args) => tx.badge.createMany(args),
@@ -980,6 +1189,7 @@ export async function persistBundleToPrisma(
         waitlistPosition: b.waitlistPosition ?? null,
         paidAt: asDate(b.paidAt),
         paidMarkedById: b.paidMarkedById ?? null,
+        zeffyPaymentId: b.zeffyPaymentId ?? null,
         paymentHoldExpiresAt: asDate(b.paymentHoldExpiresAt),
         cancelledAt: asDate(b.cancelledAt),
         attendedAt: asDate(b.attendedAt),
@@ -991,52 +1201,100 @@ export async function persistBundleToPrisma(
 
     await createManyIfAny(
       (args) => tx.lesson.createMany(args),
-      bundle.lessons.map((l) => ({
-        id: l.id,
-        moduleId: l.moduleId,
-        slug: l.slug,
-        title: l.title,
-        contentSlug: l.contentSlug,
-        sortOrder: l.sortOrder,
-        estimatedMinutes: l.estimatedMinutes,
-        createdAt: asDate(l.createdAt) ?? new Date(),
-        updatedAt: asDate(l.updatedAt) ?? new Date(),
-        deletedAt: asDate(l.deletedAt),
-      })),
+      bundle.lessons.map(
+        (l) =>
+          ({
+            id: l.id,
+            moduleId: l.moduleId,
+            slug: l.slug,
+            title: l.title,
+            contentSlug: l.contentSlug,
+            sortOrder: l.sortOrder,
+            estimatedMinutes: l.estimatedMinutes,
+            gap: l.gap ?? false,
+            createdAt: asDate(l.createdAt) ?? new Date(),
+            updatedAt: asDate(l.updatedAt) ?? new Date(),
+            deletedAt: asDate(l.deletedAt),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          }) as any,
+      ),
     );
+
+    if (db.lessonVideo) {
+      await createManyIfAny(
+        (args) => db.lessonVideo.createMany(args),
+        (bundle.lessonVideos ?? []).map((v) => ({
+          id: v.id,
+          lessonId: v.lessonId,
+          order: v.order,
+          provider: v.provider,
+          youtubeId: v.youtubeId,
+          url: v.url,
+          title: v.title,
+          channel: v.channel,
+          role: v.role,
+          condition: v.condition ?? null,
+          durationSeconds: v.durationSeconds ?? null,
+          verifiedAt: asDate(v.verifiedAt),
+          staffReviewed: v.staffReviewed,
+          notes: v.notes ?? null,
+          createdAt: asDate(v.createdAt) ?? new Date(),
+          updatedAt: asDate(v.updatedAt) ?? new Date(),
+          deletedAt: asDate(v.deletedAt),
+        })),
+      );
+    }
 
     await createManyIfAny(
       (args) => tx.question.createMany(args),
-      bundle.questions.map((q) => ({
-        id: q.id,
-        moduleId: q.moduleId,
-        prompt: q.prompt,
-        choices: jsonArr(q.choices),
-        correctIndex: q.correctIndex,
-        explanation: q.explanation ?? null,
-        active: q.active,
-        createdAt: asDate(q.createdAt) ?? new Date(),
-        updatedAt: asDate(q.updatedAt) ?? new Date(),
-        deletedAt: asDate(q.deletedAt),
-      })),
+      bundle.questions.map(
+        (q) =>
+          ({
+            id: q.id,
+            moduleId: q.moduleId,
+            prompt: q.prompt,
+            choices: jsonArr(q.choices),
+            correctIndex: q.correctIndex,
+            correctIndexes: jsonArr(q.correctIndexes ?? [q.correctIndex]),
+            explanation: q.explanation ?? null,
+            active: q.active,
+            safetyCritical: q.safetyCritical ?? false,
+            source: q.source ?? "video",
+            sourceVideoId: q.sourceVideoId ?? null,
+            verifyAgainstVideo: q.verifyAgainstVideo ?? true,
+            answerPending: q.answerPending ?? false,
+            createdAt: asDate(q.createdAt) ?? new Date(),
+            updatedAt: asDate(q.updatedAt) ?? new Date(),
+            deletedAt: asDate(q.deletedAt),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          }) as any,
+      ),
     );
 
     await createManyIfAny(
       (args) => tx.quizAttempt.createMany(args),
-      bundle.quizAttempts.map((a) => ({
-        id: a.id,
-        userId: a.userId,
-        moduleId: a.moduleId,
-        questionIds: jsonArr(a.questionIds),
-        answers: jsonArr(a.answers),
-        scorePercent: a.scorePercent,
-        passed: a.passed,
-        startedAt: asDate(a.startedAt)!,
-        submittedAt: asDate(a.submittedAt)!,
-        createdAt: asDate(a.createdAt) ?? new Date(),
-        updatedAt: asDate(a.updatedAt) ?? new Date(),
-        deletedAt: asDate(a.deletedAt),
-      })),
+      bundle.quizAttempts.map(
+        (a) =>
+          ({
+            id: a.id,
+            userId: a.userId,
+            moduleId: a.moduleId,
+            questionIds: jsonArr(a.questionIds),
+            answers: jsonArr(a.answers),
+            scorePercent: a.scorePercent,
+            passed: a.passed,
+            thresholdMet: a.thresholdMet ?? false,
+            safetyCriticalMissedIds: a.safetyCriticalMissedIds
+              ? jsonArr(a.safetyCriticalMissedIds)
+              : null,
+            startedAt: asDate(a.startedAt)!,
+            submittedAt: asDate(a.submittedAt)!,
+            createdAt: asDate(a.createdAt) ?? new Date(),
+            updatedAt: asDate(a.updatedAt) ?? new Date(),
+            deletedAt: asDate(a.deletedAt),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          }) as any,
+      ),
     );
 
     await createManyIfAny(
@@ -1051,6 +1309,21 @@ export async function persistBundleToPrisma(
         deletedAt: asDate(p.deletedAt),
       })),
     );
+
+    if (db.videoWatch) {
+      await createManyIfAny(
+        (args) => db.videoWatch.createMany(args),
+        (bundle.videoWatches ?? []).map((w) => ({
+          id: w.id,
+          userId: w.userId,
+          videoId: w.videoId,
+          watchedAt: asDate(w.watchedAt)!,
+          createdAt: asDate(w.createdAt) ?? new Date(),
+          updatedAt: asDate(w.updatedAt) ?? new Date(),
+          deletedAt: asDate(w.deletedAt),
+        })),
+      );
+    }
 
     await createManyIfAny(
       (args) => tx.usageSession.createMany(args),

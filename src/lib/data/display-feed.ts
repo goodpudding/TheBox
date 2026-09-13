@@ -145,12 +145,17 @@ export function buildMachineStatuses(input: {
           new Date(b.startsAt).getTime() <= nowMs &&
           new Date(b.endsAt).getTime() > nowMs,
       );
+      const attended = {
+        attendedOperationRequired: machine.attendedOperationRequired,
+      };
+
       if (maint) {
         return {
           id: machine.id,
           name: machine.name,
           area: machine.area,
           status: "maintenance" as MachineFloorStatus,
+          ...attended,
         };
       }
 
@@ -167,6 +172,7 @@ export function buildMachineStatuses(input: {
           status: "in_use" as MachineFloorStatus,
           since: open.startedAt,
           displayName: displayName || undefined,
+          ...attended,
         };
       }
 
@@ -190,6 +196,7 @@ export function buildMachineStatuses(input: {
           area: machine.area,
           status: "reserved" as MachineFloorStatus,
           reservedAt: nextRes.startsAt,
+          ...attended,
         };
       }
 
@@ -198,6 +205,7 @@ export function buildMachineStatuses(input: {
         name: machine.name,
         area: machine.area,
         status: "available" as MachineFloorStatus,
+        ...attended,
       };
     });
 }

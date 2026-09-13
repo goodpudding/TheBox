@@ -1,0 +1,1111 @@
+{
+  "_meta": {
+    "description": "Curated YouTube videos for The Box Portal learning modules. Drop into /data/mock and reference from the LearningModule / Lesson fixtures. Companion file: learning-questions.json.",
+    "generatedAt": "2026-09-07",
+    "equipmentSource": "Rebuilt against the equipment list at discoverburien.org/makerspace plus direct confirmation from Trey on 2026-09-07. Where the website and the portal spec disagreed, Trey's answer governs.",
+    "equipmentReconciliation": {
+      "confirmedByStaff": [
+        "Full woodshop DOES exist, though small: table saw, miter saw, band saw, router table, jointer, thickness planer",
+        "Elegoo Saturn 2 (8K) resin printer with a wash/cure station - model given as 'I think', so confirm at the machine",
+        "Plasma table: NO staff-present requirement, but the member must STAY WITH THE MACHINE while it runs - solo operation is allowed, unattended operation is not"
+      ],
+      "confirmedOnWebsite": [
+        "Avid CNC Plasma Cutter Pro6060, 5'x5', Mach4 + VCarve",
+        "Epilog Fusion Pro 32, 80W CO2, rim drive rotary, CorelDRAW",
+        "Prusa i3 MK3S 3D printer, PrusaSlicer",
+        "Silhouette Cameo 4 vinyl cutter",
+        "Singer sewing machine",
+        "Hand held power tools, drill press",
+        "Drawing/drafting table, laminators, paper cutters"
+      ],
+      "stillUnconfirmed": [],
+      "websiteIsStale": "The website's equipment list omits the entire woodshop and the resin printer. Worth fixing - it is the page prospective members read, and it currently undersells the shop.",
+      "action": "Every module below except embroidery and sublimation is now cleared to build.",
+      "assumedBestPractice": [
+        "Embroidery machine (Brother-class single-needle) — assumed present for module build; confirm model at machine",
+        "Sublimation printer (Sawgrass-class) + heat press — assumed present; confirm models and posted temp chart",
+        "Resin wash/cure unit — workflow taught; confirm exact model vs Mercury XS video"
+      ]
+    },
+    "standardSource": {
+      "channel": "Alpine Trails Studio",
+      "channelUrl": "https://www.youtube.com/@AlpineTrailsStudio",
+      "playlist": "Safety and the Tools of the Woodshop",
+      "playlistUrl": "https://www.youtube.com/playlist?list=PLfpGb3xc-BTPhCljF_-JTtGy3uybqqjmP",
+      "policy": "Standard source for every woodshop module - one instructor, one shop, one vocabulary. All six machines in his series (table saw, band saw, miter saw, jointer, planer, router table) plus the drill press are confirmed present at The Box, so the whole playlist maps to real equipment. Outside videos appear only where the series does not reach: emergency response, dust health, laser, 3D printing, resin, vinyl, sewing, plasma.",
+      "singleSourceRisk": "Ask the creator for permission to use as course material and for self-hostable copies. Downloading without permission violates YouTube's terms."
+    },
+    "verification": "Every url resolves to a real public YouTube video with the title and channel recorded here, confirmed via YouTube's oEmbed endpoint on 2026-09-06/07. Alpine runtimes were read from the playlist page and are exact; other runtimes could not be retrieved and are null rather than guessed. No video has been watched end to end - staffReviewed is false everywhere.",
+    "linkFallback": "Some channels disable third-party embedding. The watch?v= url is the source of truth; the lesson player should fall back to a link-out card if the iframe fails to load.",
+    "certRule": "Passing a module quiz records knowledge_passed only. Every machine still requires a staff hands-on checkoff before badge access.",
+    "roles": {
+      "primary": "Required viewing before the quiz unlocks.",
+      "supporting": "Recommended depth, or an alternate explanation of the same material.",
+      "conditional": "Depends on equipment or software The Box may not have. Confirm before publishing."
+    },
+    "softwarePlacement": "Design and control software (Inkscape, CorelDRAW, LightBurn, Tinkercad, PrusaSlicer, Silhouette Studio, VCarve/Mach4) is taught inside the machine module it serves, not as standalone certs - the portal's cert model is per-machine. If members later want software skills without machine access, split these lessons into optional non-cert modules.",
+    "stillUnsourced": [],
+    "attendedOperationPolicy": {
+      "rule": "Confirmed 2026-09-07: on the plasma table a certified member may work alone, but may not leave the machine running. Same rule already applies to the laser.",
+      "whyItNeedsToBeExplicit": "Members will generalise from whichever machine they learned first, and they will generalise wrong. The printers are the exception that creates the confusion: an FDM or resin print is SUPPOSED to run for hours with nobody there, so a member whose first machine was the Prusa arrives at the plasma table with the wrong instinct. Teach the line, not the individual rules.",
+      "theLine": "Machines that cut with heat or a blade must be attended for every second they run. Printers may run unattended. There is no third category.",
+      "portalSuggestion": "Add an attendedOperationRequired boolean to the Machine model. It belongs next to requiredCertificationIds and reservationRecommended, it drives a badge on /reserve and the lobby display's machine tiles, and it gives the reservation rules something to reason about - an unattended-capable machine can be booked overnight, an attended one cannot be booked past closing."
+    }
+  },
+  "modules": [
+    {
+      "id": "mod-shop-orientation",
+      "slug": "shop-orientation",
+      "title": "Shop Orientation",
+      "certificationId": "cert-shop-orientation",
+      "knowledgeOnly": true,
+      "equipmentStatus": "confirmed",
+      "published": false,
+      "requiredRuntimeSeconds": 497,
+      "summary": "Required before any machine access. Conduct, PPE, dust, and emergency response.",
+      "lessons": [
+        {
+          "id": "les-orientation-basics",
+          "order": 1,
+          "title": "How we work in this shop",
+          "contentSlug": "learn/shop-orientation/basics",
+          "boxMustCover": "Layout of The Box, hours, sign-in, the 'if you didn't turn it on, don't turn it off' rule, cleanup, the 90-day abandoned property policy. Dust: fine airborne wood dust is the hazard (not just visible chips); use dust collection and respirators as posted; fine dust can hang in the air after the shop looks clear — who empties collectors and where respirators live. A 3-minute phone walkthrough of the actual space would outperform any outside video here.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "FVG4a4jHgEw",
+              "url": "https://www.youtube.com/watch?v=FVG4a4jHgEw",
+              "title": "Basic Woodshop Safety",
+              "channel": "Alpine Trails Studio",
+              "role": "primary",
+              "durationSeconds": 497,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false
+            },
+            {
+              "provider": "youtube",
+              "youtubeId": "TWNyk0ZeeVA",
+              "url": "https://www.youtube.com/watch?v=TWNyk0ZeeVA",
+              "title": "Wood Dust is More Dangerous Than You Think",
+              "channel": "Mike Peace Woodturning",
+              "role": "supporting",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-06",
+              "staffReviewed": false,
+              "notes": "Optional depth on fine dust. Not required before the quiz — covered in Alpine basics plus the Box note above."
+            }
+          ]
+        },
+        {
+          "id": "les-orientation-emergency",
+          "order": 2,
+          "title": "When something goes wrong",
+          "contentSlug": "learn/shop-orientation/emergency",
+          "boxMustCover": "Locations of extinguishers, first aid kit, eyewash, main shut-off. 911 first, then staff. Incident reporting. With a plasma table in the building this lesson carries more weight than it would in a wood-only shop.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "yodLMfOZNvA",
+              "url": "https://www.youtube.com/watch?v=yodLMfOZNvA",
+              "title": "Free Fire Extinguisher Training Video - OSHA - Updated for 2023",
+              "channel": "Ally Safety",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-06",
+              "staffReviewed": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-hand-tools-drill-press",
+      "slug": "hand-tools-drill-press",
+      "title": "Hand Tools and Drill Press",
+      "certificationId": "cert-hand-tools-drill-press",
+      "knowledgeOnly": false,
+      "equipmentStatus": "confirmed",
+      "published": false,
+      "requiredRuntimeSeconds": 509,
+      "summary": "The website lists 'hand held power tools, drill press' - this cert covers what most members will actually touch first. Not in the portal spec; add it.",
+      "lessons": [
+        {
+          "id": "les-drill-press",
+          "order": 1,
+          "title": "Drill press",
+          "contentSlug": "learn/hand-tools/drill-press",
+          "boxMustCover": "Clamp the work, never hold it. Speed for material and bit size. No gloves. Where bits and the vise live and what to do with them after.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "qOT-GK_BXK4",
+              "url": "https://www.youtube.com/watch?v=qOT-GK_BXK4",
+              "title": "The Drill Press || Basic Use and Safety",
+              "channel": "Alpine Trails Studio",
+              "role": "primary",
+              "durationSeconds": 509,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false
+            }
+          ]
+        },
+        {
+          "id": "les-hand-power-tools",
+          "order": 2,
+          "title": "Handheld power tools",
+          "contentSlug": "learn/hand-tools/handheld",
+          "boxMustCover": "Which handheld tools The Box has and which need their own checkoff. Unplug before changing blades or bits. Clamp the work. Cord and guard inspection.",
+          "gap": true,
+          "gapNote": "No dedicated video assigned - Alpine's Basic Woodshop Safety covers the general principles and is reused here. A tool-specific set (circular saw, jigsaw, random orbit sander, impact driver) is worth sourcing once you know which tools are in the bin.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "FVG4a4jHgEw",
+              "url": "https://www.youtube.com/watch?v=FVG4a4jHgEw",
+              "title": "Basic Woodshop Safety",
+              "channel": "Alpine Trails Studio",
+              "role": "primary",
+              "durationSeconds": 497,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false,
+              "notes": "Reused from Shop Orientation. Placeholder until tool-specific videos are sourced."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-laser-cutter",
+      "slug": "laser-cutter",
+      "title": "Laser Cutter (Epilog Fusion Pro 32)",
+      "certificationId": "cert-laser-cutter",
+      "knowledgeOnly": false,
+      "equipmentStatus": "confirmed",
+      "published": false,
+      "summary": "Epilog Fusion Pro 32, 80W CO2, rim drive rotary, driven from CorelDRAW. Fire and fumes are the two hazards that will hurt someone or shut the shop down.",
+      "lessons": [
+        {
+          "id": "les-laser-safety",
+          "order": 1,
+          "title": "Fire, fumes, and the never-cut list",
+          "contentSlug": "learn/laser-cutter/safety",
+          "boxMustCover": "The Box's posted never-cut list. Verify exhaust running before every job. Never leave a running laser unattended. Extinguisher location at the machine. Who to call on a flare-up. Material approval for member-supplied stock.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "uZ6U1lTSD_Q",
+              "url": "https://www.youtube.com/watch?v=uZ6U1lTSD_Q",
+              "title": "Makerspace Laser Cutter Safety",
+              "channel": "Washco Utah Library Makerspace",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-06",
+              "staffReviewed": false,
+              "notes": "A library makerspace teaching its own members - the shared-machine framing already matches The Box."
+            },
+            {
+              "provider": "youtube",
+              "youtubeId": "3QBn8UIJ1oU",
+              "url": "https://www.youtube.com/watch?v=3QBn8UIJ1oU",
+              "title": "Could Your Laser Cutter KILL You? Never laser cut this! Test for chlorine gas",
+              "channel": "Laser Livestream - Laser projects & tutorials",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-06",
+              "staffReviewed": false
+            }
+          ]
+        },
+        {
+          "id": "les-laser-operation",
+          "order": 2,
+          "title": "Running a job on the Fusion Pro",
+          "contentSlug": "learn/laser-cutter/operation",
+          "boxMustCover": "Focusing, bed height, the rim drive rotary, the reservation and billing rule (the rate model prices the laser at $28/hr member).",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "g-b0d_bJANw",
+              "url": "https://www.youtube.com/watch?v=g-b0d_bJANw",
+              "title": "Epilog Fusion Pro Laser Quick Start",
+              "channel": "CMU TechSpark",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-06",
+              "staffReviewed": false,
+              "notes": "Now unconditional - the website confirms a Fusion Pro 32. Another university makerspace teaching its own members."
+            },
+            {
+              "provider": "youtube",
+              "youtubeId": "Btk6NzbBm7c",
+              "url": "https://www.youtube.com/watch?v=Btk6NzbBm7c",
+              "title": "Epilog Job Management Software Demo",
+              "channel": "Epilog Laser",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-06",
+              "staffReviewed": false
+            },
+            {
+              "provider": "youtube",
+              "youtubeId": "_5ab2V06Sf8",
+              "url": "https://www.youtube.com/watch?v=_5ab2V06Sf8",
+              "title": "How to Use a Laser Cutter - Basics Tutorial",
+              "channel": "Punished Props Academy",
+              "role": "supporting",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-06",
+              "staffReviewed": false
+            },
+            {
+              "provider": "youtube",
+              "youtubeId": "P7s3KXXJYHg",
+              "url": "https://www.youtube.com/watch?v=P7s3KXXJYHg",
+              "title": "Learn to Laser Cut!",
+              "channel": "Beauty and the Bolt",
+              "role": "supporting",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-06",
+              "staffReviewed": false
+            }
+          ]
+        },
+        {
+          "id": "les-laser-software-corel",
+          "order": 3,
+          "title": "CorelDRAW and the Epilog print driver",
+          "contentSlug": "learn/laser-cutter/coreldraw",
+          "boxMustCover": "The Box's colour mapping for cut / score / engrave, accepted file formats, where files are saved, and the licence situation on the shop computer.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "Uc7qYdmEIZY",
+              "url": "https://www.youtube.com/watch?v=Uc7qYdmEIZY",
+              "title": "Setup New CORELDRAW for the Epilog Fusion Systems",
+              "channel": "Engraving Concepts",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false,
+              "notes": "CorelDRAW is the software the website says the shop runs, so this is the operative software lesson."
+            }
+          ]
+        },
+        {
+          "id": "les-laser-software-inkscape",
+          "order": 4,
+          "title": "Designing in Inkscape",
+          "contentSlug": "learn/laser-cutter/inkscape",
+          "boxMustCover": "Why Inkscape matters here: it is free, so members can design at home and bring a file in. Cover The Box's stroke colour and hairline width convention and the export path into CorelDRAW.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "peDQVh8ye-M",
+              "url": "https://www.youtube.com/watch?v=peDQVh8ye-M",
+              "title": "Ultimate Laser Cut Inkscape Tutorial for Beginners in 2026",
+              "channel": "Laser Lady",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false
+            }
+          ]
+        },
+        {
+          "id": "les-laser-software-lightburn",
+          "order": 5,
+          "title": "LightBurn (optional)",
+          "contentSlug": "learn/laser-cutter/lightburn",
+          "boxMustCover": "READ THIS BEFORE BUILDING THE LESSON: Epilog states there is no native LightBurn connection for its machines. LightBurn can be used as the design package, with output routed through the Epilog Laser Dashboard via a virtual 'No Machine' device - it is a workaround, not a supported workflow. Decide whether The Box supports it at all before teaching it. If yes, it belongs as an optional lesson for members who already own LightBurn, not on the required path.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "VYuFvj-YMss",
+              "url": "https://www.youtube.com/watch?v=VYuFvj-YMss",
+              "title": "Printing from Lightburn to the Epilog Laser Dashboard",
+              "channel": "Epilog Laser",
+              "role": "conditional",
+              "condition": "Only if The Box supports the LightBurn-to-Dashboard workaround. This is Epilog's own video on it.",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false
+            },
+            {
+              "provider": "youtube",
+              "youtubeId": "OueWAVqXbZc",
+              "url": "https://www.youtube.com/watch?v=OueWAVqXbZc",
+              "title": "Lightburn Tutorial for Beginners - Everything you NEED to KNOW!",
+              "channel": "Make or Break Shop",
+              "role": "conditional",
+              "condition": "General LightBurn skills. Useful for members with their own diode/CO2 laser at home; not required for the Fusion Pro.",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false
+            }
+          ]
+        },
+        {
+          "id": "les-laser-design",
+          "order": 6,
+          "title": "Kerf and accurate parts",
+          "contentSlug": "learn/laser-cutter/kerf",
+          "boxMustCover": "Measured kerf for the materials The Box stocks - worth cutting a test comb once and posting the numbers.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "OGZZI_m3PQc",
+              "url": "https://www.youtube.com/watch?v=OGZZI_m3PQc",
+              "title": "What is Kerf ? (And how it works with your Laser printer / cutter)",
+              "channel": "Laser Light Designs",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-06",
+              "staffReviewed": false
+            }
+          ]
+        }
+      ],
+      "attendedOperationRequired": true
+    },
+    {
+      "id": "mod-3d-printing",
+      "slug": "3d-printing",
+      "title": "3D Printing - FDM (Prusa i3 MK3S)",
+      "certificationId": "cert-3d-printing",
+      "knowledgeOnly": false,
+      "equipmentStatus": "confirmed",
+      "published": false,
+      "summary": "Prusa i3 MK3S with PrusaSlicer. Resin has been split into its own certification - see mod-resin-printing.",
+      "lessons": [
+        {
+          "id": "les-3dp-printer",
+          "order": 1,
+          "title": "The Prusa i3 MK3S",
+          "contentSlug": "learn/3d-printing/printer",
+          "boxMustCover": "Queue and reservation etiquette, what happens to abandoned prints, own-filament policy, who may touch a print that isn't theirs, removing prints without gouging the sheet.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "GE-lrRbU124",
+              "url": "https://www.youtube.com/watch?v=GE-lrRbU124",
+              "title": "Original Prusa i3 MK3 guide for a new user",
+              "channel": "Prusa 3D",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false,
+              "notes": "Manufacturer's own guide for the exact machine on the website."
+            },
+            {
+              "provider": "youtube",
+              "youtubeId": "B84CgaPdixc",
+              "url": "https://www.youtube.com/watch?v=B84CgaPdixc",
+              "title": "The Beginner 3D Printing Guide I Wish I Had",
+              "channel": "CNC Kitchen",
+              "role": "supporting",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-06",
+              "staffReviewed": false
+            }
+          ]
+        },
+        {
+          "id": "les-3dp-slicing",
+          "order": 2,
+          "title": "PrusaSlicer and the first layer",
+          "contentSlug": "learn/3d-printing/slicing",
+          "boxMustCover": "The shop's PrusaSlicer profile, and where to read the print-time estimate - the rate model bills per print-hour from that number.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "_kIqMPNQNSw",
+              "url": "https://www.youtube.com/watch?v=_kIqMPNQNSw",
+              "title": "PrusaSlicer Beginner Tutorial: Learn the basics",
+              "channel": "3D Revolution",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false,
+              "notes": "Replaces the earlier Orca Slicer pick - the website says PrusaSlicer."
+            },
+            {
+              "provider": "youtube",
+              "youtubeId": "Z0VLR6aS3FE",
+              "url": "https://www.youtube.com/watch?v=Z0VLR6aS3FE",
+              "title": "3D Printing Basics - Your First Print - The First Layer - Chris's Basement 2024",
+              "channel": "Chris Riley",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-06",
+              "staffReviewed": false,
+              "notes": "Most failed prints fail in the first two minutes."
+            },
+            {
+              "provider": "youtube",
+              "youtubeId": "GYfLrpJEr28",
+              "url": "https://www.youtube.com/watch?v=GYfLrpJEr28",
+              "title": "Slicing 3D Print Tutorial - Complete Beginner's Guide",
+              "channel": "3D Printer Academy Tutorials",
+              "role": "supporting",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-06",
+              "staffReviewed": false
+            }
+          ]
+        },
+        {
+          "id": "les-3dp-tinkercad",
+          "order": 3,
+          "title": "Designing in Tinkercad",
+          "contentSlug": "learn/3d-printing/tinkercad",
+          "boxMustCover": "Tinkercad is free and browser-based, so members can design at home and arrive with an STL. Cover the Tinkercad → STL → PrusaSlicer → G-code chain, and where files go on the shop computer.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "SXVK-IHLyQw",
+              "url": "https://www.youtube.com/watch?v=SXVK-IHLyQw",
+              "title": "Learn TinkerCAD in ONE Video - From Zero to Your First 3D Print",
+              "channel": "Print N Repeat",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false,
+              "notes": "Also the natural design tool for the homeschool STEAM program."
+            }
+          ]
+        },
+        {
+          "id": "les-3dp-materials",
+          "order": 4,
+          "title": "Choosing a material",
+          "contentSlug": "learn/3d-printing/materials",
+          "boxMustCover": "Which filaments The Box stocks and at what cost, which are not allowed on the shared printer.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "Or1FP43zx3I",
+              "url": "https://www.youtube.com/watch?v=Or1FP43zx3I",
+              "title": "Guide to 3D Printing Filament! PLA ABS PETG TPU PEEK ULTEM",
+              "channel": "3D Printing Nerd",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-06",
+              "staffReviewed": false
+            }
+          ]
+        }
+      ],
+      "attendedOperationRequired": false
+    },
+    {
+      "id": "mod-resin-printing",
+      "slug": "resin-printing",
+      "title": "Resin Printing (Elegoo Saturn 2 + wash/cure)",
+      "certificationId": "cert-resin-printing",
+      "knowledgeOnly": false,
+      "equipmentStatus": "confirmed",
+      "published": false,
+      "splitRationale": "Recommended as a SEPARATE cert from FDM rather than the single '3D Printing' cert in the portal spec. Three reasons: the hazard is categorically different (uncured resin is a skin sensitizer that can produce a permanent allergy; IPA is flammable), a member who only wants to print PLA should not have to pass resin questions, and resin access should be gated on a safety lesson that has nothing to do with the Prusa. If you keep one combined cert, at minimum make the resin safety lesson mandatory within it.",
+      "summary": "Elegoo Saturn 2 (8K) with a wash and cure station. Lowest injury risk on the day, highest chronic risk in the building. Prints run unattended - the exception to the shop's attended-operation rule.",
+      "lessons": [
+        {
+          "id": "les-resin-safety",
+          "order": 1,
+          "title": "Resin safety and PPE",
+          "contentSlug": "learn/resin/safety",
+          "gate": true,
+          "boxMustCover": "In-house lesson at learn/resin/safety. Nitrile only, eye protection, ventilation, skin-contact response (soap/water never IPA on skin), sensitizer risk, IPA flammability, cure-before-trash, used-IPA container → King County MRW (never down the drain), first session supervised.",
+          "gap": false,
+          "videos": [],
+          "notes": "No primary video on purpose — hobbyist resin safety videos are not good enough to gate a cert. Staff-reviewed flag N/A; readiness treats empty primary set as clear for this lesson."
+        },
+        {
+          "id": "les-resin-printing",
+          "order": 2,
+          "title": "Printing on the Saturn",
+          "contentSlug": "learn/resin/printing",
+          "boxMustCover": "Saturn 2 specifics and Chitubox profiles for the resin The Box stocks. Levelling, exposure settings, the FEP check, and what to do about a failed print stuck to the vat film - that one damages the machine if a member digs at it. Also state explicitly that resin prints MAY run unattended, unlike the laser and plasma table, and what a member must do before walking away (gloves off, lid closed, ventilation left running, name and finish time on the machine).",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "-vcls0j6Owo",
+              "url": "https://www.youtube.com/watch?v=-vcls0j6Owo",
+              "title": "Unboxing & setting up the Elegoo Saturn 2 8K | Chitubox slicing & 3D Printing with Monocure 3D Resin",
+              "channel": "Monocure3D Pro Tips",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false,
+              "notes": "Saturn 2 8K specific, with Chitubox slicing - matches the machine. Replaces the Saturn 4 video as primary; that one is kept as a supporting alternate since the workflow is close."
+            },
+            {
+              "provider": "youtube",
+              "youtubeId": "aIADEF7Ubv8",
+              "url": "https://www.youtube.com/watch?v=aIADEF7Ubv8",
+              "title": "Complete Idiot's Guide to 3d Resin Printing - Step by Step Chitubox Elegoo Saturn 4",
+              "channel": "Scale Model Experiment",
+              "role": "supporting",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false,
+              "notes": "Filmed on a Saturn 4. Workflow and Chitubox steps are close to the Saturn 2; screen and resolution differ. Useful as a second explanation."
+            },
+            {
+              "provider": "youtube",
+              "youtubeId": "NL2VBODix_Q",
+              "url": "https://www.youtube.com/watch?v=NL2VBODix_Q",
+              "title": "Resin 3D Printing for Beginners: Easy Step-by-Step Guide to Your First Miniatures",
+              "channel": "Okay Hobby Time",
+              "role": "supporting",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false,
+              "notes": "General workflow. Covers process, not safety."
+            }
+          ]
+        },
+        {
+          "id": "les-resin-washcure",
+          "order": 3,
+          "title": "Washing and curing",
+          "contentSlug": "learn/resin/wash-cure",
+          "boxMustCover": "The Box's wash/cure model, how often the IPA is changed and by whom, where used IPA goes, and the rule that nothing leaves the resin area uncured.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "QJogbBasn4s",
+              "url": "https://www.youtube.com/watch?v=QJogbBasn4s",
+              "title": "3D Printing Beginner: How I wash and cure my resin prints (Elegoo Mercury XS)",
+              "channel": "RW Hobbies",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false,
+              "notes": "Filmed on a Mercury XS. Confirm which wash/cure unit The Box has."
+            }
+          ]
+        }
+      ],
+      "attendedOperationRequired": false
+    },
+    {
+      "id": "mod-vinyl-cutter",
+      "slug": "vinyl-cutter",
+      "title": "Vinyl Cutter (Silhouette Cameo 4)",
+      "certificationId": "cert-vinyl-cutter",
+      "knowledgeOnly": false,
+      "equipmentStatus": "confirmed",
+      "published": false,
+      "summary": "Silhouette Cameo 4. Low hazard, high throughput - a good candidate for a quiz-only cert with a very short checkoff.",
+      "lessons": [
+        {
+          "id": "les-vinyl-basics",
+          "order": 1,
+          "title": "Cutting your first vinyl design",
+          "contentSlug": "learn/vinyl-cutter/basics",
+          "boxMustCover": "Whether The Box supplies vinyl and at what cost, mat care, blade care, and what to do with scraps.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "GHJWxETcZIU",
+              "url": "https://www.youtube.com/watch?v=GHJWxETcZIU",
+              "title": "How to Cut Vinyl on Silhouette Cameo 4 for Beginners! (Free Cut File)",
+              "channel": "Silhouette School with Melissa Viscount",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false,
+              "notes": "Silhouette School is the most established teaching resource for these machines."
+            }
+          ]
+        },
+        {
+          "id": "les-vinyl-first-cut",
+          "order": 2,
+          "title": "Machine setup and test cuts",
+          "contentSlug": "learn/vinyl-cutter/setup",
+          "boxMustCover": "The Box's saved material settings in Silhouette Studio, and the always-test-cut rule.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "mJ28gAvHMc0",
+              "url": "https://www.youtube.com/watch?v=mJ28gAvHMc0",
+              "title": "Silhouette CAMEO 4 Pro for Beginners: First Cut",
+              "channel": "Silhouette School with Melissa Viscount",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false,
+              "notes": "Filmed on the Cameo 4 Pro (24-inch). The Box's is the standard Cameo 4 - the workflow is the same, the width is not. Say so in the lesson text."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-sewing",
+      "slug": "sewing-machine",
+      "title": "Sewing Machine (Singer)",
+      "certificationId": "cert-sewing-machines",
+      "knowledgeOnly": false,
+      "equipmentStatus": "confirmed",
+      "published": false,
+      "summary": "Singer machine. Feeds directly into the bowl cozy and stocking classes.",
+      "lessons": [
+        {
+          "id": "les-sewing-threading",
+          "order": 1,
+          "title": "Threading the machine and the bobbin",
+          "contentSlug": "learn/sewing/threading",
+          "boxMustCover": "The Box's specific Singer model and its threading path - post a photo diagram at the machine. Whether thread, needles and bobbins are supplied.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "fzlT-SOqxZY",
+              "url": "https://www.youtube.com/watch?v=fzlT-SOqxZY",
+              "title": "How to Thread a Sewing Machine for Absolute Beginners",
+              "channel": "DIY Fashion Rebel",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false
+            }
+          ]
+        },
+        {
+          "id": "les-sewing-basics",
+          "order": 2,
+          "title": "Sewing your first seam",
+          "contentSlug": "learn/sewing/first-seam",
+          "boxMustCover": "Needle-break procedure, machine care, what to do when the machine jams.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "BtX2zcAPWWo",
+              "url": "https://www.youtube.com/watch?v=BtX2zcAPWWo",
+              "title": "Learn To Use A Sewing Machine | How To Sew For Absolute Beginners | Learn To Sew Part 1 of 3",
+              "channel": "The Stitch Sisters",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false,
+              "notes": "Part 1 of 3 - check whether parts 2 and 3 belong here or in a class."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-cnc-plasma",
+      "slug": "cnc-plasma",
+      "title": "CNC Plasma Table (Avid Pro6060)",
+      "certificationId": "cert-cnc-plasma",
+      "knowledgeOnly": false,
+      "equipmentStatus": "confirmed-but-missing-from-portal-spec",
+      "published": false,
+      "priority": "HIGHEST - this machine is on the website, is the most hazardous thing in the building, and has no certification defined anywhere in the portal spec.",
+      "summary": "Avid CNC Pro6060, 5'x5', Mach4 control, VCarve CAD/CAM. UV, metal fume, molten spatter, high voltage and an unattended moving gantry.",
+      "lessons": [
+        {
+          "id": "les-plasma-safety",
+          "order": 1,
+          "title": "Plasma hazards: fume, UV, spatter",
+          "contentSlug": "learn/cnc-plasma/safety",
+          "boxMustCover": "The Box's extraction setup and how to verify it is running. Required PPE and who else in the room needs eye protection. Where bystanders may stand. Never-cut materials (galvanized/zinc, unknown coatings). Fire watch after cutting.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "Okyko4X6Rxw",
+              "url": "https://www.youtube.com/watch?v=Okyko4X6Rxw",
+              "title": "PWTV: Plasma Cutting Fume Venting Overview",
+              "channel": "Fabricators and Manufacturers Association",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false,
+              "notes": "Industry association source. Industrial in register, which is appropriate for this machine."
+            }
+          ],
+          "gap": true,
+          "gapNote": "This is the thinnest lesson in the set. A single fume-venting video does not cover UV, arc eye, spatter, PPE or fire watch. Worth sourcing more, or writing it in-house from Miller/Hypertherm safety literature, before this cert goes live."
+        },
+        {
+          "id": "les-plasma-operation",
+          "order": 2,
+          "title": "Running a job in Mach4",
+          "contentSlug": "learn/cnc-plasma/mach4",
+          "boxMustCover": "E-stop location - every member should physically touch it during the checkoff. Setting origin. Workpiece clamping and ground clamp. THE ATTENDANCE RULE: you may cut with nobody else in the building, but you may not walk away from a running cut, not for a phone call and not to check another machine. Cover what to do when something goes wrong with nobody else there: fire watch after the cut ends, when to stop and call, and the fact that a plasma fire can smoulder unseen in the slag tray after the torch is off.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "Y0YDV1djHK4",
+              "url": "https://www.youtube.com/watch?v=Y0YDV1djHK4",
+              "title": "First Steps to using Plasma Table with Mach 4",
+              "channel": "Larry Robinson",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false
+            },
+            {
+              "provider": "youtube",
+              "youtubeId": "STBwZN3Ajv8",
+              "url": "https://www.youtube.com/watch?v=STBwZN3Ajv8",
+              "title": "Plasma CNC Workflow - Live Stream with Avid CNC!",
+              "channel": "Avid CNC",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false,
+              "notes": "The machine manufacturer's own workflow walkthrough. Likely long - a live stream - so pull the relevant section or timestamp it in the lesson."
+            }
+          ]
+        },
+        {
+          "id": "les-plasma-vcarve",
+          "order": 3,
+          "title": "Designing and toolpathing in VCarve",
+          "contentSlug": "learn/cnc-plasma/vcarve",
+          "boxMustCover": "The Box's VCarve post-processor for the Avid/Mach4 combination, kerf/lead-in settings, and where files are saved.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "xKTpAoKjWUE",
+              "url": "https://www.youtube.com/watch?v=xKTpAoKjWUE",
+              "title": "The Most Complete Vectric 101 Tutorial for Beginners (Vcarve, Aspire, Cut2D), CNC Router Project",
+              "channel": "IDC Woodcraft",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false,
+              "notes": "Router-focused, not plasma. The VCarve interface and toolpath concepts transfer; the cutting parameters do not. Flag that difference in the lesson text or find a plasma-specific VCarve walkthrough."
+            }
+          ]
+        }
+      ],
+      "staffPresenceRule": "Confirmed 2026-09-07: certified members may cut with NO staff present, but must STAY WITH THE MACHINE for the whole cut. Solo operation yes, unattended operation no. Because nobody else is in the room, the certification is the only backstop - the checkoff should be a supervised full job start to finish, not a walkthrough of the controls.",
+      "attendedOperationRequired": true
+    },
+    {
+      "id": "mod-table-saw",
+      "slug": "table-saw",
+      "title": "Table Saw",
+      "certificationId": "cert-table-saw",
+      "knowledgeOnly": false,
+      "equipmentStatus": "confirmed",
+      "equipmentNote": "Confirmed by Trey 2026-09-07: the woodshop exists but is small. All six Alpine machines are present. Not listed on the public website - worth adding there.",
+      "published": false,
+      "requiredRuntimeSeconds": 1253,
+      "lessons": [
+        {
+          "id": "les-tablesaw-main",
+          "order": 1,
+          "title": "The table saw",
+          "contentSlug": "learn/table-saw/basics",
+          "boxMustCover": "Make, model, blade brake or not. Push sticks. No freehand ripping. Blade changes staff-only.",
+          "reviewFlag": "Watch for footage of cuts made with the guard or riving knife removed.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "Q_8QZF3IO0g",
+              "url": "https://www.youtube.com/watch?v=Q_8QZF3IO0g",
+              "title": "The Table Saw || Basic Use and Safety",
+              "channel": "Alpine Trails Studio",
+              "role": "primary",
+              "durationSeconds": 1253,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false
+            },
+            {
+              "provider": "youtube",
+              "youtubeId": "fEm1DjAKZKY",
+              "url": "https://www.youtube.com/watch?v=fEm1DjAKZKY",
+              "title": "10 dangerous things EVEN YOU have done with a table saw",
+              "channel": "Stumpy Nubs (James Hamilton)",
+              "role": "supporting",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-06",
+              "staffReviewed": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-woodshop-basics",
+      "slug": "woodshop-basics",
+      "title": "Woodshop Basics",
+      "certificationId": "cert-woodshop-basics",
+      "knowledgeOnly": false,
+      "equipmentStatus": "confirmed",
+      "equipmentNote": "Confirmed by Trey 2026-09-07: the woodshop exists but is small. All six Alpine machines are present. Not listed on the public website - worth adding there.",
+      "published": false,
+      "requiredRuntimeSeconds": 3028,
+      "lessons": [
+        {
+          "id": "les-woodshop-bandsaw",
+          "order": 1,
+          "title": "Band saw",
+          "contentSlug": "learn/woodshop-basics/band-saw",
+          "boxMustCover": "Guard height, blade changes staff-only, relief cuts.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "Jcn8GjY85nM",
+              "url": "https://www.youtube.com/watch?v=Jcn8GjY85nM",
+              "title": "The Band Saw || Basic Use and Safety",
+              "channel": "Alpine Trails Studio",
+              "role": "primary",
+              "durationSeconds": 417,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false
+            }
+          ]
+        },
+        {
+          "id": "les-woodshop-mitersaw",
+          "order": 2,
+          "title": "Miter saw",
+          "contentSlug": "learn/woodshop-basics/miter-saw",
+          "boxMustCover": "Blade must stop before lifting. Minimum offcut length. Hand placement.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "IMJhES5BS5o",
+              "url": "https://www.youtube.com/watch?v=IMJhES5BS5o",
+              "title": "The Miter Saw || Basic Use and Safety",
+              "channel": "Alpine Trails Studio",
+              "role": "primary",
+              "durationSeconds": 723,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false
+            }
+          ]
+        },
+        {
+          "id": "les-woodshop-jointer",
+          "order": 3,
+          "title": "Jointer",
+          "contentSlug": "learn/woodshop-basics/jointer",
+          "boxMustCover": "Never crosscut on a jointer. Push blocks. Max depth of cut.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "V6XzOBiQpnQ",
+              "url": "https://www.youtube.com/watch?v=V6XzOBiQpnQ",
+              "title": "The Jointer || Basic Use and Safety",
+              "channel": "Alpine Trails Studio",
+              "role": "primary",
+              "durationSeconds": 612,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false
+            }
+          ]
+        },
+        {
+          "id": "les-woodshop-planer",
+          "order": 4,
+          "title": "Thickness planer",
+          "contentSlug": "learn/woodshop-basics/planer",
+          "boxMustCover": "Minimum stock length and thickness. Snipe. No reclaimed stock without checking for metal.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "88RnZE2YYjE",
+              "url": "https://www.youtube.com/watch?v=88RnZE2YYjE",
+              "title": "The Thickness Planer || Basic Use and Safety",
+              "channel": "Alpine Trails Studio",
+              "role": "primary",
+              "durationSeconds": 389,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false
+            }
+          ]
+        },
+        {
+          "id": "les-woodshop-router-table",
+          "order": 5,
+          "title": "Router table",
+          "contentSlug": "learn/woodshop-basics/router-table",
+          "boxMustCover": "Feed direction. Bit changes staff-only. Featherboards.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "QW5JvkeDik0",
+              "url": "https://www.youtube.com/watch?v=QW5JvkeDik0",
+              "title": "Routers and Router Tables || Basic Use and Safety",
+              "channel": "Alpine Trails Studio",
+              "role": "primary",
+              "durationSeconds": 887,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false
+            }
+          ]
+        }
+      ],
+      "classPrepExtras": [
+        {
+          "provider": "youtube",
+          "youtubeId": "0JRI-hNM2QA",
+          "url": "https://www.youtube.com/watch?v=0JRI-hNM2QA",
+          "title": "Router Templating || A Thorough Introduction",
+          "channel": "Alpine Trails Studio",
+          "durationSeconds": 1166,
+          "verifiedAt": "2026-09-07",
+          "notes": "Technique, not safety. Class pre-work."
+        },
+        {
+          "provider": "youtube",
+          "youtubeId": "q1QQoQH7-U4",
+          "url": "https://www.youtube.com/watch?v=q1QQoQH7-U4",
+          "title": "Routed Inlays - The Easy Way",
+          "channel": "Alpine Trails Studio",
+          "durationSeconds": 989,
+          "verifiedAt": "2026-09-07",
+          "notes": "Class material, not cert material."
+        }
+      ]
+    },
+    {
+      "id": "mod-embroidery-machine",
+      "slug": "embroidery-machine",
+      "title": "Embroidery Machine",
+      "certificationId": "cert-embroidery-machine",
+      "knowledgeOnly": false,
+      "equipmentStatus": "confirmed",
+      "published": false,
+      "summary": "Brother-class single-needle embroidery: threading, USB designs, hooping, and stabilizer selection. Confirm exact model at the machine.",
+      "attendedOperationRequired": false,
+      "lessons": [
+        {
+          "id": "les-embroidery-basics",
+          "order": 1,
+          "title": "Machine basics and first stitch-out",
+          "contentSlug": "learn/embroidery/basics",
+          "boxMustCover": "Exact Brother model, bobbin/needle rules, USB file types The Box accepts, needle-break procedure.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "-gY539zp0Ws",
+              "url": "https://www.youtube.com/watch?v=-gY539zp0Ws",
+              "title": "Beginner Guide to the Brother PE800 Embroidery Machine!",
+              "channel": "Crafting with Kristin",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false,
+              "notes": "Filmed on PE800 — workflow transfers to similar Brother single-needle machines; confirm The Box model."
+            }
+          ]
+        },
+        {
+          "id": "les-embroidery-hooping",
+          "order": 2,
+          "title": "Hooping and stabilizer",
+          "contentSlug": "learn/embroidery/hooping",
+          "boxMustCover": "Which stabilizers The Box stocks, cutaway vs tearaway default for garments, topper for towels.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "472kqi7uRs4",
+              "url": "https://www.youtube.com/watch?v=472kqi7uRs4",
+              "title": "(BEGINNER EMBROIDERY) Which Stabilizer you NEED to Start Embroidering!",
+              "channel": "Mel Calabrese",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false,
+              "notes": "Short-form; pairs with in-house hooping lesson text."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mod-sublimation",
+      "slug": "sublimation",
+      "title": "Sublimation (printer + heat press)",
+      "certificationId": "cert-sublimation",
+      "knowledgeOnly": false,
+      "equipmentStatus": "confirmed",
+      "published": false,
+      "summary": "Sawgrass-class dye-sub printer and heat press. Mirror, polyester blanks, press temperatures, and platen safety.",
+      "attendedOperationRequired": true,
+      "lessons": [
+        {
+          "id": "les-sublimation-overview",
+          "order": 1,
+          "title": "How sublimation works",
+          "contentSlug": "learn/sublimation/overview",
+          "boxMustCover": "Posted temp/time chart at the press, which blanks The Box stocks, dark-garment rule.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "tJGG1lbp83k",
+              "url": "https://www.youtube.com/watch?v=tJGG1lbp83k",
+              "title": "Step-by-Step Tutorial : How to Sublimate a Shirt for Sublimation Beginners",
+              "channel": "Honestly SpINKing 365",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false
+            },
+            {
+              "provider": "youtube",
+              "youtubeId": "7NxQRsUjR7M",
+              "url": "https://www.youtube.com/watch?v=7NxQRsUjR7M",
+              "title": "How to Fix Faded & Blurry Sublimation Prints | Beginner to Pro Tips",
+              "channel": "AAPrintSupplyCo",
+              "role": "supporting",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false
+            }
+          ]
+        },
+        {
+          "id": "les-sublimation-software",
+          "order": 2,
+          "title": "Sawgrass Print Manager",
+          "contentSlug": "learn/sublimation/software",
+          "boxMustCover": "Shop computer login, which presets The Box uses, where member files are saved.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "m4k5xJ2rfqM",
+              "url": "https://www.youtube.com/watch?v=m4k5xJ2rfqM",
+              "title": "How to Use the Sawgrass Print Manager",
+              "channel": "Angie Holden",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false,
+              "notes": "UI may show Print Manager vs Print Utility depending on Sawgrass generation — concepts transfer."
+            }
+          ]
+        },
+        {
+          "id": "les-sublimation-heat-press",
+          "order": 3,
+          "title": "Heat press safety and technique",
+          "contentSlug": "learn/sublimation/heat-press",
+          "boxMustCover": "Exact press model, posted temp chart, who may change setpoints, burn/first-aid note.",
+          "videos": [
+            {
+              "provider": "youtube",
+              "youtubeId": "Nu5P-Yx-nX8",
+              "url": "https://www.youtube.com/watch?v=Nu5P-Yx-nX8",
+              "title": "Starting a Sublimation Business: Sublimation T-Shirts for Beginners",
+              "channel": "Daisy Multifacetica",
+              "role": "primary",
+              "durationSeconds": null,
+              "verifiedAt": "2026-09-07",
+              "staffReviewed": false,
+              "notes": "Press brand differs; teach The Box's posted times/temps over the video's numbers."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

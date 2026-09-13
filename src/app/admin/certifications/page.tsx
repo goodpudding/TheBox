@@ -119,7 +119,7 @@ export default function AdminCertificationsPage() {
   return (
     <AdminShell
       title="Certifications"
-      description="Maintain the certification catalog, record hands-on checkoffs, and revoke when needed."
+      description="Catalog and global checkoff/revoke tools. Member-facing progress lives under Learn."
     >
       {error ? (
         <p className="mb-6 text-sm text-accent" role="alert">

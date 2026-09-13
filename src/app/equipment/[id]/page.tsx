@@ -20,6 +20,8 @@ const AREA_LABEL: Record<MachineArea, string> = {
   woodshop: "Woodshop",
   textiles_vinyl: "Textiles & vinyl",
   sublimation: "Sublimation",
+  cnc_plasma: "CNC & plasma",
+  hand_tools: "Hand tools",
 };
 
 export default function EquipmentDetailPage() {
@@ -162,7 +164,7 @@ export default function EquipmentDetailPage() {
                       </Button>
                     ) : null}
                     <Button asChild size="sm">
-                      <Link href="/certifications">View certs</Link>
+                      <Link href="/learn">View Learn</Link>
                     </Button>
                   </div>
                 </li>
