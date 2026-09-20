@@ -43,6 +43,8 @@ import type {
   ClassInterestBoard,
   ClassInterestSignup,
   ClassInterestStatus,
+  Bounty,
+  BountyStatus,
 } from "./types";
 
 // Re-export view/DTO types used by the provider interface
@@ -328,6 +330,19 @@ export interface VolunteerInterestAdminUpdate {
   reviewedById?: string;
 }
 
+export interface BountyRequestInput {
+  title: string;
+  description: string;
+  requesterName: string;
+  requesterEmail: string;
+  businessName?: string | null;
+  userId?: string | null;
+}
+
+export interface BountyView extends Bounty {
+  claimedByDisplayName?: string | null;
+}
+
 export interface ClassInterestBoardInput {
   title: string;
   summary: string;
@@ -542,6 +557,13 @@ export interface DataProvider {
   submitVolunteerInterest(
     input: VolunteerInterestInput,
   ): Promise<VolunteerInterest>;
+  listBounties(filters?: {
+    status?: BountyStatus | BountyStatus[];
+  }): Promise<BountyView[]>;
+  getBounty(id: string): Promise<BountyView | null>;
+  submitBountyRequest(input: BountyRequestInput): Promise<Bounty>;
+  claimBounty(id: string, userId: string): Promise<Bounty>;
+  completeBounty(id: string, userId: string): Promise<Bounty>;
   getSettings(): Promise<OrgSettings>;
   listMembershipProducts(): Promise<MembershipProduct[]>;
   getScholarshipFundSummary(): Promise<ScholarshipFundSummary>;

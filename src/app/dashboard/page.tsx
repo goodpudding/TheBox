@@ -386,6 +386,9 @@ function DashboardBody() {
               {interestMine.length > 0 ? ` · ${interestMine.length}` : ""}
             </Link>
           </Button>
+          <Button asChild variant="outline">
+            <Link href="/bounties">Bounties</Link>
+          </Button>
           {championProgress?.canScheduleMaintenance ? (
             <Button asChild variant="outline">
               <Link href="/maintenance">Maintenance</Link>

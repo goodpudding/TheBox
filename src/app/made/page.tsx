@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PageHero, PageShell } from "@/components/page-shell";
 import {
   ProjectHighlights,
@@ -20,6 +21,14 @@ export default function MadeHerePage() {
       <div className="mt-12">
         <ProjectHighlights showHeading={false} />
       </div>
+
+      <p className="mt-12 max-w-xl text-secondary leading-relaxed">
+        Need something custom made for a shop or project?{" "}
+        <Link href="/bounties#request" className="text-primary-text underline">
+          Post a bounty
+        </Link>{" "}
+        — members claim requests and make them in the space.
+      </p>
     </PageShell>
   );
 }

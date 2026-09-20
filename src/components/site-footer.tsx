@@ -38,6 +38,9 @@ export function SiteFooter() {
           <Link href="/made" className="hover:text-primary transition-colors">
             Made here
           </Link>
+          <Link href="/bounties" className="hover:text-primary transition-colors">
+            Bounties
+          </Link>
           <Link href="/join" className="hover:text-primary transition-colors">
             Join
           </Link>

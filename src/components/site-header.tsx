@@ -15,6 +15,7 @@ const publicLinks = [
   { href: "/events", label: "Events" },
   { href: "/equipment", label: "Equipment" },
   { href: "/made", label: "Made here" },
+  { href: "/bounties", label: "Bounties" },
   { href: "/support", label: "Support" },
   { href: "/policies", label: "Policies" },
   { href: "/volunteer", label: "Volunteer" },
