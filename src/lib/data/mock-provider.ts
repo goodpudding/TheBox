@@ -56,6 +56,8 @@ import type {
   VideoInput,
   VolunteerInterestAdminUpdate,
   VolunteerInterestInput,
+  BountyRequestInput,
+  BountyView,
 } from "./provider";
 import { buildDisplayFeed, buildMachineStatuses } from "./display-feed";
 import {
@@ -68,6 +70,7 @@ import {
   interestSignupCount,
   isStaffRole,
 } from "./class-interest";
+import { canClaimBounty, canCompleteBounty, isValidBountyEmail } from "./bounties";
 import type {
   AccessLog,
   AuditAction,
@@ -114,6 +117,8 @@ import type {
   MockFixtureBundle,
   ScholarshipFundSummary,
   ToolChampionTerm,
+  Bounty,
+  BountyStatus,
 } from "./types";
 
 const TZ = "America/Los_Angeles";
@@ -263,6 +268,8 @@ export class MockDataProvider implements DataProvider {
     this.state = cloneFixtures(bundle);
     this.state.lessonVideos ??= [];
     this.state.videoWatches ??= [];
+    this.state.people ??= [];
+    this.state.bounties ??= [];
     this.currentUserId =
       initialUserId === undefined ? "u-maya" : initialUserId;
   }
@@ -1915,6 +1922,127 @@ export class MockDataProvider implements DataProvider {
     return interest;
   }
 
+  private toBountyView(bounty: Bounty): BountyView {
+    const claimer = bounty.claimedByUserId
+      ? this.state.users.find((u) => u.id === bounty.claimedByUserId)
+      : undefined;
+    return {
+      ...bounty,
+      claimedByDisplayName: claimer?.displayName ?? null,
+    };
+  }
+
+  async listBounties(filters?: {
+    status?: BountyStatus | BountyStatus[];
+  }): Promise<BountyView[]> {
+    const statuses = filters?.status
+      ? Array.isArray(filters.status)
+        ? filters.status
+        : [filters.status]
+      : null;
+    const rank: Record<BountyStatus, number> = {
+      open: 0,
+      claimed: 1,
+      completed: 2,
+    };
+    return this.state.bounties
+      .filter((b) => !b.deletedAt)
+      .filter((b) => (statuses ? statuses.includes(b.status) : true))
+      .map((b) => this.toBountyView(b))
+      .sort((a, b) => {
+        const byStatus = rank[a.status] - rank[b.status];
+        if (byStatus !== 0) return byStatus;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+  }
+
+  async getBounty(id: string): Promise<BountyView | null> {
+    const bounty = this.state.bounties.find((b) => b.id === id && !b.deletedAt);
+    return bounty ? this.toBountyView(bounty) : null;
+  }
+
+  async submitBountyRequest(input: BountyRequestInput): Promise<Bounty> {
+    const title = input.title.trim();
+    const description = input.description.trim();
+    const requesterName = input.requesterName.trim();
+    const requesterEmail = input.requesterEmail.trim();
+    const businessName = input.businessName?.trim() || null;
+    if (title.length < 3 || title.length > 120) {
+      throw new Error("Title should be between 3 and 120 characters");
+    }
+    if (description.length < 10 || description.length > 2000) {
+      throw new Error("Describe what you want made (at least 10 characters)");
+    }
+    if (!requesterName) {
+      throw new Error("Name is required");
+    }
+    if (!isValidBountyEmail(requesterEmail)) {
+      throw new Error("A valid email is required so a member can follow up");
+    }
+    const now = this.now();
+    const bounty: Bounty = {
+      id: this.id("bounty"),
+      title,
+      description,
+      requesterName,
+      requesterEmail,
+      businessName,
+      userId: input.userId ?? null,
+      status: "open",
+      claimedByUserId: null,
+      claimedAt: null,
+      completedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.state.bounties.push(bounty);
+    return bounty;
+  }
+
+  async claimBounty(id: string, userId: string): Promise<Bounty> {
+    const user = this.state.users.find((u) => u.id === userId);
+    if (!user) throw new Error("Sign in as a member to claim a bounty");
+    if (!canClaimBounty(user)) {
+      throw new Error(
+        "An active membership with shop access is required to claim",
+      );
+    }
+    const bounty = this.state.bounties.find((b) => b.id === id && !b.deletedAt);
+    if (!bounty) throw new Error("Bounty not found");
+    if (bounty.status === "claimed") {
+      const claimer = this.state.users.find(
+        (u) => u.id === bounty.claimedByUserId,
+      );
+      throw new Error(
+        `Already claimed by ${claimer?.displayName ?? "another member"}`,
+      );
+    }
+    if (bounty.status !== "open") {
+      throw new Error("This bounty is not open to claim");
+    }
+    const now = this.now();
+    bounty.status = "claimed";
+    bounty.claimedByUserId = user.id;
+    bounty.claimedAt = now;
+    return this.touch(bounty);
+  }
+
+  async completeBounty(id: string, userId: string): Promise<Bounty> {
+    const user = this.state.users.find((u) => u.id === userId);
+    if (!user) throw new Error("Sign in to complete a bounty");
+    const bounty = this.state.bounties.find((b) => b.id === id && !b.deletedAt);
+    if (!bounty) throw new Error("Bounty not found");
+    if (bounty.status !== "claimed") {
+      throw new Error("Only claimed bounties can be marked completed");
+    }
+    if (!canCompleteBounty(user, bounty)) {
+      throw new Error("Only the member who claimed this can mark it done");
+    }
+    bounty.status = "completed";
+    bounty.completedAt = this.now();
+    return this.touch(bounty);
+  }
+
   async getSettings(): Promise<OrgSettings> {
     return { ...this.state.settings };
   }
@@ -3232,6 +3360,7 @@ export class MockDataProvider implements DataProvider {
       membershipProducts: this.state.membershipProducts,
       promoSlides: this.state.promoSlides,
       displayConfig: this.state.displayConfig,
+      bounties: this.state.bounties,
     });
   }
 
@@ -3299,6 +3428,7 @@ export class MockDataProvider implements DataProvider {
       "machines",
       "upcoming",
       "certs",
+      "bounties",
       "promos",
       "membership",
     ];

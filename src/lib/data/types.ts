@@ -76,6 +76,9 @@ export type VolunteerInterestStatus =
   | "declined"
   | "archived";
 
+/** Member-fulfillable request from a neighbor or local business. */
+export type BountyStatus = "open" | "claimed" | "completed";
+
 export type AccessDenyReason =
   | "user_inactive"
   | "waiver_unsigned"
@@ -546,6 +549,22 @@ export interface VolunteerInterest extends Timestamps {
   notes?: string | null;
 }
 
+/** Public request to have something made in the shop. */
+export interface Bounty extends Timestamps {
+  id: string;
+  title: string;
+  description: string;
+  requesterName: string;
+  requesterEmail: string;
+  businessName?: string | null;
+  /** Signed-in user who submitted, if any. */
+  userId?: string | null;
+  status: BountyStatus;
+  claimedByUserId?: string | null;
+  claimedAt?: ISODateTime | null;
+  completedAt?: ISODateTime | null;
+}
+
 export interface OrgSettings {
   orgName: string;
   paymentUrl: string;
@@ -609,6 +628,7 @@ export type DisplayPanelId =
   | "machines"
   | "upcoming"
   | "certs"
+  | "bounties"
   | "promos"
   | "membership";
 
@@ -667,6 +687,7 @@ export interface MockFixtureBundle {
   volunteerRoles: VolunteerRole[];
   volunteerInterests: VolunteerInterest[];
   people: Person[];
+  bounties: Bounty[];
   contentPages: ContentPage[];
   waiverSignatures: WaiverSignature[];
   policyAcknowledgements: PolicyAcknowledgement[];

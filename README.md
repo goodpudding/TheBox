@@ -204,8 +204,8 @@ For Postgres production, change `provider` in `prisma/schema.prisma` to `postgre
 
 ## Routes (summary)
 
-Public: `/join`, `/support`, `/policies`, `/volunteer`, `/login`, `/equipment`, `/display?token=…`  
-Member: `/dashboard`, `/account`, `/certifications`, `/usage`, `/classes`, `/reserve`, `/learn`, onboarding  
+Public: `/join`, `/support`, `/policies`, `/volunteer`, `/login`, `/equipment`, `/display?token=…`, `/bounties`, `/history`, `/staff`  
+Member: `/dashboard`, `/account`, `/certifications`, `/usage`, `/classes`, `/reserve`, `/learn`, `/bounties` (claim), onboarding  
 Admin: `/admin/*` (including `/admin/display`), `/dev/reader`  
 
 ## Learning modules
@@ -259,7 +259,7 @@ chromium-browser --kiosk --noerrdialogs --disable-infobars \
 
 Disable screen sleep on the device (e.g. `xset s off`, `xset -dpms`, or Raspberry Pi OS screen blanking settings). Use a systemd user service or desktop autostart that opens the URL after network is up.
 
-Staff edit promos, panel order, cadence, and name display under **Admin → Display**. Promo images upload to `public/uploads/promos` in development, and `npm run sync:google` drops images from Drive `Photos/Promos/` into the same folder; for production, point uploads at object storage (S3/R2) and store the resulting URL on the promo.
+Staff edit promos, panel order, cadence, and name display under **Admin → Display**. The rotation includes a **Bounty board** panel (open and recently claimed requests, no claim form). Promo images upload to `public/uploads/promos` in development, and `npm run sync:google` drops images from Drive `Photos/Promos/` into the same folder; for production, point uploads at object storage (S3/R2) and store the resulting URL on the promo.
 
 ## Env
 

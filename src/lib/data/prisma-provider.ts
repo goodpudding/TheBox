@@ -43,6 +43,8 @@ import type {
   VolunteerInterest,
   VolunteerRole,
   WaiverSignature,
+  Bounty,
+  BountyStatus,
 } from "./types";
 
 function parseJsonArray<T = string>(str: string | null | undefined): T[] {
@@ -272,12 +274,19 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
       prisma.question.findMany(),
       prisma.lessonProgress.findMany(),
     ]);
-  const [lessonVideos, videoWatches, classInterestBoards, classInterestSignups] =
+  const [
+    lessonVideos,
+    videoWatches,
+    classInterestBoards,
+    classInterestSignups,
+    bountyRows,
+  ] =
     await Promise.all([
       prismaLoose.lessonVideo?.findMany?.() ?? Promise.resolve([]),
       prismaLoose.videoWatch?.findMany?.() ?? Promise.resolve([]),
       prismaLoose.classInterestBoard?.findMany?.() ?? Promise.resolve([]),
       prismaLoose.classInterestSignup?.findMany?.() ?? Promise.resolve([]),
+      prismaLoose.bounty?.findMany?.() ?? Promise.resolve([]),
     ]);
   const [
     quizAttempts,
@@ -683,6 +692,24 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
         deletedAt: toIso(v.deletedAt),
       }),
     ),
+    bounties: (bountyRows as Array<Record<string, unknown>>).map(
+      (b): Bounty => ({
+        id: String(b.id),
+        title: String(b.title),
+        description: String(b.description),
+        requesterName: String(b.requesterName),
+        requesterEmail: String(b.requesterEmail),
+        businessName: (b.businessName as string | null) ?? null,
+        userId: (b.userId as string | null) ?? null,
+        status: b.status as BountyStatus,
+        claimedByUserId: (b.claimedByUserId as string | null) ?? null,
+        claimedAt: toIso(b.claimedAt as Date | null),
+        completedAt: toIso(b.completedAt as Date | null),
+        createdAt: toIsoRequired(b.createdAt as Date),
+        updatedAt: toIsoRequired(b.updatedAt as Date),
+        deletedAt: toIso(b.deletedAt as Date | null),
+      }),
+    ),
     contentPages: contentPages.map(
       (p): ContentPage => ({
         id: p.id,
@@ -799,6 +826,7 @@ export async function persistBundleToPrisma(
     await db.waiverSignature.deleteMany();
     await db.policyAcknowledgement.deleteMany();
     await db.volunteerInterest.deleteMany();
+    if (db.bounty) await db.bounty.deleteMany();
     if (db.classInterestSignup) await db.classInterestSignup.deleteMany();
     if (db.classInterestBoard) await db.classInterestBoard.deleteMany();
     await db.badge.deleteMany();
@@ -1382,6 +1410,28 @@ export async function persistBundleToPrisma(
         deletedAt: asDate(v.deletedAt),
       })),
     );
+
+    if (db.bounty) {
+      await createManyIfAny(
+        (args) => db.bounty.createMany(args),
+        (bundle.bounties ?? []).map((b) => ({
+          id: b.id,
+          title: b.title,
+          description: b.description,
+          requesterName: b.requesterName,
+          requesterEmail: b.requesterEmail,
+          businessName: b.businessName ?? null,
+          userId: b.userId ?? null,
+          status: b.status,
+          claimedByUserId: b.claimedByUserId ?? null,
+          claimedAt: asDate(b.claimedAt),
+          completedAt: asDate(b.completedAt),
+          createdAt: asDate(b.createdAt) ?? new Date(),
+          updatedAt: asDate(b.updatedAt) ?? new Date(),
+          deletedAt: asDate(b.deletedAt),
+        })),
+      );
+    }
 
     await createManyIfAny(
       (args) => tx.auditEvent.createMany(args),

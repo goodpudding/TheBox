@@ -1,6 +1,7 @@
 {
   "panelOrder": [
     "today",
+    "bounties",
     "machines",
     "upcoming",
     "certs",

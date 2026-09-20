@@ -15,6 +15,7 @@ const publicLinks = [
   { href: "/events", label: "Events" },
   { href: "/equipment", label: "Equipment" },
   { href: "/made", label: "Made here" },
+  { href: "/bounties", label: "Bounties" },
   { href: "/history", label: "History" },
   { href: "/staff", label: "Staff" },
   { href: "/support", label: "Support" },
@@ -31,6 +32,7 @@ const shopLinks = [
   { href: "/classes", label: "Classes" },
   { href: "/reserve", label: "Reserve" },
   { href: "/learn", label: "Learn" },
+  { href: "/bounties", label: "Bounties" },
 ];
 
 function roleLabel(role: Role, isTeacher?: boolean): string {
@@ -121,7 +123,7 @@ export function SiteHeader() {
   }, [youOpen]);
 
   const exploreLinks = currentUser
-    ? publicLinks.filter((l) => l.href !== "/join")
+    ? publicLinks.filter((l) => l.href !== "/join" && l.href !== "/bounties")
     : publicLinks;
 
   const youLinks = [
