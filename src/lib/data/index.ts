@@ -10,6 +10,7 @@ export {
   CLASS_INTEREST_OPEN_DAYS,
   CLASS_INTEREST_PRIORITY_HOURS,
 } from "./class-interest";
+export { canClaimBounty, canCompleteBounty } from "./bounties";
 export { createMockDataProvider, MockDataProvider } from "./mock-provider";
 export { createPrismaDataProvider } from "./prisma-provider";
 export { loadFixtures, cloneFixtures } from "./load-fixtures";

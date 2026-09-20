@@ -106,6 +106,8 @@ model User {
   classInterestInstruct  ClassInterestBoard[]    @relation("InterestInstructorHint")
   classInterestReviewed  ClassInterestBoard[]    @relation("InterestReviewedBy")
   classInterestSignups   ClassInterestSignup[]
+  bountiesRequested      Bounty[]               @relation("BountyRequester")
+  bountiesClaimed        Bounty[]               @relation("BountyClaimedBy")
 }
 
 model Badge {
@@ -569,6 +571,28 @@ model VolunteerInterest {
   role         VolunteerRole? @relation(fields: [roleId], references: [id])
   user         User?     @relation(fields: [userId], references: [id])
   reviewedBy   User?     @relation("VolunteerReviewedBy", fields: [reviewedById], references: [id])
+}
+
+model Bounty {
+  id              String    @id
+  title           String
+  description     String
+  requesterName   String
+  requesterEmail  String
+  businessName    String?
+  userId          String?
+  status          String    @default("open") // open | claimed | completed
+  claimedByUserId String?
+  claimedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+  requester       User?     @relation("BountyRequester", fields: [userId], references: [id])
+  claimedBy       User?     @relation("BountyClaimedBy", fields: [claimedByUserId], references: [id])
+
+  @@index([status])
+  @@index([claimedByUserId])
 }
 
 model MembershipProduct {

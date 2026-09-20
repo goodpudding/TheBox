@@ -19,12 +19,14 @@ const PANEL_LABELS: Record<DisplayPanelId, string> = {
   machines: "Machine status",
   upcoming: "Coming up",
   certs: "Get certified",
+  bounties: "Bounty board",
   promos: "Promos",
   membership: "Membership",
 };
 
 const ALL_PANELS: DisplayPanelId[] = [
   "today",
+  "bounties",
   "machines",
   "upcoming",
   "certs",

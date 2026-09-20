@@ -10,6 +10,7 @@ import { PanelUpcoming } from "@/components/display/panel-upcoming";
 import { PanelCerts } from "@/components/display/panel-certs";
 import { PanelPromos } from "@/components/display/panel-promos";
 import { PanelMembership } from "@/components/display/panel-membership";
+import { PanelBounties } from "@/components/display/panel-bounties";
 import type { DisplayFeed, DisplayPanelId } from "@/lib/data";
 
 const POLL_MS = 60_000;
@@ -27,6 +28,8 @@ function panelHasContent(id: DisplayPanelId, feed: DisplayFeed): boolean {
       return feed.upcoming.length > 0;
     case "certs":
       return feed.checkoffs.length > 0 || feed.onlineCerts.length > 0;
+    case "bounties":
+      return (feed.bounties?.length ?? 0) > 0;
     case "promos":
       return feed.promos.length > 0;
     case "membership":
@@ -83,6 +86,7 @@ export default function DisplayClient() {
         const live = await provider.getDisplayFeed();
         apiFeed.todayReservations = live.todayReservations;
         apiFeed.todaySessions = live.todaySessions;
+        if (live.bounties) apiFeed.bounties = live.bounties;
       } catch {
         /* keep API feed */
       }
@@ -188,6 +192,9 @@ export default function DisplayClient() {
             checkoffs={feed.checkoffs}
             onlineCerts={feed.onlineCerts}
           />
+        ) : null}
+        {activeId === "bounties" ? (
+          <PanelBounties bounties={feed.bounties ?? []} />
         ) : null}
         {activeId === "promos" ? <PanelPromos slides={promoSlide} /> : null}
         {activeId === "membership" ? (

@@ -124,7 +124,11 @@ export default function SupportPage() {
           >
             {settings?.contactEmail ?? "thebox@discoverburien.org"}
           </a>
-          .
+          , or{" "}
+          <Link href="/bounties#request" className="text-primary-text underline">
+            request something made
+          </Link>{" "}
+          on the bounty board.
         </p>
       </section>
     </PageShell>

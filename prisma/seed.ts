@@ -665,6 +665,40 @@ async function main() {
     }),
   );
 
+  try {
+    const bounties = readJson<Array<Record<string, unknown>>>("bounties.json");
+    for (const b of bounties) {
+      await prismaLoose.bounty.upsert({
+        where: { id: String(b.id) },
+        create: {
+          id: String(b.id),
+          title: String(b.title),
+          description: String(b.description),
+          requesterName: String(b.requesterName),
+          requesterEmail: String(b.requesterEmail),
+          businessName: (b.businessName as string) ?? null,
+          userId: (b.userId as string) ?? null,
+          status: String(b.status),
+          claimedByUserId: (b.claimedByUserId as string) ?? null,
+          claimedAt: asDate(b.claimedAt as string),
+          completedAt: asDate(b.completedAt as string),
+          createdAt: asDate(b.createdAt as string) ?? new Date(),
+          updatedAt: asDate(b.updatedAt as string) ?? new Date(),
+        },
+        update: {
+          title: String(b.title),
+          description: String(b.description),
+          status: String(b.status),
+          claimedByUserId: (b.claimedByUserId as string) ?? null,
+          claimedAt: asDate(b.claimedAt as string),
+          completedAt: asDate(b.completedAt as string),
+        },
+      });
+    }
+  } catch (err) {
+    console.warn("Skipping bounty seed (migrate schema first):", err);
+  }
+
   await seedSimple("usage-sessions.json", (s) =>
     prisma.usageSession.upsert({
       where: { id: String(s.id) },
