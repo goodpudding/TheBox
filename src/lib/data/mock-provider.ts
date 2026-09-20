@@ -112,6 +112,8 @@ import type {
   VolunteerInterest,
   VolunteerRole,
   WaiverSignature,
+  Person,
+  PersonKind,
   MockFixtureBundle,
   ScholarshipFundSummary,
   ToolChampionTerm,
@@ -266,6 +268,7 @@ export class MockDataProvider implements DataProvider {
     this.state = cloneFixtures(bundle);
     this.state.lessonVideos ??= [];
     this.state.videoWatches ??= [];
+    this.state.people ??= [];
     this.state.bounties ??= [];
     this.currentUserId =
       initialUserId === undefined ? "u-maya" : initialUserId;
@@ -1882,6 +1885,12 @@ export class MockDataProvider implements DataProvider {
       this.state.contentPages.find((p) => p.slug === slug && p.published) ??
       null
     );
+  }
+
+  async listPeople(kind?: PersonKind): Promise<Person[]> {
+    return this.state.people
+      .filter((p) => p.published && (kind ? p.kind === kind : true))
+      .sort((a, b) => a.sortOrder - b.sortOrder);
   }
 
   async listVolunteerRoles(): Promise<VolunteerRole[]> {

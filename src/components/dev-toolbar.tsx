@@ -21,8 +21,11 @@ export function DevToolbar() {
   }
 
   return (
-    <div className="fixed bottom-0 inset-x-0 z-50 border-t border-brown/30 bg-brown text-white shadow-lg">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-2.5 sm:px-6">
+    <>
+      {/* In-flow spacer so page footers are not trapped under the fixed bar. */}
+      <div className="h-14 shrink-0" aria-hidden />
+      <div className="fixed bottom-0 inset-x-0 z-50 border-t border-brown/30 bg-brown text-white shadow-lg">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-2.5 sm:px-6">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
@@ -68,7 +71,8 @@ export function DevToolbar() {
             </a>
           </>
         ) : null}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

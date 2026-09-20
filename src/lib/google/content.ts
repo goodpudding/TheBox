@@ -26,6 +26,7 @@ export const CONTENT_SUBFOLDER_CATEGORIES: Record<string, ContentCategory> = {
   faq: "faq",
   hours: "hours",
   waiver: "waiver",
+  about: "other",
 };
 
 /** Docs sitting directly in Content/ with one of these names get a fixed slug + category. */
@@ -38,6 +39,8 @@ export const ROOT_CONTENT_DOCS: Record<
   hours: { slug: "hours", category: "hours" },
   "hours of operation": { slug: "hours", category: "hours" },
   faq: { slug: "faq", category: "faq" },
+  history: { slug: "history", category: "other" },
+  staff: { slug: "staff", category: "other" },
 };
 
 export interface MediaTarget {

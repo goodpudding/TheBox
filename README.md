@@ -204,7 +204,7 @@ For Postgres production, change `provider` in `prisma/schema.prisma` to `postgre
 
 ## Routes (summary)
 
-Public: `/join`, `/support`, `/policies`, `/volunteer`, `/login`, `/equipment`, `/display?token=…`, `/bounties`  
+Public: `/join`, `/support`, `/policies`, `/volunteer`, `/login`, `/equipment`, `/display?token=…`, `/bounties`, `/history`, `/staff`  
 Member: `/dashboard`, `/account`, `/certifications`, `/usage`, `/classes`, `/reserve`, `/learn`, `/bounties` (claim), onboarding  
 Admin: `/admin/*` (including `/admin/display`), `/dev/reader`  
 

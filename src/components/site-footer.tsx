@@ -41,6 +41,15 @@ export function SiteFooter() {
           <Link href="/bounties" className="hover:text-primary transition-colors">
             Bounties
           </Link>
+          <Link
+            href="/history"
+            className="hover:text-primary transition-colors"
+          >
+            History
+          </Link>
+          <Link href="/staff" className="hover:text-primary transition-colors">
+            Staff
+          </Link>
           <Link href="/join" className="hover:text-primary transition-colors">
             Join
           </Link>

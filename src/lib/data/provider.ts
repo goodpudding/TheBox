@@ -43,6 +43,8 @@ import type {
   ClassInterestBoard,
   ClassInterestSignup,
   ClassInterestStatus,
+  Person,
+  PersonKind,
   Bounty,
   BountyStatus,
 } from "./types";
@@ -563,6 +565,7 @@ export interface DataProvider {
 
   listPolicies(): Promise<ContentPage[]>;
   getContentBySlug(slug: string): Promise<ContentPage | null>;
+  listPeople(kind?: PersonKind): Promise<Person[]>;
   listVolunteerRoles(): Promise<VolunteerRole[]>;
   submitVolunteerInterest(
     input: VolunteerInterestInput,

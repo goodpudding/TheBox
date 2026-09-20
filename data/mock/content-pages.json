@@ -525,5 +525,35 @@
     "published": true,
     "createdAt": "2026-09-07T12:00:00-07:00",
     "updatedAt": "2026-09-07T12:00:00-07:00"
+  },
+  {
+    "id": "content-history",
+    "notionId": null,
+    "googleFileId": null,
+    "slug": "history",
+    "title": "How The Box got here",
+    "html": "<p>The Box started because Burien needed a public shop. Debra George, Discover Burien’s executive director, watched a Farmers Market vendor struggle to make enough of their hand-crafted boxes to sell. The city had makers. It did not have a room with the tools.</p>\n<p>In 2021, Discover Burien cleared a former classroom on the lower level of 611 SW 152nd Street, bought equipment, and hired staff — the Highline area’s first publicly accessible makerspace. Soft opening was October 2021. A grand opening followed on March 16, 2022.</p>\n<p>Denise Ferguson, a long-time Discover Burien employee and Burien small-business owner, laid out the floor: work areas by craft, machines grouped so you can learn one station and then the next. Mitchell Allen, The Box’s makerspace manager, came from museums and after-school programs. His job, as he put it, is to be the catalyst — get people to his level on a machine, then let the community outrun him.</p>\n<p>The original brief was a launchpad for micro-businesses: small production runs, prototypes, branded merch. It is also a place to make for its own sake — costumes, cribbage boards, a first 3D print. Membership, certifications, and classes live in this portal now. The rest of Discover Burien’s public story stays on discoverburien.org.</p>",
+    "markdownPath": "content/about/history.md",
+    "category": "other",
+    "version": "2026.1",
+    "syncedAt": "2026-09-20T12:00:00-07:00",
+    "published": true,
+    "createdAt": "2026-09-20T12:00:00-07:00",
+    "updatedAt": "2026-09-20T12:00:00-07:00"
+  },
+  {
+    "id": "content-staff",
+    "notionId": null,
+    "googleFileId": null,
+    "slug": "staff",
+    "title": "Staff & instructors",
+    "html": "<p>The Box is a program of Discover Burien. These are the people who keep the shop open, and the instructors who teach classes on the calendar.</p>\n<p>Want to teach? Pitch a class — sewing, laser, 3D printing, embroidery, jewelry, CNC, and more are welcome. Proposals go to staff; classes run through Discover Burien.</p>",
+    "markdownPath": "content/about/staff.md",
+    "category": "other",
+    "version": "2026.1",
+    "syncedAt": "2026-09-20T12:00:00-07:00",
+    "published": true,
+    "createdAt": "2026-09-20T12:00:00-07:00",
+    "updatedAt": "2026-09-20T12:00:00-07:00"
   }
 ]
