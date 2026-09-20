@@ -614,6 +614,7 @@ export type DisplayPanelId =
   | "machines"
   | "upcoming"
   | "certs"
+  | "bounties"
   | "promos"
   | "membership";
 

@@ -62,10 +62,11 @@ export default function BountiesPage() {
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const formEl = e.currentTarget;
     setPending(true);
     setError(null);
     setMessage(null);
-    const form = new FormData(e.currentTarget);
+    const form = new FormData(formEl);
     try {
       await provider.submitBountyRequest({
         title: String(form.get("title") ?? ""),
@@ -79,12 +80,12 @@ export default function BountiesPage() {
         businessName: String(form.get("businessName") ?? "") || null,
         userId: currentUser?.id ?? null,
       });
+      formEl.reset();
       bump();
+      setShowForm(false);
       setMessage(
         "Thanks — your request is on the board. A member will claim it if they can make it.",
       );
-      e.currentTarget.reset();
-      setShowForm(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not submit request");
     } finally {

@@ -441,6 +441,15 @@ export interface DisplayOnlineCert {
   moduleSlug: string;
 }
 
+/** Glanceable bounty row for the lobby TV — no emails or claim actions. */
+export interface DisplayBounty {
+  id: string;
+  title: string;
+  businessName?: string | null;
+  status: Extract<BountyStatus, "open" | "claimed">;
+  claimedByDisplayName?: string;
+}
+
 export interface DisplayMembershipTier {
   joinUrl: string;
   products: Pick<
@@ -459,6 +468,7 @@ export interface DisplayFeed {
   upcoming: DisplayUpcomingItem[];
   checkoffs: DisplayCheckoff[];
   onlineCerts: DisplayOnlineCert[];
+  bounties: DisplayBounty[];
   promos: PromoSlide[];
   membership: DisplayMembershipTier;
   config: DisplayConfig;

@@ -23,3 +23,21 @@ export function canCompleteBounty(
 export function isValidBountyEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
+
+/** Claimed bounties older than this stay off the lobby TV. */
+export const DISPLAY_CLAIMED_BOUNTY_DAYS = 14;
+export const DISPLAY_BOUNTY_LIMIT = 6;
+
+/** Open requests, plus claims from the last two weeks — for the shop display. */
+export function isDisplayBounty(
+  bounty: Pick<Bounty, "status" | "claimedAt" | "deletedAt">,
+  nowMs = Date.now(),
+): boolean {
+  if (bounty.deletedAt) return false;
+  if (bounty.status === "open") return true;
+  if (bounty.status !== "claimed") return false;
+  if (!bounty.claimedAt) return true;
+  const claimedMs = new Date(bounty.claimedAt).getTime();
+  if (Number.isNaN(claimedMs)) return true;
+  return nowMs - claimedMs <= DISPLAY_CLAIMED_BOUNTY_DAYS * 24 * 3600_000;
+}

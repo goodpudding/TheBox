@@ -3351,6 +3351,7 @@ export class MockDataProvider implements DataProvider {
       membershipProducts: this.state.membershipProducts,
       promoSlides: this.state.promoSlides,
       displayConfig: this.state.displayConfig,
+      bounties: this.state.bounties,
     });
   }
 
@@ -3418,6 +3419,7 @@ export class MockDataProvider implements DataProvider {
       "machines",
       "upcoming",
       "certs",
+      "bounties",
       "promos",
       "membership",
     ];

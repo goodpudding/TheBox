@@ -1,5 +1,6 @@
 import type {
   Booking,
+  Bounty,
   Certification,
   ClassSession,
   DisplayConfig,
@@ -15,10 +16,15 @@ import type {
   User,
 } from "./types";
 import type {
+  DisplayBounty,
   DisplayFeed,
   DisplayMachineStatus,
   DisplayMembershipTier,
 } from "./provider";
+import {
+  DISPLAY_BOUNTY_LIMIT,
+  isDisplayBounty,
+} from "./bounties";
 
 const TZ = "America/Los_Angeles";
 
@@ -224,6 +230,7 @@ export function buildDisplayFeed(input: {
   membershipProducts: MembershipProduct[];
   promoSlides: PromoSlide[];
   displayConfig: DisplayConfig;
+  bounties?: Bounty[];
 }): DisplayFeed {
   const now = input.now ?? new Date();
   const nowIso = now.toISOString();
@@ -368,6 +375,31 @@ export function buildDisplayFeed(input: {
       })),
   };
 
+  const bounties: DisplayBounty[] = (input.bounties ?? [])
+    .filter((b) => isDisplayBounty(b, nowMs))
+    .sort((a, b) => {
+      const byStatus = (a.status === "open" ? 0 : 1) - (b.status === "open" ? 0 : 1);
+      if (byStatus !== 0) return byStatus;
+      const aTime = new Date(a.claimedAt ?? a.createdAt).getTime();
+      const bTime = new Date(b.claimedAt ?? b.createdAt).getTime();
+      return bTime - aTime;
+    })
+    .slice(0, DISPLAY_BOUNTY_LIMIT)
+    .map((b) => {
+      const claimer = b.claimedByUserId
+        ? input.users.find((u) => u.id === b.claimedByUserId)
+        : undefined;
+      const claimedName = formatDisplayName(claimer, mode);
+      return {
+        id: b.id,
+        title: b.title,
+        businessName: b.businessName ?? null,
+        status: b.status === "claimed" ? "claimed" : "open",
+        claimedByDisplayName:
+          b.status === "claimed" && claimedName ? claimedName : undefined,
+      };
+    });
+
   return {
     now: nowIso,
     hours: {
@@ -390,6 +422,7 @@ export function buildDisplayFeed(input: {
     upcoming,
     checkoffs,
     onlineCerts,
+    bounties,
     promos,
     membership,
     config: structuredClone(input.displayConfig),

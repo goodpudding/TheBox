@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createMockDataProvider } from "./mock-provider";
-import { canClaimBounty } from "./bounties";
+import { canClaimBounty, isDisplayBounty } from "./bounties";
 
 describe("bounty board", () => {
   it("lets guests submit a request that members can see as open", async () => {
@@ -55,5 +55,34 @@ describe("bounty board", () => {
     await expect(
       lapsed.claimBounty("bounty-open-hooks", "u-alex"),
     ).rejects.toThrow(/active membership/i);
+  });
+
+  it("puts open and recently claimed bounties on the lobby feed, not completed", async () => {
+    const provider = createMockDataProvider(null);
+    const feed = await provider.getDisplayFeed();
+    const ids = feed.bounties.map((b) => b.id);
+    expect(ids).toContain("bounty-open-sign");
+    expect(ids).toContain("bounty-claimed-aprons");
+    expect(ids).not.toContain("bounty-done-keychains");
+    expect(feed.bounties.every((b) => b.status === "open" || b.status === "claimed")).toBe(
+      true,
+    );
+    const claimed = feed.bounties.find((b) => b.id === "bounty-claimed-aprons");
+    expect(claimed?.claimedByDisplayName).toBeTruthy();
+    expect(
+      JSON.stringify(feed.bounties).includes("@"),
+    ).toBe(false);
+  });
+
+  it("keeps stale claimed bounties off the lobby TV", () => {
+    expect(
+      isDisplayBounty({
+        status: "claimed",
+        claimedAt: "2026-01-01T00:00:00.000Z",
+      }, Date.parse("2026-09-20T00:00:00.000Z")),
+    ).toBe(false);
+    expect(
+      isDisplayBounty({ status: "open" }, Date.parse("2026-09-20T00:00:00.000Z")),
+    ).toBe(true);
   });
 });
