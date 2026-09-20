@@ -43,6 +43,8 @@ import type {
   ClassInterestBoard,
   ClassInterestSignup,
   ClassInterestStatus,
+  Person,
+  PersonKind,
 } from "./types";
 
 // Re-export view/DTO types used by the provider interface
@@ -538,6 +540,7 @@ export interface DataProvider {
 
   listPolicies(): Promise<ContentPage[]>;
   getContentBySlug(slug: string): Promise<ContentPage | null>;
+  listPeople(kind?: PersonKind): Promise<Person[]>;
   listVolunteerRoles(): Promise<VolunteerRole[]>;
   submitVolunteerInterest(
     input: VolunteerInterestInput,

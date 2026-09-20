@@ -518,6 +518,20 @@ export interface VolunteerRole extends Timestamps {
   sortOrder: number;
 }
 
+/** Public staff / instructor directory — not the same as User.role. */
+export type PersonKind = "staff" | "instructor";
+
+export interface Person extends Timestamps {
+  id: string;
+  slug: string;
+  name: string;
+  roleTitle: string;
+  kind: PersonKind;
+  bio: string;
+  sortOrder: number;
+  published: boolean;
+}
+
 export interface VolunteerInterest extends Timestamps {
   id: string;
   name: string;
@@ -652,6 +666,7 @@ export interface MockFixtureBundle {
   quizAttempts: QuizAttempt[];
   volunteerRoles: VolunteerRole[];
   volunteerInterests: VolunteerInterest[];
+  people: Person[];
   contentPages: ContentPage[];
   waiverSignatures: WaiverSignature[];
   policyAcknowledgements: PolicyAcknowledgement[];

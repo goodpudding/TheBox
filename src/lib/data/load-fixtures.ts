@@ -23,6 +23,7 @@ import videoWatches from "../../../data/mock/video-watches.json";
 import quizAttempts from "../../../data/mock/quiz-attempts.json";
 import volunteerRoles from "../../../data/mock/volunteer-roles.json";
 import volunteerInterests from "../../../data/mock/volunteer-interests.json";
+import people from "../../../data/mock/people.json";
 import contentPages from "../../../data/mock/content-pages.json";
 import waiverSignatures from "../../../data/mock/waiver-signatures.json";
 import policyAcknowledgements from "../../../data/mock/policy-acknowledgements.json";
@@ -249,6 +250,7 @@ export function loadFixtures(): MockFixtureBundle {
     volunteerRoles: volunteerRoles as MockFixtureBundle["volunteerRoles"],
     volunteerInterests:
       volunteerInterests as MockFixtureBundle["volunteerInterests"],
+    people: people as MockFixtureBundle["people"],
     contentPages: contentPages as MockFixtureBundle["contentPages"],
     waiverSignatures:
       waiverSignatures as MockFixtureBundle["waiverSignatures"],

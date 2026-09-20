@@ -62,6 +62,18 @@ describe("resolveDocFromPath", () => {
       slug: "hours",
       category: "hours",
     });
+    expect(resolveDocFromPath("History", [])).toMatchObject({
+      slug: "history",
+      category: "other",
+    });
+    expect(resolveDocFromPath("Staff", [])).toMatchObject({
+      slug: "staff",
+      category: "other",
+    });
+    expect(resolveDocFromPath("How The Box got here", ["About"])).toMatchObject({
+      slug: "how-the-box-got-here",
+      category: "other",
+    });
     expect(resolveDocFromPath("Member Expectations", ["Policies"])).toMatchObject({
       slug: "member-expectations",
       category: "policy",

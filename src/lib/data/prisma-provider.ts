@@ -767,6 +767,8 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
     settings: mapOrgSettings(settingsRow),
     promoSlides: loadFixtures().promoSlides,
     displayConfig: loadFixtures().displayConfig,
+    // Public staff/instructor directory is fixture-backed (same as promos).
+    people: loadFixtures().people,
   };
 }
 
