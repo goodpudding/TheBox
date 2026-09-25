@@ -4,6 +4,7 @@ import {
 } from "@/lib/zeffy/config";
 import type {
   ZeffyCampaign,
+  ZeffyContact,
   ZeffyListResponse,
   ZeffyPayment,
 } from "@/lib/zeffy/types";
@@ -94,15 +95,50 @@ export async function listZeffyPayments(options?: {
   return zeffyFetch(`/payments${qs ? `?${qs}` : ""}`);
 }
 
-/** Page through all campaigns (respects 100 req/min soft limit with small delays). */
-export async function listAllZeffyCampaigns(): Promise<ZeffyCampaign[]> {
-  const all: ZeffyCampaign[] = [];
+export async function listZeffyContacts(options?: {
+  email?: string;
+  cursor?: string;
+  limit?: number;
+}): Promise<ZeffyListResponse<ZeffyContact>> {
+  const params = new URLSearchParams();
+  if (options?.email) params.set("email", options.email);
+  if (options?.cursor) params.set("starting_after", options.cursor);
+  if (options?.limit) params.set("limit", String(options.limit));
+  const qs = params.toString();
+  return zeffyFetch(`/contacts${qs ? `?${qs}` : ""}`);
+}
+
+async function pageAll<T>(
+  fetchPage: (cursor?: string) => Promise<ZeffyListResponse<T>>,
+): Promise<T[]> {
+  const all: T[] = [];
   let cursor: string | undefined;
   for (;;) {
-    const page = await listZeffyCampaigns({ cursor, limit: 100 });
+    const page = await fetchPage(cursor);
     all.push(...(page.data ?? []));
     if (!page.has_more || !page.next_cursor) break;
     cursor = page.next_cursor;
   }
   return all;
+}
+
+/** Page through all campaigns (respects 100 req/min soft limit with small delays). */
+export async function listAllZeffyCampaigns(): Promise<ZeffyCampaign[]> {
+  return pageAll((cursor) => listZeffyCampaigns({ cursor, limit: 100 }));
+}
+
+export async function listAllZeffyPayments(options?: {
+  campaignId?: string;
+}): Promise<ZeffyPayment[]> {
+  return pageAll((cursor) =>
+    listZeffyPayments({
+      campaignId: options?.campaignId,
+      cursor,
+      limit: 100,
+    }),
+  );
+}
+
+export async function listAllZeffyContacts(): Promise<ZeffyContact[]> {
+  return pageAll((cursor) => listZeffyContacts({ cursor, limit: 100 }));
 }

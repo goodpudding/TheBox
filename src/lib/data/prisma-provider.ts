@@ -45,6 +45,7 @@ import type {
   WaiverSignature,
   Bounty,
   BountyStatus,
+  CreditLedgerEntry,
 } from "./types";
 
 function parseJsonArray<T = string>(str: string | null | undefined): T[] {
@@ -308,6 +309,8 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
       prisma.membershipProduct.findMany(),
       prisma.orgSettings.findUnique({ where: { id: "default" } }),
     ]);
+  const creditLedgerRows =
+    (await prismaLoose.creditLedgerEntry?.findMany?.()) ?? [];
 
   if (!settingsRow) {
     throw new Error(
@@ -379,6 +382,7 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
         maxReservationHours: col(m, "maxReservationHours", null) as
           | number
           | null,
+        hourlyRateCents: col(m, "hourlyRateCents", null) as number | null,
         sortOrder: m.sortOrder,
         createdAt: toIsoRequired(m.createdAt),
         updatedAt: toIsoRequired(m.updatedAt),
@@ -786,6 +790,10 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
         sortOrder: p.sortOrder,
         isAddOn: p.isAddOn,
         cappedSeats: p.cappedSeats,
+        zeffyCampaignId: p.zeffyCampaignId ?? null,
+        zeffyRateId: p.zeffyRateId ?? null,
+        zeffyUrl: p.zeffyUrl ?? null,
+        creditGrantCents: col(p, "creditGrantCents", 0) as number,
         createdAt: toIsoRequired(p.createdAt),
         updatedAt: toIsoRequired(p.updatedAt),
         deletedAt: toIso(p.deletedAt),
@@ -796,6 +804,25 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
     displayConfig: loadFixtures().displayConfig,
     // Public staff/instructor directory is fixture-backed (same as promos).
     people: loadFixtures().people,
+    creditLedgerEntries: (
+      creditLedgerRows as Array<Record<string, unknown>>
+    ).map(
+      (e): CreditLedgerEntry => ({
+        id: String(e.id),
+        userId: String(e.userId),
+        kind: e.kind as CreditLedgerEntry["kind"],
+        amountCents: Number(e.amountCents),
+        sourcePaymentId: (e.sourcePaymentId as string | null) ?? null,
+        usageSessionId: (e.usageSessionId as string | null) ?? null,
+        bookingId: (e.bookingId as string | null) ?? null,
+        actorId: (e.actorId as string | null) ?? null,
+        note: (e.note as string | null) ?? null,
+        occurredAt: toIsoRequired(e.occurredAt as Date),
+        createdAt: toIsoRequired(e.createdAt as Date),
+        updatedAt: toIsoRequired(e.updatedAt as Date),
+        deletedAt: toIso(e.deletedAt as Date | null),
+      }),
+    ),
   };
 }
 
@@ -810,6 +837,7 @@ export async function persistBundleToPrisma(
   await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const db = prismaTx(tx);
     // Children first
+    if (db.creditLedgerEntry) await db.creditLedgerEntry.deleteMany();
     await db.auditEvent.deleteMany();
     await db.accessLog.deleteMany();
     await db.usageSession.deleteMany();
@@ -913,6 +941,7 @@ export async function persistBundleToPrisma(
           locationLabel: m.locationLabel,
           gettingStartedVideoUrl: m.gettingStartedVideoUrl,
           maxReservationHours: m.maxReservationHours ?? null,
+          hourlyRateCents: m.hourlyRateCents ?? null,
           sortOrder: m.sortOrder,
           createdAt: asDate(m.createdAt) ?? new Date(),
           updatedAt: asDate(m.updatedAt) ?? new Date(),
@@ -998,6 +1027,10 @@ export async function persistBundleToPrisma(
         sortOrder: p.sortOrder,
         isAddOn: Boolean(p.isAddOn),
         cappedSeats: p.cappedSeats ?? null,
+        zeffyCampaignId: p.zeffyCampaignId ?? null,
+        zeffyRateId: p.zeffyRateId ?? null,
+        zeffyUrl: p.zeffyUrl ?? null,
+        creditGrantCents: p.creditGrantCents ?? 0,
         createdAt: asDate(p.createdAt) ?? new Date(),
         updatedAt: asDate(p.updatedAt) ?? new Date(),
         deletedAt: asDate(p.deletedAt),
@@ -1371,6 +1404,27 @@ export async function persistBundleToPrisma(
         deletedAt: asDate(s.deletedAt),
       })),
     );
+
+    if (db.creditLedgerEntry) {
+      await createManyIfAny(
+        (args) => db.creditLedgerEntry.createMany(args),
+        (bundle.creditLedgerEntries ?? []).map((e) => ({
+          id: e.id,
+          userId: e.userId,
+          kind: e.kind,
+          amountCents: e.amountCents,
+          sourcePaymentId: e.sourcePaymentId ?? null,
+          usageSessionId: e.usageSessionId ?? null,
+          bookingId: e.bookingId ?? null,
+          actorId: e.actorId ?? null,
+          note: e.note ?? null,
+          occurredAt: asDate(e.occurredAt)!,
+          createdAt: asDate(e.createdAt) ?? new Date(),
+          updatedAt: asDate(e.updatedAt) ?? new Date(),
+          deletedAt: asDate(e.deletedAt),
+        })),
+      );
+    }
 
     await createManyIfAny(
       (args) => tx.accessLog.createMany(args),

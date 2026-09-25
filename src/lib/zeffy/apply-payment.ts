@@ -1,4 +1,5 @@
 import type { Booking, ClassSession, User } from "@/lib/data/types";
+import { isMembershipPayment } from "@/lib/zeffy/memberships";
 import type { ZeffyApplyResult, ZeffyPayment } from "@/lib/zeffy/types";
 
 const ACTIVE_SEAT: Booking["status"][] = [
@@ -14,6 +15,9 @@ export function extractBuyerEmail(payment: ZeffyPayment): string | null {
 }
 
 export function isTicketingPayment(payment: ZeffyPayment): boolean {
+  // Membership programs are ticketing campaigns with category MembershipV2.
+  // They must not create class bookings.
+  if (isMembershipPayment(payment)) return false;
   if (payment.campaign_type === "ticketing") return true;
   if (payment.campaign_category === "event") return true;
   const items = payment.items ?? [];

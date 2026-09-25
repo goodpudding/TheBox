@@ -1,4 +1,5 @@
 import type { MockFixtureBundle } from "./types";
+import { billingFor, inferCreditGrantCents } from "../credits";
 
 import users from "../../../data/mock/users.json";
 import badges from "../../../data/mock/badges.json";
@@ -30,6 +31,7 @@ import waiverSignatures from "../../../data/mock/waiver-signatures.json";
 import policyAcknowledgements from "../../../data/mock/policy-acknowledgements.json";
 import auditEvents from "../../../data/mock/audit-events.json";
 import membershipProducts from "../../../data/mock/membership-products.json";
+import creditLedger from "../../../data/mock/credit-ledger.json";
 import settings from "../../../data/mock/settings.json";
 import promoSlides from "../../../data/mock/promos.json";
 import displayConfig from "../../../data/mock/display-config.json";
@@ -193,15 +195,28 @@ export function loadFixtures(): MockFixtureBundle {
     certifications: certifications as MockFixtureBundle["certifications"],
     userCertifications:
       userCertifications as MockFixtureBundle["userCertifications"],
-    machines: (machines as Array<Record<string, unknown>>).map((m) => ({
-      ...m,
-      reservationRequired: m.reservationRequired ?? false,
-      attendedOperationRequired: m.attendedOperationRequired ?? false,
-      locationLabel: m.locationLabel ?? "",
-      gettingStartedVideoUrl: m.gettingStartedVideoUrl ?? null,
-      maxReservationHours:
-        m.maxReservationHours == null ? null : Number(m.maxReservationHours),
-    })) as MockFixtureBundle["machines"],
+    machines: (machines as Array<Record<string, unknown>>).map((m) => {
+      const area = String(m.area) as MockFixtureBundle["machines"][number]["area"];
+      const id = String(m.id);
+      const name = String(m.name);
+      const billed = billingFor({
+        id,
+        name,
+        area,
+        hourlyRateCents:
+          m.hourlyRateCents == null ? null : Number(m.hourlyRateCents),
+      });
+      return {
+        ...m,
+        reservationRequired: m.reservationRequired ?? false,
+        attendedOperationRequired: m.attendedOperationRequired ?? false,
+        locationLabel: m.locationLabel ?? "",
+        gettingStartedVideoUrl: m.gettingStartedVideoUrl ?? null,
+        maxReservationHours:
+          m.maxReservationHours == null ? null : Number(m.maxReservationHours),
+        hourlyRateCents: billed.hourlyRateCents,
+      };
+    }) as MockFixtureBundle["machines"],
     reservations: reservations as MockFixtureBundle["reservations"],
     maintenanceBlocks:
       maintenanceBlocks as MockFixtureBundle["maintenanceBlocks"],
@@ -259,8 +274,22 @@ export function loadFixtures(): MockFixtureBundle {
     policyAcknowledgements:
       policyAcknowledgements as MockFixtureBundle["policyAcknowledgements"],
     auditEvents: auditEvents as MockFixtureBundle["auditEvents"],
-    membershipProducts:
-      membershipProducts as MockFixtureBundle["membershipProducts"],
+    membershipProducts: (
+      membershipProducts as MockFixtureBundle["membershipProducts"]
+    ).map((p) => ({
+      ...p,
+      creditGrantCents:
+        typeof p.creditGrantCents === "number"
+          ? p.creditGrantCents
+          : inferCreditGrantCents({
+              name: p.name,
+              summary: p.summary,
+              priceCents: p.priceCents,
+              tier: p.tier,
+            }),
+    })),
+    creditLedgerEntries:
+      creditLedger as MockFixtureBundle["creditLedgerEntries"],
     settings: {
       ...(settings as MockFixtureBundle["settings"]),
       requireSafetyCriticalAll:

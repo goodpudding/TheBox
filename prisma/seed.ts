@@ -157,6 +157,8 @@ async function main() {
           m.maxReservationHours == null
             ? null
             : Number(m.maxReservationHours),
+        hourlyRateCents:
+          m.hourlyRateCents == null ? null : Number(m.hourlyRateCents),
         sortOrder: Number(m.sortOrder ?? 0),
         createdAt: asDate(m.createdAt as string) ?? new Date(),
         updatedAt: asDate(m.updatedAt as string) ?? new Date(),
@@ -310,6 +312,10 @@ async function main() {
         sortOrder: Number(p.sortOrder),
         isAddOn: Boolean(p.isAddOn),
         cappedSeats: (p.cappedSeats as number) ?? null,
+        zeffyCampaignId: (p.zeffyCampaignId as string) ?? null,
+        zeffyRateId: (p.zeffyRateId as string) ?? null,
+        zeffyUrl: (p.zeffyUrl as string) ?? null,
+        creditGrantCents: Number(p.creditGrantCents ?? 0),
         createdAt: asDate(p.createdAt as string) ?? new Date(),
         updatedAt: asDate(p.updatedAt as string) ?? new Date(),
       },
@@ -319,6 +325,14 @@ async function main() {
         priceCents: Number(p.priceCents),
         visibleOnJoin: Boolean(p.visibleOnJoin),
         joinable: Boolean(p.joinable),
+        highlight: Boolean(p.highlight),
+        sortOrder: Number(p.sortOrder),
+        isAddOn: Boolean(p.isAddOn),
+        cappedSeats: (p.cappedSeats as number) ?? null,
+        zeffyCampaignId: (p.zeffyCampaignId as string) ?? null,
+        zeffyRateId: (p.zeffyRateId as string) ?? null,
+        zeffyUrl: (p.zeffyUrl as string) ?? null,
+        creditGrantCents: Number(p.creditGrantCents ?? 0),
       },
     });
   }
@@ -879,6 +893,34 @@ async function main() {
     }
   } catch (err) {
     console.warn("Skipping class interest seed (migrate schema first):", err);
+  }
+
+  try {
+    await seedSimple("credit-ledger.json", (e) =>
+      prismaLoose.creditLedgerEntry.upsert({
+        where: { id: String(e.id) },
+        create: {
+          id: String(e.id),
+          userId: String(e.userId),
+          kind: String(e.kind),
+          amountCents: Number(e.amountCents),
+          sourcePaymentId: (e.sourcePaymentId as string) ?? null,
+          usageSessionId: (e.usageSessionId as string) ?? null,
+          bookingId: (e.bookingId as string) ?? null,
+          actorId: (e.actorId as string) ?? null,
+          note: (e.note as string) ?? null,
+          occurredAt: asDate(e.occurredAt as string) ?? new Date(),
+          createdAt: asDate(e.createdAt as string) ?? new Date(),
+          updatedAt: asDate(e.updatedAt as string) ?? new Date(),
+        },
+        update: {
+          amountCents: Number(e.amountCents),
+          note: (e.note as string) ?? null,
+        },
+      }),
+    );
+  } catch (err) {
+    console.warn("Skipping credit ledger seed (migrate schema first):", err);
   }
 
   console.log("Seed complete.");

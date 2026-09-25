@@ -108,6 +108,8 @@ model User {
   classInterestSignups   ClassInterestSignup[]
   bountiesRequested      Bounty[]               @relation("BountyRequester")
   bountiesClaimed        Bounty[]               @relation("BountyClaimedBy")
+  creditLedgerEntries    CreditLedgerEntry[]
+  creditGrantsGiven      CreditLedgerEntry[]     @relation("CreditActor")
 }
 
 model Badge {
@@ -204,6 +206,8 @@ model Machine {
   /** Max single reservation length in hours; null = use org maxHoursPerDay. */
   maxReservationHours       Int?
   sortOrder                 Int       @default(0)
+  /** Optional override; null means use area default in app code. */
+  hourlyRateCents           Int?
   createdAt                 DateTime  @default(now())
   updatedAt                 DateTime  @updatedAt
   deletedAt                 DateTime?
@@ -262,6 +266,7 @@ model UsageSession {
   machine       Machine   @relation(fields: [machineId], references: [id])
   badge         Badge     @relation(fields: [badgeId], references: [id])
   reservation   Reservation? @relation(fields: [reservationId], references: [id])
+  creditLedgerEntries CreditLedgerEntry[]
 }
 
 model AccessLog {
@@ -326,8 +331,36 @@ model Booking {
   classSession          ClassSession @relation(fields: [classSessionId], references: [id])
   user                  User      @relation(fields: [userId], references: [id])
   paidMarkedBy          User?     @relation("BookingPaidBy", fields: [paidMarkedById], references: [id])
+  creditLedgerEntries   CreditLedgerEntry[]
 
   @@index([zeffyPaymentId])
+}
+
+/** Append-only in-app wallet. Zeffy never holds this balance. Signed cents. */
+model CreditLedgerEntry {
+  id              String    @id
+  userId          String
+  kind            String
+  amountCents     Int
+  sourcePaymentId String?
+  usageSessionId  String?
+  bookingId       String?
+  actorId         String?
+  note            String?
+  occurredAt      DateTime
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  user         User          @relation(fields: [userId], references: [id])
+  actor        User?         @relation("CreditActor", fields: [actorId], references: [id])
+  usageSession UsageSession? @relation(fields: [usageSessionId], references: [id])
+  booking      Booking?      @relation(fields: [bookingId], references: [id])
+
+  @@index([userId])
+  @@index([sourcePaymentId])
+  @@index([usageSessionId])
+  @@index([bookingId])
 }
 
 model ClassInterestBoard {
@@ -611,9 +644,17 @@ model MembershipProduct {
   sortOrder        Int       @default(0)
   isAddOn          Boolean   @default(false)
   cappedSeats      Int?
+  zeffyCampaignId  String?
+  zeffyRateId      String?
+  zeffyUrl         String?
+  /** Cents granted on each succeeded membership payment. Plus = 5000. */
+  creditGrantCents Int       @default(0)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   deletedAt        DateTime?
+
+  @@index([zeffyCampaignId])
+  @@index([zeffyRateId])
 }
 
 model OrgSettings {

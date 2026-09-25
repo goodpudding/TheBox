@@ -14,6 +14,7 @@ import type {
   Booking,
   ClassInterestBoardView,
   ClassSession,
+  CreditWallet,
   OrgSettings,
   PendingCheckoff,
   Reservation,
@@ -21,6 +22,7 @@ import type {
   UserCertificationView,
 } from "@/lib/data";
 import { PendingCheckoffQueue } from "@/components/pending-checkoff-queue";
+import { CreditWalletPanel } from "@/components/credit-wallet";
 
 type Callout = {
   tone: "warn" | "danger" | "info";
@@ -66,6 +68,7 @@ function DashboardBody() {
     [],
   );
   const [showCheckoffQueue, setShowCheckoffQueue] = useState(false);
+  const [wallet, setWallet] = useState<CreditWallet | null>(null);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -130,6 +133,7 @@ function DashboardBody() {
             machineName: machineMap[u.machineId]?.name,
           })),
       );
+      setWallet(await provider.getCreditWallet(currentUser.id));
 
       const notes: Callout[] = [];
       if (currentUser.status === "lapsed") {
@@ -357,6 +361,12 @@ function DashboardBody() {
           <StatusPill tone="muted">No shop access</StatusPill>
         ) : null}
       </div>
+
+      {wallet ? (
+        <div className="mt-10">
+          <CreditWalletPanel wallet={wallet} href="/account" />
+        </div>
+      ) : null}
 
       <section className="mt-10 rounded-[1.75rem] border border-primary/25 bg-primary/10 px-5 py-6 sm:px-7">
         <p className="eyebrow">Your stuff</p>
