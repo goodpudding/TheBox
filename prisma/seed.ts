@@ -310,6 +310,9 @@ async function main() {
         sortOrder: Number(p.sortOrder),
         isAddOn: Boolean(p.isAddOn),
         cappedSeats: (p.cappedSeats as number) ?? null,
+        zeffyCampaignId: (p.zeffyCampaignId as string) ?? null,
+        zeffyRateId: (p.zeffyRateId as string) ?? null,
+        zeffyUrl: (p.zeffyUrl as string) ?? null,
         createdAt: asDate(p.createdAt as string) ?? new Date(),
         updatedAt: asDate(p.updatedAt as string) ?? new Date(),
       },
@@ -319,6 +322,13 @@ async function main() {
         priceCents: Number(p.priceCents),
         visibleOnJoin: Boolean(p.visibleOnJoin),
         joinable: Boolean(p.joinable),
+        highlight: Boolean(p.highlight),
+        sortOrder: Number(p.sortOrder),
+        isAddOn: Boolean(p.isAddOn),
+        cappedSeats: (p.cappedSeats as number) ?? null,
+        zeffyCampaignId: (p.zeffyCampaignId as string) ?? null,
+        zeffyRateId: (p.zeffyRateId as string) ?? null,
+        zeffyUrl: (p.zeffyUrl as string) ?? null,
       },
     });
   }

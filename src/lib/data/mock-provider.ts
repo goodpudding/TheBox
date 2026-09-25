@@ -2583,6 +2583,111 @@ export class MockDataProvider implements DataProvider {
     );
   }
 
+  async applyZeffyMembershipPayment(
+    payment: import("@/lib/zeffy/types").ZeffyPayment,
+    paidAtIso?: string,
+    options?: { createIfMissing?: boolean },
+  ): Promise<import("@/lib/zeffy/types").ZeffyMembershipApplyResult> {
+    const { applyZeffyMembershipToStore, membershipUserIdFromEmail } =
+      await import("@/lib/zeffy/apply-membership");
+
+    return applyZeffyMembershipToStore(
+      payment,
+      {
+        findAppliedPayment: (paymentId) => {
+          const event = this.state.auditEvents.find(
+            (e) =>
+              e.action === "membership_applied_zeffy" &&
+              (e.metadata as { paymentId?: string } | undefined)?.paymentId ===
+                paymentId,
+          );
+          if (!event?.subjectUserId) return null;
+          return { userId: event.subjectUserId };
+        },
+        findUserByEmail: (email) =>
+          this.state.users.find((u) => u.email.toLowerCase() === email) ??
+          null,
+        findProductByCampaignAndRate: (campaignId, rateId) => {
+          const products = this.state.membershipProducts;
+          if (rateId) {
+            const exact = products.find(
+              (p) =>
+                p.zeffyCampaignId === campaignId && p.zeffyRateId === rateId,
+            );
+            if (exact) return exact;
+          }
+          return (
+            products.find((p) => p.zeffyCampaignId === campaignId) ?? null
+          );
+        },
+        upsertMemberFromZeffy: (input) => {
+          let user =
+            this.state.users.find(
+              (u) => u.email.toLowerCase() === input.email,
+            ) ?? null;
+          const created = !user;
+          if (!user) {
+            if (!input.createIfMissing) return null;
+            const now = input.paidAt;
+            user = {
+              id: membershipUserIdFromEmail(input.email),
+              email: input.email,
+              firstName: input.firstName,
+              lastName: input.lastName,
+              displayName:
+                `${input.firstName} ${input.lastName}`.trim() ||
+                input.email.split("@")[0] ||
+                "Member",
+              role: "member",
+              status: "active",
+              tier: input.tier,
+              billingInterval: input.billingInterval ?? null,
+              shopAccess: input.shopAccess,
+              isTeacher: false,
+              profileComplete: false,
+              createdAt: now,
+              updatedAt: now,
+            };
+            this.state.users.push(user);
+          } else {
+            user.status = "active";
+            user.tier = input.tier;
+            user.billingInterval = input.billingInterval ?? user.billingInterval;
+            user.shopAccess = input.shopAccess;
+            if (!user.firstName && input.firstName) {
+              user.firstName = input.firstName;
+            }
+            if (!user.lastName && input.lastName) {
+              user.lastName = input.lastName;
+            }
+            if (!user.displayName && (input.firstName || input.lastName)) {
+              user.displayName =
+                `${input.firstName} ${input.lastName}`.trim();
+            }
+            this.touch(user);
+          }
+          this.pushAudit({
+            action: "membership_applied_zeffy",
+            actorId: "system:zeffy",
+            subjectUserId: user.id,
+            entityType: "User",
+            entityId: user.id,
+            metadata: {
+              paymentId: input.paymentId,
+              created,
+              tier: input.tier,
+            },
+          });
+          return user;
+        },
+      },
+      {
+        createIfMissing: options?.createIfMissing ?? false,
+        paidAtIso,
+      },
+    );
+  }
+
   async adminMarkAttendance(
     bookingId: string,
     status: Extract<BookingStatus, "attended" | "no_show">,

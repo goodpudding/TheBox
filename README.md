@@ -152,27 +152,32 @@ Only the sync job talks to Google — no OAuth for individual staff, nothing Goo
 
 Notion is no longer the CMS. `npm run sync:notion` and the `NOTION_*` env vars still exist so old setups don't break, but no new content should go into Notion — use the Drive folder above. `ContentPage.notionId` is kept for fixture compatibility.
 
-## Zeffy (automatic tickets + calendar links)
+## Zeffy (tickets, memberships, calendar links)
 
-Zeffy stays the checkout; this portal mirrors payments onto class bookings.
+Zeffy stays the checkout; this portal mirrors payments onto class bookings and memberships.
 
 **When you get Zeffy access:**
 
-1. Zeffy → **Settings → Integrations** → create an **API key** and a **webhook**
+1. Zeffy → **Settings → Integrations** → create an **API key** and optionally a **webhook**
 2. Webhook URL: `https://YOUR_DOMAIN/api/zeffy/webhook` (subscribe to `payment.completed`)
-3. Set on Vercel / `.env`:
+3. Set on Vercel / `.env.local` (never commit the values):
    - `ZEFFY_API_KEY`
    - `ZEFFY_WEBHOOK_SECRET` (signing secret from the webhook settings)
-4. Admin → Classes → paste each event’s **Zeffy campaign ID**
-5. Run `npm run sync:zeffy` to pull public Register URLs onto those classes
+   - optional `ZEFFY_API_BASE` (default `https://api.zeffy.com/api/v1`)
+4. Memberships: publish the membership campaign in Zeffy with at least one rate. `/join` reads `GET /api/memberships` when the key is set, and falls back to fixture products when it is not.
+5. Classes: Admin → Classes → paste each event’s **Zeffy campaign ID**
+6. Run `npm run sync:zeffy` to pull public Register URLs onto classes and upsert membership products. `npm run sync:zeffy -- --dry-run` prints the mapping without writing.
 
-Payments then mark the matching member booking paid (email + campaign ID). Guests who pay but have no portal account are logged as unmatched — they still keep their Zeffy ticket.
+The API is **read-only**. This app never creates charges or talks to payouts.
+
+Membership programs in Zeffy are ticketing campaigns with category `MembershipV2`. Rates on `GET /campaigns/:id` are the membership types. The Contacts API has no “is a member” flag — roster sync uses succeeded payments on those campaigns.
+
+Without `ZEFFY_API_KEY`, `npm run sync:zeffy` prints setup help and exits 0 (safe for CI).
 
 ```bash
 npm run sync:zeffy
+npm run sync:zeffy -- --dry-run
 ```
-
-Without `ZEFFY_API_KEY`, the script prints setup help and exits 0 (safe for CI).
 
 ## Tests
 

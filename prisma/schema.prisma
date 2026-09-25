@@ -611,9 +611,15 @@ model MembershipProduct {
   sortOrder        Int       @default(0)
   isAddOn          Boolean   @default(false)
   cappedSeats      Int?
+  zeffyCampaignId  String?
+  zeffyRateId      String?
+  zeffyUrl         String?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   deletedAt        DateTime?
+
+  @@index([zeffyCampaignId])
+  @@index([zeffyRateId])
 }
 
 model OrgSettings {

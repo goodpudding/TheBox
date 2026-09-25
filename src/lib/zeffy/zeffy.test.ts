@@ -187,6 +187,26 @@ describe("applyZeffyPaymentToStore", () => {
       detail: "other",
     });
   });
+
+  it("does not treat MembershipV2 payments as class tickets", () => {
+    const store = makeStore();
+    const result = applyZeffyPaymentToStore(
+      payment({
+        campaign_type: "ticketing",
+        campaign_category: "MembershipV2",
+        items: [
+          { id: "i1", type: "ticket", amount: 4000, currency: "usd" },
+        ],
+      }),
+      store,
+    );
+    expect(result).toEqual({
+      status: "ignored",
+      reason: "not_ticketing",
+      detail: "ticketing",
+    });
+    expect(store.bookings).toHaveLength(0);
+  });
 });
 
 describe("syncClassUrlsFromCampaigns", () => {

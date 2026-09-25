@@ -24,6 +24,10 @@ export default function JoinPage() {
   const [hours, setHours] = useState<ContentPage | null>(null);
   const [products, setProducts] = useState<MembershipProduct[]>([]);
   const [fund, setFund] = useState<ScholarshipFundSummary | null>(null);
+  const [catalogSource, setCatalogSource] = useState<"zeffy" | "fixtures">(
+    "fixtures",
+  );
+  const [zeffyPaymentUrl, setZeffyPaymentUrl] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -32,11 +36,28 @@ export default function JoinPage() {
       setHours(await provider.getContentBySlug(s.hoursContentSlug));
       setProducts(await provider.listMembershipProducts());
       setFund(await provider.getScholarshipFundSummary());
+      try {
+        const res = await fetch("/api/memberships");
+        if (!res.ok) return;
+        const catalog = (await res.json()) as {
+          source?: "zeffy" | "fixtures";
+          products?: MembershipProduct[];
+          paymentUrl?: string | null;
+        };
+        if (catalog.source === "zeffy" && catalog.products?.length) {
+          setCatalogSource("zeffy");
+          setProducts(catalog.products);
+          setZeffyPaymentUrl(catalog.paymentUrl ?? null);
+        }
+      } catch {
+        // Keep fixture products when the catalog route is unavailable.
+      }
     })();
   }, [provider, revision]);
 
   const current = products.filter((p) => p.phase < 3);
   const coming = products.filter((p) => p.phase === 3);
+  const payUrl = zeffyPaymentUrl ?? settings?.paymentUrl;
 
   return (
     <div>
@@ -70,7 +91,7 @@ export default function JoinPage() {
             </Button>
             <Button asChild variant="secondary" size="lg">
               <a
-                href={settings?.paymentUrl ?? "#"}
+                href={payUrl ?? "#"}
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -93,6 +114,9 @@ export default function JoinPage() {
           <p className="mt-3 max-w-2xl text-secondary leading-relaxed">
             Checkout stays on Zeffy. After you pay, this portal handles your
             account, waiver, certifications, and shop access.
+            {catalogSource === "zeffy"
+              ? " Membership types below are the published rates from the connected Zeffy organization."
+              : ""}
           </p>
 
           {fund ? (
@@ -113,7 +137,7 @@ export default function JoinPage() {
                 key={product.id}
                 product={product}
                 fund={fund}
-                paymentUrl={settings?.paymentUrl}
+                paymentUrl={product.zeffyUrl ?? payUrl}
                 communityNote={
                   product.tier === "community" && fund
                     ? `${fund.communitySeatsUsed} of ${fund.communitySeatCap} Community seats in use`

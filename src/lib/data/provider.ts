@@ -671,6 +671,11 @@ export interface DataProvider {
     payment: import("@/lib/zeffy/types").ZeffyPayment,
     paidAtIso?: string,
   ): Promise<import("@/lib/zeffy/types").ZeffyApplyResult>;
+  applyZeffyMembershipPayment(
+    payment: import("@/lib/zeffy/types").ZeffyPayment,
+    paidAtIso?: string,
+    options?: { createIfMissing?: boolean },
+  ): Promise<import("@/lib/zeffy/types").ZeffyMembershipApplyResult>;
   adminMarkAttendance(
     bookingId: string,
     status: Extract<BookingStatus, "attended" | "no_show">,

@@ -107,6 +107,7 @@ export type AuditAction =
   | "booking_marked_paid"
   | "booking_paid_zeffy"
   | "booking_created_zeffy"
+  | "membership_applied_zeffy"
   | "reservation_overridden"
   | "maintenance_created"
   | "tool_champion_requested"
@@ -186,6 +187,12 @@ export interface MembershipProduct extends Timestamps {
   /** e.g. household is an add-on, not a standalone primary */
   isAddOn?: boolean;
   cappedSeats?: number | null;
+  /** Zeffy campaign this product was synced from (membership catalog). */
+  zeffyCampaignId?: string | null;
+  /** Zeffy rate (membership type) id. */
+  zeffyRateId?: string | null;
+  /** Public Zeffy checkout URL for this membership type. */
+  zeffyUrl?: string | null;
 }
 
 export interface Badge extends Timestamps {
