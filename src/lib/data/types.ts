@@ -108,6 +108,8 @@ export type AuditAction =
   | "booking_paid_zeffy"
   | "booking_created_zeffy"
   | "membership_applied_zeffy"
+  | "credits_granted"
+  | "credits_class_paid"
   | "reservation_overridden"
   | "maintenance_created"
   | "tool_champion_requested"
@@ -193,6 +195,8 @@ export interface MembershipProduct extends Timestamps {
   zeffyRateId?: string | null;
   /** Public Zeffy checkout URL for this membership type. */
   zeffyUrl?: string | null;
+  /** Cents granted on each succeeded membership payment. Plus = 5000; others 0. */
+  creditGrantCents?: number;
 }
 
 export interface Badge extends Timestamps {
@@ -274,6 +278,11 @@ export interface Machine extends Timestamps {
    */
   maxReservationHours: number | null;
   sortOrder: number;
+  /**
+   * Optional per-machine hourly rate. When omitted, area defaults in
+   * `src/lib/credits.ts` apply (laser $15, plasma $20, 3D $5, woodshop $10…).
+   */
+  hourlyRateCents?: number | null;
 }
 
 export interface Reservation extends Timestamps {
@@ -353,6 +362,37 @@ export interface ClassSession extends Timestamps {
   location: string;
   cancellationCutoffHours: number | null;
   published: boolean;
+}
+
+export type CreditLedgerKind =
+  | "membership_grant"
+  | "staff_grant"
+  | "zeffy_payment"
+  | "machine"
+  | "class"
+  | "class_refund";
+
+/**
+ * One in-app wallet. Zeffy never holds the balance. Signed cents:
+ * grants are positive, spend is negative. Sum may go negative (overage).
+ */
+export interface CreditLedgerEntry extends Timestamps {
+  id: string;
+  userId: string;
+  kind: CreditLedgerKind;
+  amountCents: number;
+  sourcePaymentId?: string | null;
+  usageSessionId?: string | null;
+  bookingId?: string | null;
+  actorId?: string | null;
+  note?: string | null;
+  occurredAt: ISODateTime;
+}
+
+export interface CreditWallet {
+  userId: string;
+  balanceCents: number;
+  entries: CreditLedgerEntry[];
 }
 
 export interface Booking extends Timestamps {
@@ -700,6 +740,7 @@ export interface MockFixtureBundle {
   policyAcknowledgements: PolicyAcknowledgement[];
   auditEvents: AuditEvent[];
   membershipProducts: MembershipProduct[];
+  creditLedgerEntries: CreditLedgerEntry[];
   settings: OrgSettings;
   promoSlides: PromoSlide[];
   displayConfig: DisplayConfig;

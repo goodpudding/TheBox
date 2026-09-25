@@ -71,6 +71,14 @@ import {
   isStaffRole,
 } from "./class-interest";
 import { canClaimBounty, canCompleteBounty, isValidBountyEmail } from "./bounties";
+import {
+  balanceFromEntries,
+  classCreditsShortfallMessage,
+  creditGrantCentsForProduct,
+  hourlyRateCentsFor,
+  inferCreditGrantCents,
+  machineDebitCents,
+} from "../credits";
 import type {
   AccessLog,
   AuditAction,
@@ -84,6 +92,9 @@ import type {
   ClassInterestSignup,
   ClassInterestStatus,
   ContentPage,
+  CreditLedgerEntry,
+  CreditLedgerKind,
+  CreditWallet,
   DisplayConfig,
   DisplayPanelId,
   ISODate,
@@ -270,6 +281,7 @@ export class MockDataProvider implements DataProvider {
     this.state.videoWatches ??= [];
     this.state.people ??= [];
     this.state.bounties ??= [];
+    this.state.creditLedgerEntries ??= [];
     this.currentUserId =
       initialUserId === undefined ? "u-maya" : initialUserId;
   }
@@ -321,6 +333,147 @@ export class MockDataProvider implements DataProvider {
     const user = this.state.users.find((u) => u.id === id);
     if (!user) throw new Error(`User not found: ${id}`);
     return user;
+  }
+
+  private appendLedger(input: {
+    userId: string;
+    kind: CreditLedgerKind;
+    amountCents: number;
+    sourcePaymentId?: string | null;
+    usageSessionId?: string | null;
+    bookingId?: string | null;
+    actorId?: string | null;
+    note?: string | null;
+    occurredAt?: string;
+  }): CreditLedgerEntry {
+    const now = input.occurredAt ?? this.now();
+    const entry: CreditLedgerEntry = {
+      id: this.id("cl"),
+      userId: input.userId,
+      kind: input.kind,
+      amountCents: input.amountCents,
+      sourcePaymentId: input.sourcePaymentId ?? null,
+      usageSessionId: input.usageSessionId ?? null,
+      bookingId: input.bookingId ?? null,
+      actorId: input.actorId ?? null,
+      note: input.note ?? null,
+      occurredAt: now,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.state.creditLedgerEntries.push(entry);
+    return entry;
+  }
+
+  private debitMachineSession(session: UsageSession): void {
+    if (!session.endedAt) return;
+    const already = this.state.creditLedgerEntries.some(
+      (e) => e.kind === "machine" && e.usageSessionId === session.id,
+    );
+    if (already) return;
+    const machine = this.state.machines.find((m) => m.id === session.machineId);
+    if (!machine) return;
+    const debit = machineDebitCents(
+      hourlyRateCentsFor(machine),
+      session.startedAt,
+      session.endedAt,
+    );
+    if (debit <= 0) return;
+    const minutes = Math.max(
+      1,
+      Math.round(
+        (new Date(session.endedAt).getTime() -
+          new Date(session.startedAt).getTime()) /
+          60_000,
+      ),
+    );
+    this.appendLedger({
+      userId: session.userId,
+      kind: "machine",
+      amountCents: -debit,
+      usageSessionId: session.id,
+      note: `${machine.name} · ${minutes} min`,
+      occurredAt: session.endedAt,
+    });
+  }
+
+  private refundClassCredits(booking: Booking): void {
+    const spent = this.state.creditLedgerEntries
+      .filter((e) => e.bookingId === booking.id && e.kind === "class")
+      .reduce((sum, e) => sum + e.amountCents, 0);
+    const refunded = this.state.creditLedgerEntries
+      .filter((e) => e.bookingId === booking.id && e.kind === "class_refund")
+      .reduce((sum, e) => sum + e.amountCents, 0);
+    const net = spent + refunded;
+    if (net >= 0) return;
+    const session = this.state.classSessions.find(
+      (c) => c.id === booking.classSessionId,
+    );
+    this.appendLedger({
+      userId: booking.userId,
+      kind: "class_refund",
+      amountCents: -net,
+      bookingId: booking.id,
+      note: session
+        ? `${session.title} · credits refunded`
+        : "Class credits refunded",
+    });
+  }
+
+  private grantMembershipCreditsFromPayment(
+    payment: import("@/lib/zeffy/types").ZeffyPayment,
+    userId: string,
+  ): void {
+    if (
+      this.state.creditLedgerEntries.some(
+        (e) =>
+          e.sourcePaymentId === payment.id && e.kind === "membership_grant",
+      )
+    ) {
+      return;
+    }
+    const rateId = payment.items?.find((i) => i.rate_id)?.rate_id ?? null;
+    const products = this.state.membershipProducts;
+    let product: MembershipProduct | null = null;
+    if (rateId) {
+      product =
+        products.find(
+          (p) =>
+            p.zeffyCampaignId === payment.campaign_id &&
+            p.zeffyRateId === rateId,
+        ) ?? null;
+    }
+    product =
+      product ??
+      products.find((p) => p.zeffyCampaignId === payment.campaign_id) ??
+      null;
+    const rateTitle =
+      payment.items?.find((i) => i.rate_title)?.rate_title ??
+      product?.name ??
+      "";
+    const amount = payment.items?.[0]?.amount ?? payment.amount;
+    const grant = product
+      ? creditGrantCentsForProduct(product)
+      : inferCreditGrantCents({
+          name: rateTitle,
+          priceCents: amount,
+        });
+    if (grant <= 0) return;
+    this.appendLedger({
+      userId,
+      kind: "membership_grant",
+      amountCents: grant,
+      sourcePaymentId: payment.id,
+      note: `${rateTitle || "Membership Plus"} · $${(grant / 100).toFixed(0)} machine credit`,
+    });
+    this.pushAudit({
+      action: "credits_granted",
+      actorId: "system:zeffy",
+      subjectUserId: userId,
+      entityType: "CreditLedgerEntry",
+      entityId: payment.id,
+      metadata: { amountCents: grant, paymentId: payment.id },
+    });
   }
 
   /** Waiver + expectations must be current before bookings/reservations. */
@@ -1264,6 +1417,74 @@ export class MockDataProvider implements DataProvider {
     return booking;
   }
 
+  async getCreditWallet(userId: string): Promise<CreditWallet> {
+    const entries = this.state.creditLedgerEntries
+      .filter((e) => e.userId === userId && !e.deletedAt)
+      .slice()
+      .sort(
+        (a, b) =>
+          new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime(),
+      );
+    return {
+      userId,
+      balanceCents: balanceFromEntries(entries),
+      entries,
+    };
+  }
+
+  async payBookingWithCredits(
+    bookingId: string,
+    userId: string,
+  ): Promise<Booking> {
+    this.requireUser(userId);
+    await this.assertMemberCanTransact(userId);
+    const booking = this.state.bookings.find((b) => b.id === bookingId);
+    if (!booking) throw new Error("Booking not found");
+    if (booking.userId !== userId) {
+      throw new Error("You can only pay for your own booking");
+    }
+    if (booking.status !== "awaiting_payment") {
+      throw new Error(`Cannot pay booking in status ${booking.status}`);
+    }
+    const session = this.state.classSessions.find(
+      (c) => c.id === booking.classSessionId,
+    );
+    if (!session) throw new Error("Class session not found");
+    if (session.priceCents <= 0) {
+      throw new Error("This class is free — no credits needed");
+    }
+    const wallet = await this.getCreditWallet(userId);
+    if (wallet.balanceCents < session.priceCents) {
+      throw new Error(
+        classCreditsShortfallMessage(wallet.balanceCents, session.priceCents),
+      );
+    }
+    const now = this.now();
+    this.appendLedger({
+      userId,
+      kind: "class",
+      amountCents: -session.priceCents,
+      bookingId: booking.id,
+      note: `${session.title} · paid with credits`,
+      occurredAt: now,
+    });
+    booking.status = "booked";
+    booking.paidAt = now;
+    booking.paidMarkedById = userId;
+    booking.paymentHoldExpiresAt = null;
+    booking.waitlistPosition = null;
+    this.touch(booking);
+    this.pushAudit({
+      action: "credits_class_paid",
+      actorId: userId,
+      subjectUserId: userId,
+      entityType: "Booking",
+      entityId: booking.id,
+      metadata: { amountCents: session.priceCents },
+    });
+    return booking;
+  }
+
   async cancel(bookingId: string, userId: string): Promise<Booking> {
     const booking = this.state.bookings.find((b) => b.id === bookingId);
     if (!booking) throw new Error("Booking not found");
@@ -1315,6 +1536,7 @@ export class MockDataProvider implements DataProvider {
       });
     }
 
+    this.refundClassCredits(booking);
     return booking;
   }
 
@@ -2123,6 +2345,57 @@ export class MockDataProvider implements DataProvider {
     return user;
   }
 
+  async adminGrantCredits(input: {
+    userId: string;
+    amountCents: number;
+    actorId: string;
+    note?: string;
+    sourcePaymentId?: string | null;
+  }): Promise<CreditLedgerEntry> {
+    this.requireUser(input.actorId);
+    this.requireUser(input.userId);
+    if (!Number.isFinite(input.amountCents) || input.amountCents === 0) {
+      throw new Error("Grant amount must be a non-zero number of cents");
+    }
+    const paymentId = input.sourcePaymentId?.trim() || null;
+    if (paymentId) {
+      const existing = this.state.creditLedgerEntries.find(
+        (e) =>
+          e.sourcePaymentId === paymentId &&
+          (e.kind === "zeffy_payment" || e.kind === "staff_grant"),
+      );
+      if (existing) return existing;
+    }
+    const kind: CreditLedgerKind = paymentId ? "zeffy_payment" : "staff_grant";
+    const entry = this.appendLedger({
+      userId: input.userId,
+      kind,
+      amountCents: Math.trunc(input.amountCents),
+      actorId: input.actorId,
+      sourcePaymentId: paymentId,
+      note:
+        input.note?.trim() ||
+        (kind === "zeffy_payment"
+          ? "Zeffy payment applied as credit"
+          : input.amountCents > 0
+            ? "Staff grant"
+            : "Staff adjustment"),
+    });
+    this.pushAudit({
+      action: "credits_granted",
+      actorId: input.actorId,
+      subjectUserId: input.userId,
+      entityType: "CreditLedgerEntry",
+      entityId: entry.id,
+      metadata: {
+        amountCents: entry.amountCents,
+        kind,
+        sourcePaymentId: paymentId,
+      },
+    });
+    return entry;
+  }
+
   async adminApproveInterestBoard(
     id: string,
     actorId: string,
@@ -2591,7 +2864,7 @@ export class MockDataProvider implements DataProvider {
     const { applyZeffyMembershipToStore, membershipUserIdFromEmail } =
       await import("@/lib/zeffy/apply-membership");
 
-    return applyZeffyMembershipToStore(
+    const result = applyZeffyMembershipToStore(
       payment,
       {
         findAppliedPayment: (paymentId) => {
@@ -2686,6 +2959,10 @@ export class MockDataProvider implements DataProvider {
         paidAtIso,
       },
     );
+    if (result.status === "applied" && result.userId) {
+      this.grantMembershipCreditsFromPayment(payment, result.userId);
+    }
+    return result;
   }
 
   async adminMarkAttendance(
@@ -3229,6 +3506,8 @@ export class MockDataProvider implements DataProvider {
       gettingStartedVideoUrl: data.gettingStartedVideoUrl ?? null,
       maxReservationHours: data.maxReservationHours ?? null,
       sortOrder: data.sortOrder ?? this.state.machines.length + 1,
+      hourlyRateCents:
+        data.hourlyRateCents ?? hourlyRateCentsFor({ area: data.area, hourlyRateCents: null }),
       createdAt: now,
       updatedAt: now,
     };
@@ -3318,6 +3597,7 @@ export class MockDataProvider implements DataProvider {
     readerKey: string;
     badgeUid: string;
   }): Promise<AuthorizeResult> {
+    // Credits are not a gate. A $0 or negative wallet still starts the job.
     const now = this.now();
     const machine = this.state.machines.find(
       (m) => m.readerKey === input.readerKey,
@@ -3421,7 +3701,11 @@ export class MockDataProvider implements DataProvider {
     if (session.endedAt) throw new Error("Session already ended");
     session.endedAt = this.now();
     session.endedBy = "reader";
-    return this.touch(session);
+    this.touch(session);
+    // Never block the reader: debit after the session ends, even if the
+    // wallet goes negative.
+    this.debitMachineSession(session);
+    return session;
   }
 
   async getAllowlist(readerKey: string): Promise<AllowlistResult> {

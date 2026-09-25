@@ -67,6 +67,7 @@ describe("Zeffy membership catalog", () => {
       joinable: true,
       visibleOnJoin: true,
       shopAccess: true,
+      creditGrantCents: 0,
       zeffyCampaignId: lampCampaign.id,
       zeffyRateId: "664f497d-641a-4193-9089-8e8923d7f3fd",
       zeffyUrl: lampCampaign.url,
@@ -109,6 +110,76 @@ describe("Zeffy membership catalog", () => {
     expect(inferMembershipTier("Community rate", 2000)).toBe("community");
     expect(inferMembershipTier("Student", 2000)).toBe("community");
     expect(inferMembershipTier("Membership Plus", 7500)).toBe("maker_pro");
+  });
+
+  it("grants $50 credits on Membership Plus, not on Maker or Student", () => {
+    const plus = mapRateToMembershipProduct({
+      campaign: {
+        ...lampCampaign,
+        id: "plus-camp",
+        title: "Memberships Plus",
+        description: "<p>Plus $50 worth of machine credit</p>",
+        url: "https://www.zeffy.com/ticketing/lamp-community-labs-memberships-plus",
+        rates: [
+          {
+            id: "plus-rate",
+            title: "Membership Plus",
+            description: "<p>$50 of machine credits</p>",
+            amount: 7500,
+            currency: "usd",
+            is_add_on: false,
+            seats: null,
+          },
+        ],
+      },
+      rate: {
+        id: "plus-rate",
+        title: "Membership Plus",
+        description: "<p>$50 of machine credits</p>",
+        amount: 7500,
+        currency: "usd",
+        is_add_on: false,
+        seats: null,
+      },
+      sortOrder: 10,
+      highlight: true,
+      nowIso: "2026-09-25T00:00:00.000Z",
+    });
+    expect(plus.tier).toBe("maker_pro");
+    expect(plus.creditGrantCents).toBe(5000);
+
+    const student = mapRateToMembershipProduct({
+      campaign: {
+        ...lampCampaign,
+        id: "plus-camp",
+        title: "Memberships Plus",
+        rates: [
+          {
+            id: "stu-rate",
+            title: "Student",
+            description: "",
+            amount: 2000,
+            currency: "usd",
+            is_add_on: false,
+            seats: null,
+          },
+        ],
+      },
+      rate: {
+        id: "stu-rate",
+        title: "Student",
+        description: "",
+        amount: 2000,
+        currency: "usd",
+        is_add_on: false,
+        seats: null,
+      },
+      sortOrder: 20,
+      highlight: false,
+      nowIso: "2026-09-25T00:00:00.000Z",
+    });
+    expect(student.tier).toBe("community");
+    expect(student.creditGrantCents).toBe(0);
   });
 });
 

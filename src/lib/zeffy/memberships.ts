@@ -3,6 +3,7 @@ import type {
   MembershipProduct,
   MembershipTier,
 } from "@/lib/data/types";
+import { inferCreditGrantCents } from "@/lib/credits";
 import type {
   ZeffyCampaign,
   ZeffyPayment,
@@ -130,6 +131,12 @@ export function mapRateToMembershipProduct(input: {
     zeffyCampaignId: campaign.id,
     zeffyRateId: rate.id,
     zeffyUrl: campaign.url,
+    creditGrantCents: inferCreditGrantCents({
+      name,
+      summary,
+      priceCents: rate.amount,
+      tier,
+    }),
     createdAt: nowIso,
     updatedAt: nowIso,
   };

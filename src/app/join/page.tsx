@@ -326,6 +326,12 @@ function TierCard({
           {product.tier === "maker" ? " (two months free)" : ""}
         </p>
       ) : null}
+      {(product.creditGrantCents ?? 0) > 0 ? (
+        <p className="mt-3 font-display text-xs uppercase tracking-wider text-primary-text">
+          Includes ${Math.round((product.creditGrantCents ?? 0) / 100)} machine
+          credit each billing cycle (machine time or a class)
+        </p>
+      ) : null}
       <p className="mt-3 text-secondary leading-relaxed">{product.summary}</p>
       {communityNote ? (
         <p className="mt-3 font-display text-xs uppercase tracking-wider text-primary-text">

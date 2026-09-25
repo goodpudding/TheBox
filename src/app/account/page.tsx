@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatDateTime } from "@/lib/format";
 import { formatBillingInterval, formatTier } from "@/lib/utils";
-import type { Badge, OrgSettings, WaiverSignature } from "@/lib/data";
+import type { Badge, CreditWallet, OrgSettings, WaiverSignature } from "@/lib/data";
+import { CreditWalletPanel } from "@/components/credit-wallet";
 
 export default function AccountPage() {
   return (
@@ -25,6 +26,7 @@ function AccountBody() {
   const [settings, setSettings] = useState<OrgSettings | null>(null);
   const [waivers, setWaivers] = useState<WaiverSignature[]>([]);
   const [badges, setBadges] = useState<Badge[]>([]);
+  const [wallet, setWallet] = useState<CreditWallet | null>(null);
   const [saved, setSaved] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +37,7 @@ function AccountBody() {
       setSettings(await provider.getSettings());
       setWaivers(await provider.listWaiverHistory(currentUser.id));
       setBadges(await provider.listBadges(currentUser.id));
+      setWallet(await provider.getCreditWallet(currentUser.id));
     })();
   }, [currentUser, provider, revision]);
 
@@ -104,6 +107,12 @@ function AccountBody() {
           </a>
         </Button>
       </div>
+
+      {wallet ? (
+        <div className="mt-10 max-w-2xl">
+          <CreditWalletPanel wallet={wallet} />
+        </div>
+      ) : null}
 
       <form onSubmit={onSubmit} className="mt-12 max-w-xl space-y-5">
         <p className="eyebrow">Profile</p>

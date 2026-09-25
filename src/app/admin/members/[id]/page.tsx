@@ -16,12 +16,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatDateTime } from "@/lib/format";
-import { formatTier } from "@/lib/utils";
+import { formatMoneyExact, formatTier } from "@/lib/utils";
+import { ledgerKindLabel } from "@/lib/credits";
 import type {
   AuditEvent,
   Badge,
   Booking,
   ClassSessionView,
+  CreditWallet,
   Machine,
   MembershipStatus,
   Reservation,
@@ -77,6 +79,10 @@ export default function AdminMemberDetailPage() {
   const [machines, setMachines] = useState<Machine[]>([]);
   const [usage, setUsage] = useState<UsageSession[]>([]);
   const [audit, setAudit] = useState<AuditEvent[]>([]);
+  const [wallet, setWallet] = useState<CreditWallet | null>(null);
+  const [grantAmount, setGrantAmount] = useState("50");
+  const [grantNote, setGrantNote] = useState("");
+  const [grantPaymentId, setGrantPaymentId] = useState("");
 
   const [status, setStatus] = useState<MembershipStatus>("pending");
   const [linkBadgeId, setLinkBadgeId] = useState("");
@@ -106,6 +112,7 @@ export default function AdminMemberDetailPage() {
           machineRows,
           usageRows,
           auditRows,
+          creditWallet,
         ] = await Promise.all([
           provider.getMember(id),
           provider.listBadges(id),
@@ -118,6 +125,7 @@ export default function AdminMemberDetailPage() {
           provider.listMachines(),
           provider.getUsage(id),
           provider.adminListAuditEvents(id),
+          provider.getCreditWallet(id),
         ]);
         if (cancelled) return;
         setMember(m);
@@ -140,6 +148,7 @@ export default function AdminMemberDetailPage() {
             .slice(0, 10),
         );
         setAudit(auditRows);
+        setWallet(creditWallet);
       } catch (err) {
         if (!cancelled) {
           setMember(null);
@@ -212,6 +221,40 @@ export default function AdminMemberDetailPage() {
       setMessage(`Status set to ${next}.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update status");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function onGrantCredits(e: FormEvent) {
+    e.preventDefault();
+    if (!member || !currentUser) return;
+    const dollars = Number.parseFloat(grantAmount);
+    if (!Number.isFinite(dollars) || dollars === 0) {
+      setError("Enter a non-zero dollar amount (negative is an adjustment).");
+      return;
+    }
+    setPending(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await provider.adminGrantCredits({
+        userId: member.id,
+        amountCents: Math.round(dollars * 100),
+        actorId: currentUser.id,
+        note: grantNote.trim() || undefined,
+        sourcePaymentId: grantPaymentId.trim() || null,
+      });
+      setGrantNote("");
+      setGrantPaymentId("");
+      bump();
+      setMessage(
+        grantPaymentId.trim()
+          ? "Zeffy payment applied as credit."
+          : "Credit ledger updated.",
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not grant credits");
     } finally {
       setPending(false);
     }
@@ -450,6 +493,78 @@ export default function AdminMemberDetailPage() {
             {member.isTeacher ? "Remove teacher flag" : "Mark as teacher"}
           </Button>
         </div>
+      </section>
+
+      <section className="mt-12 max-w-2xl">
+        <p className="eyebrow">Machine credits</p>
+        <p className="mt-2 text-sm text-secondary leading-relaxed">
+          In-app ledger only. Zeffy never holds this balance. Negative is
+          allowed (they finished a job). Next Plus $50 grant pays debt first.
+          Amount can be negative to adjust.
+        </p>
+        <p className="mt-4 font-display text-2xl font-semibold text-brown">
+          {wallet ? formatMoneyExact(wallet.balanceCents) : "—"}
+        </p>
+        <form onSubmit={(e) => void onGrantCredits(e)} className="mt-4 space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="grant-amount">Amount (USD)</Label>
+              <Input
+                id="grant-amount"
+                value={grantAmount}
+                onChange={(e) => setGrantAmount(e.target.value)}
+                placeholder="50"
+                inputMode="decimal"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="grant-payment">Zeffy payment id (optional)</Label>
+              <Input
+                id="grant-payment"
+                value={grantPaymentId}
+                onChange={(e) => setGrantPaymentId(e.target.value)}
+                placeholder="pay-…"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="grant-note">Note</Label>
+            <Input
+              id="grant-note"
+              value={grantNote}
+              onChange={(e) => setGrantNote(e.target.value)}
+              placeholder="Payback at desk, or Membership Plus grant"
+            />
+          </div>
+          <Button type="submit" disabled={pending || !currentUser}>
+            Grant / adjust
+          </Button>
+        </form>
+        {wallet && wallet.entries.length > 0 ? (
+          <ul className="mt-6 divide-y divide-border border-y border-border">
+            {wallet.entries.map((e) => (
+              <li
+                key={e.id}
+                className="flex flex-wrap items-baseline justify-between gap-2 py-3"
+              >
+                <div>
+                  <p className="font-display font-medium text-brown">
+                    {e.note?.trim() || ledgerKindLabel(e.kind)}
+                  </p>
+                  <p className="text-sm text-secondary">
+                    {formatDateTime(e.occurredAt)} · {e.kind.replace(/_/g, " ")}
+                  </p>
+                </div>
+                <span className="font-display text-sm font-semibold text-brown">
+                  {e.amountCents > 0 ? "+" : ""}
+                  {formatMoneyExact(e.amountCents)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-4 text-secondary">No ledger lines.</p>
+        )}
       </section>
 
       <section className="mt-12 max-w-xl">

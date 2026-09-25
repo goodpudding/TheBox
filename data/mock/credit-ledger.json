@@ -1,0 +1,44 @@
+[
+  {
+    "id": "cl-maya-plus-1",
+    "userId": "u-maya",
+    "kind": "membership_grant",
+    "amountCents": 5000,
+    "sourcePaymentId": "pay-fixture-plus-maya",
+    "usageSessionId": null,
+    "bookingId": null,
+    "actorId": null,
+    "note": "Membership Plus · $50 machine credit",
+    "occurredAt": "2026-09-01T10:00:00-07:00",
+    "createdAt": "2026-09-01T10:00:00-07:00",
+    "updatedAt": "2026-09-01T10:00:00-07:00"
+  },
+  {
+    "id": "cl-maya-resin-1",
+    "userId": "u-maya",
+    "kind": "machine",
+    "amountCents": -250,
+    "sourcePaymentId": null,
+    "usageSessionId": "us-014",
+    "bookingId": null,
+    "actorId": null,
+    "note": "Elegoo Saturn 2 (8K) · 30 min",
+    "occurredAt": "2026-03-13T14:30:00-07:00",
+    "createdAt": "2026-03-13T14:30:00-07:00",
+    "updatedAt": "2026-03-13T14:30:00-07:00"
+  },
+  {
+    "id": "cl-maya-bandsaw-1",
+    "userId": "u-maya",
+    "kind": "machine",
+    "amountCents": -1500,
+    "sourcePaymentId": null,
+    "usageSessionId": "us-080",
+    "bookingId": null,
+    "actorId": null,
+    "note": "Band Saw · 90 min",
+    "occurredAt": "2026-05-12T13:00:00-07:00",
+    "createdAt": "2026-05-12T13:00:00-07:00",
+    "updatedAt": "2026-05-12T13:00:00-07:00"
+  }
+]

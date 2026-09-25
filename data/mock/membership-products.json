@@ -155,7 +155,7 @@
     "id": "mp-pro",
     "tier": "maker_pro",
     "name": "Maker Pro",
-    "summary": "Maker plus a storage cubby, priority reservations, two guest passes a month, and a Made in Burien directory listing. Launches once badge access can enforce priority booking.",
+    "summary": "Maker plus a storage cubby, priority reservations, two guest passes a month, a Made in Burien directory listing, and $50 of machine credit each month (machine time or a class). Launches once badge access can enforce priority booking.",
     "priceCents": 7500,
     "billingInterval": "monthly",
     "annualPriceCents": null,
@@ -167,6 +167,7 @@
     "sortOrder": 90,
     "isAddOn": false,
     "cappedSeats": null,
+    "creditGrantCents": 5000,
     "createdAt": "2025-06-01T10:00:00-07:00",
     "updatedAt": "2026-09-04T12:00:00-07:00"
   },

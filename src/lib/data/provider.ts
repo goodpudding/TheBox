@@ -47,6 +47,8 @@ import type {
   PersonKind,
   Bounty,
   BountyStatus,
+  CreditLedgerEntry,
+  CreditWallet,
 } from "./types";
 
 // Re-export view/DTO types used by the provider interface
@@ -528,11 +530,14 @@ export interface DataProvider {
 
   getUsage(userId: string, range?: DateRange): Promise<UsageSession[]>;
   getUsageTotals(userId: string, month: string): Promise<UsageTotal[]>;
+  getCreditWallet(userId: string): Promise<CreditWallet>;
 
   listClasses(filters?: ClassFilters): Promise<ClassSessionView[]>;
   getClass(id: string): Promise<ClassSessionView | null>;
   book(classSessionId: string, userId: string): Promise<Booking>;
   cancel(bookingId: string, userId: string): Promise<Booking>;
+  /** Debit the full class price when the wallet covers it. Never a Zeffy split. */
+  payBookingWithCredits(bookingId: string, userId: string): Promise<Booking>;
 
   listReservations(filters: ReservationFilters): Promise<Reservation[]>;
   reserve(input: ReserveInput): Promise<Reservation>;
@@ -619,6 +624,13 @@ export interface DataProvider {
     isTeacher: boolean,
     actorId: string,
   ): Promise<User>;
+  adminGrantCredits(input: {
+    userId: string;
+    amountCents: number;
+    actorId: string;
+    note?: string;
+    sourcePaymentId?: string | null;
+  }): Promise<CreditLedgerEntry>;
   adminApproveInterestBoard(
     id: string,
     actorId: string,
