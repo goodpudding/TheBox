@@ -17,7 +17,7 @@
     "id": "cl-maya-resin-1",
     "userId": "u-maya",
     "kind": "machine",
-    "amountCents": -250,
+    "amountCents": -50,
     "sourcePaymentId": null,
     "usageSessionId": "us-014",
     "bookingId": null,
@@ -28,17 +28,17 @@
     "updatedAt": "2026-03-13T14:30:00-07:00"
   },
   {
-    "id": "cl-maya-bandsaw-1",
+    "id": "cl-maya-vinyl-1",
     "userId": "u-maya",
     "kind": "machine",
-    "amountCents": -1500,
+    "amountCents": -500,
     "sourcePaymentId": null,
-    "usageSessionId": "us-080",
+    "usageSessionId": "us-041",
     "bookingId": null,
     "actorId": null,
-    "note": "Band Saw · 90 min",
-    "occurredAt": "2026-05-12T13:00:00-07:00",
-    "createdAt": "2026-05-12T13:00:00-07:00",
-    "updatedAt": "2026-05-12T13:00:00-07:00"
+    "note": "Silhouette Cameo 4 · 1 sheet",
+    "occurredAt": "2026-04-05T11:45:00-07:00",
+    "createdAt": "2026-04-05T11:45:00-07:00",
+    "updatedAt": "2026-04-05T11:45:00-07:00"
   }
 ]

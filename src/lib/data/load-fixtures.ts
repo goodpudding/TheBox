@@ -1,8 +1,5 @@
 import type { MockFixtureBundle } from "./types";
-import {
-  AREA_HOURLY_RATE_CENTS,
-  inferCreditGrantCents,
-} from "../credits";
+import { billingFor, inferCreditGrantCents } from "../credits";
 
 import users from "../../../data/mock/users.json";
 import badges from "../../../data/mock/badges.json";
@@ -200,8 +197,15 @@ export function loadFixtures(): MockFixtureBundle {
       userCertifications as MockFixtureBundle["userCertifications"],
     machines: (machines as Array<Record<string, unknown>>).map((m) => {
       const area = String(m.area) as MockFixtureBundle["machines"][number]["area"];
-      const override =
-        m.hourlyRateCents == null ? null : Number(m.hourlyRateCents);
+      const id = String(m.id);
+      const name = String(m.name);
+      const billed = billingFor({
+        id,
+        name,
+        area,
+        hourlyRateCents:
+          m.hourlyRateCents == null ? null : Number(m.hourlyRateCents),
+      });
       return {
         ...m,
         reservationRequired: m.reservationRequired ?? false,
@@ -210,7 +214,7 @@ export function loadFixtures(): MockFixtureBundle {
         gettingStartedVideoUrl: m.gettingStartedVideoUrl ?? null,
         maxReservationHours:
           m.maxReservationHours == null ? null : Number(m.maxReservationHours),
-        hourlyRateCents: override ?? AREA_HOURLY_RATE_CENTS[area] ?? 0,
+        hourlyRateCents: billed.hourlyRateCents,
       };
     }) as MockFixtureBundle["machines"],
     reservations: reservations as MockFixtureBundle["reservations"],

@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
-  AREA_HOURLY_RATE_CENTS,
   PLUS_CREDIT_GRANT_CENTS,
+  TREY_MACHINE_RATES,
   balanceFromEntries,
   classCreditsShortfallMessage,
-  hourlyRateCentsFor,
+  defaultBillingFor,
   inferCreditGrantCents,
   machineDebitCents,
+  machineDebitNote,
 } from "./credits";
 import { createMockDataProvider, MockDataProvider } from "@/lib/data/mock-provider";
 import { cloneFixtures, loadFixtures } from "@/lib/data/load-fixtures";
@@ -36,19 +37,73 @@ describe("credit math", () => {
     ).toBe(5000);
   });
 
-  it("bills fractional hours and allows a $0 machine", () => {
-    expect(hourlyRateCentsFor({ area: "laser", hourlyRateCents: null })).toBe(
-      AREA_HOURLY_RATE_CENTS.laser,
-    );
+  it("maps Trey’s rates onto fixture machines", () => {
+    const wood = {
+      id: "m-table-saw",
+      name: "Table Saw",
+      area: "woodshop" as const,
+    };
+    const plasma = {
+      id: "m-cnc-plasma",
+      name: "Avid CNC Plasma Pro6060",
+      area: "cnc_plasma" as const,
+    };
+    const printer = {
+      id: "m-prusa-mk4",
+      name: "Prusa i3 MK3S",
+      area: "3d_printing" as const,
+    };
+    const vinyl = {
+      id: "m-vinyl-cutter",
+      name: "Silhouette Cameo 4",
+      area: "textiles_vinyl" as const,
+    };
+    const sub = {
+      id: "m-sub-printer",
+      name: "Sawgrass Sublimation Printer",
+      area: "sublimation" as const,
+    };
+    const sewing = {
+      id: "m-sewing-1",
+      name: "Singer Sewing Machine",
+      area: "textiles_vinyl" as const,
+    };
+
+    expect(defaultBillingFor(wood)).toMatchObject({
+      hourlyRateCents: 0,
+      setupFeeCents: 0,
+      sessionRateCents: 0,
+    });
+    expect(defaultBillingFor(plasma)).toMatchObject({
+      hourlyRateCents: TREY_MACHINE_RATES.plasmaHourlyCents,
+      setupFeeCents: TREY_MACHINE_RATES.plasmaSetupCents,
+    });
+    expect(defaultBillingFor(printer).hourlyRateCents).toBe(100);
+    expect(defaultBillingFor(vinyl)).toMatchObject({
+      sessionRateCents: 500,
+      sessionUnit: "sheet",
+    });
+    expect(defaultBillingFor(sub).sessionRateCents).toBe(100);
+    expect(defaultBillingFor(sewing).sessionRateCents).toBe(0);
+
     expect(
-      machineDebitCents(1500, "2026-09-01T10:00:00Z", "2026-09-01T11:00:00Z"),
-    ).toBe(1500);
+      machineDebitCents(printer, "2026-09-01T10:00:00Z", "2026-09-01T11:00:00Z"),
+    ).toBe(100);
     expect(
-      machineDebitCents(1500, "2026-09-01T10:00:00Z", "2026-09-01T10:06:00Z"),
-    ).toBe(150);
+      machineDebitCents(printer, "2026-09-01T10:00:00Z", "2026-09-01T10:30:00Z"),
+    ).toBe(50);
     expect(
-      machineDebitCents(0, "2026-09-01T10:00:00Z", "2026-09-01T12:00:00Z"),
+      machineDebitCents(wood, "2026-09-01T10:00:00Z", "2026-09-01T12:00:00Z"),
     ).toBe(0);
+    expect(
+      machineDebitCents(plasma, "2026-09-01T10:00:00Z", "2026-09-01T10:15:00Z"),
+    ).toBe(5000 + 500);
+    expect(
+      machineDebitCents(vinyl, "2026-09-01T10:00:00Z", "2026-09-01T10:45:00Z"),
+    ).toBe(500);
+    expect(
+      machineDebitNote(plasma, "2026-09-01T10:00:00Z", "2026-09-01T10:15:00Z"),
+    ).toBe("Avid CNC Plasma Pro6060 · setup · 15 min");
   });
 
   it("settles overage by addition — next grant pays debt first", () => {
@@ -112,7 +167,7 @@ describe("credit ledger in the mock provider", () => {
   it("starts Maya at the fixture Plus grant minus machine time", async () => {
     const provider = createMockDataProvider("u-maya");
     const wallet = await provider.getCreditWallet("u-maya");
-    expect(wallet.balanceCents).toBe(3250);
+    expect(wallet.balanceCents).toBe(4450);
   });
 
   it("grants $50 once per succeeded Plus payment and $0 for Maker", async () => {

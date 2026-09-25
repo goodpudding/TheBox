@@ -78,6 +78,7 @@ import {
   hourlyRateCentsFor,
   inferCreditGrantCents,
   machineDebitCents,
+  machineDebitNote,
 } from "../credits";
 import type {
   AccessLog,
@@ -374,25 +375,17 @@ export class MockDataProvider implements DataProvider {
     const machine = this.state.machines.find((m) => m.id === session.machineId);
     if (!machine) return;
     const debit = machineDebitCents(
-      hourlyRateCentsFor(machine),
+      machine,
       session.startedAt,
       session.endedAt,
     );
     if (debit <= 0) return;
-    const minutes = Math.max(
-      1,
-      Math.round(
-        (new Date(session.endedAt).getTime() -
-          new Date(session.startedAt).getTime()) /
-          60_000,
-      ),
-    );
     this.appendLedger({
       userId: session.userId,
       kind: "machine",
       amountCents: -debit,
       usageSessionId: session.id,
-      note: `${machine.name} · ${minutes} min`,
+      note: machineDebitNote(machine, session.startedAt, session.endedAt),
       occurredAt: session.endedAt,
     });
   }
@@ -3507,7 +3500,13 @@ export class MockDataProvider implements DataProvider {
       maxReservationHours: data.maxReservationHours ?? null,
       sortOrder: data.sortOrder ?? this.state.machines.length + 1,
       hourlyRateCents:
-        data.hourlyRateCents ?? hourlyRateCentsFor({ area: data.area, hourlyRateCents: null }),
+        data.hourlyRateCents ??
+        hourlyRateCentsFor({
+          id: data.id ?? "m-new",
+          name: data.name,
+          area: data.area,
+          hourlyRateCents: null,
+        }),
       createdAt: now,
       updatedAt: now,
     };

@@ -279,8 +279,8 @@ export interface Machine extends Timestamps {
   maxReservationHours: number | null;
   sortOrder: number;
   /**
-   * Optional per-machine hourly rate. When omitted, area defaults in
-   * `src/lib/credits.ts` apply (laser $15, plasma $20, 3D $5, woodshop $10…).
+   * Optional hourly override. When omitted, Trey’s fixture rates in
+   * `src/lib/credits.ts` apply (woodshop free, plasma setup+$20/hr, 3D $1/hr…).
    */
   hourlyRateCents?: number | null;
 }
