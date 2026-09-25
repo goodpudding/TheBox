@@ -119,7 +119,7 @@ export default function JoinPage() {
               : ""}
           </p>
 
-          {fund ? (
+          {fund && catalogSource !== "zeffy" ? (
             <p className="anim-rise-delay-2 mt-8 max-w-2xl border-l-4 border-primary bg-primary/10 px-5 py-4 font-display text-base text-brown">
               Patrons are currently funding{" "}
               <span className="font-semibold">{fund.seatsAwarded}</span>{" "}
@@ -139,7 +139,9 @@ export default function JoinPage() {
                 fund={fund}
                 paymentUrl={product.zeffyUrl ?? payUrl}
                 communityNote={
-                  product.tier === "community" && fund
+                  catalogSource !== "zeffy" &&
+                  product.tier === "community" &&
+                  fund
                     ? `${fund.communitySeatsUsed} of ${fund.communitySeatCap} Community seats in use`
                     : undefined
                 }
