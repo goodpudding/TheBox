@@ -40,9 +40,6 @@ export function defaultBillingFor(
     machine.id === "m-vinyl-cutter" ||
     (machine.area === "textiles_vinyl" && /vinyl/.test(name));
 
-  if (machine.area === "woodshop" || machine.area === "hand_tools") {
-    return emptyBilling();
-  }
   if (machine.area === "cnc_plasma") {
     return {
       hourlyRateCents: TREY_MACHINE_RATES.plasmaHourlyCents,
@@ -51,17 +48,16 @@ export function defaultBillingFor(
       sessionUnit: null,
     };
   }
-  if (
-    machine.area !== "cnc_plasma" &&
-    /\bcnc\b/.test(name) &&
-    !/plasma/.test(name)
-  ) {
+  if (/\bcnc\b/.test(name) && !/plasma/.test(name)) {
     return {
       hourlyRateCents: TREY_MACHINE_RATES.regularCncHourlyCents,
       setupFeeCents: 0,
       sessionRateCents: 0,
       sessionUnit: null,
     };
+  }
+  if (machine.area === "woodshop" || machine.area === "hand_tools") {
+    return emptyBilling();
   }
   if (machine.area === "3d_printing") {
     return {

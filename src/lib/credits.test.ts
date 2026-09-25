@@ -85,6 +85,13 @@ describe("credit math", () => {
     });
     expect(defaultBillingFor(sub).sessionRateCents).toBe(100);
     expect(defaultBillingFor(sewing).sessionRateCents).toBe(0);
+    expect(
+      defaultBillingFor({
+        id: "m-cnc-mill",
+        name: "Tormach CNC mill",
+        area: "woodshop",
+      }).hourlyRateCents,
+    ).toBe(TREY_MACHINE_RATES.regularCncHourlyCents);
 
     expect(
       machineDebitCents(printer, "2026-09-01T10:00:00Z", "2026-09-01T11:00:00Z"),
