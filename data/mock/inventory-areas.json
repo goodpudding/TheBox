@@ -1,0 +1,65 @@
+[
+  {
+    "id": "ia-fdm",
+    "slug": "fdm",
+    "name": "FDM 3D Printing",
+    "sortOrder": 1,
+    "active": true,
+    "createdAt": "2026-01-15T10:00:00-08:00",
+    "updatedAt": "2026-01-15T10:00:00-08:00"
+  },
+  {
+    "id": "ia-sla",
+    "slug": "sla",
+    "name": "SLA 3D Printing",
+    "sortOrder": 2,
+    "active": true,
+    "createdAt": "2026-01-15T10:00:00-08:00",
+    "updatedAt": "2026-01-15T10:00:00-08:00"
+  },
+  {
+    "id": "ia-laser",
+    "slug": "laser",
+    "name": "Laser",
+    "sortOrder": 3,
+    "active": true,
+    "createdAt": "2026-01-15T10:00:00-08:00",
+    "updatedAt": "2026-01-15T10:00:00-08:00"
+  },
+  {
+    "id": "ia-cnc",
+    "slug": "cnc",
+    "name": "CNC",
+    "sortOrder": 4,
+    "active": true,
+    "createdAt": "2026-01-15T10:00:00-08:00",
+    "updatedAt": "2026-01-15T10:00:00-08:00"
+  },
+  {
+    "id": "ia-woodshop",
+    "slug": "woodshop",
+    "name": "Woodshop (incl. hand tools & stained glass)",
+    "sortOrder": 5,
+    "active": true,
+    "createdAt": "2026-01-15T10:00:00-08:00",
+    "updatedAt": "2026-01-15T10:00:00-08:00"
+  },
+  {
+    "id": "ia-textiles-vinyl",
+    "slug": "textiles-vinyl",
+    "name": "Textiles & Vinyl",
+    "sortOrder": 6,
+    "active": true,
+    "createdAt": "2026-01-15T10:00:00-08:00",
+    "updatedAt": "2026-01-15T10:00:00-08:00"
+  },
+  {
+    "id": "ia-sublimation",
+    "slug": "sublimation",
+    "name": "Sublimation",
+    "sortOrder": 7,
+    "active": true,
+    "createdAt": "2026-01-15T10:00:00-08:00",
+    "updatedAt": "2026-01-15T10:00:00-08:00"
+  }
+]

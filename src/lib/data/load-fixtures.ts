@@ -32,6 +32,11 @@ import policyAcknowledgements from "../../../data/mock/policy-acknowledgements.j
 import auditEvents from "../../../data/mock/audit-events.json";
 import membershipProducts from "../../../data/mock/membership-products.json";
 import creditLedger from "../../../data/mock/credit-ledger.json";
+import inventoryAreas from "../../../data/mock/inventory-areas.json";
+import areaStewards from "../../../data/mock/area-stewards.json";
+import inventoryItems from "../../../data/mock/inventory-items.json";
+import itemPhotos from "../../../data/mock/item-photos.json";
+import itemEvents from "../../../data/mock/item-events.json";
 import settings from "../../../data/mock/settings.json";
 import promoSlides from "../../../data/mock/promos.json";
 import displayConfig from "../../../data/mock/display-config.json";
@@ -290,6 +295,11 @@ export function loadFixtures(): MockFixtureBundle {
     })),
     creditLedgerEntries:
       creditLedger as MockFixtureBundle["creditLedgerEntries"],
+    inventoryAreas: inventoryAreas as MockFixtureBundle["inventoryAreas"],
+    areaStewards: areaStewards as MockFixtureBundle["areaStewards"],
+    inventoryItems: inventoryItems as MockFixtureBundle["inventoryItems"],
+    itemPhotos: itemPhotos as MockFixtureBundle["itemPhotos"],
+    itemEvents: itemEvents as MockFixtureBundle["itemEvents"],
     settings: {
       ...(settings as MockFixtureBundle["settings"]),
       requireSafetyCriticalAll:

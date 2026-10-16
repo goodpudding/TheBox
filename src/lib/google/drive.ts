@@ -1,7 +1,7 @@
 /**
- * Minimal Google Drive v3 REST client (read-only) over `fetch`.
- * Covers exactly what the CMS sync needs: list a folder, export a Doc/Sheet,
- * download a binary file. Works for My Drive and shared drives.
+ * Minimal Google Drive v3 REST client over `fetch`.
+ * CMS sync is read-only; inventory photos also create folders and upload bytes.
+ * Works for My Drive and shared drives.
  */
 import type { ServiceAccountTokenSource } from "./auth";
 
@@ -150,6 +150,90 @@ export class DriveClient {
       alt: "media",
     });
     return Buffer.from(await res.arrayBuffer());
+  }
+
+  async createFolder(parentId: string, name: string): Promise<string> {
+    const token = await this.tokens.getToken();
+    const url = new URL(`${DRIVE_API}/files`);
+    url.searchParams.set("supportsAllDrives", "true");
+    url.searchParams.set("fields", "id");
+    const res = await this.fetchImpl(url, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        name,
+        mimeType: MIME.folder,
+        parents: [parentId],
+      }),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`Drive createFolder failed (${res.status}): ${text.slice(0, 300)}`);
+    }
+    const json = (await res.json()) as { id: string };
+    return json.id;
+  }
+
+  async uploadFile(input: {
+    parentId: string;
+    name: string;
+    mimeType: string;
+    bytes: Buffer;
+  }): Promise<DriveFile> {
+    const token = await this.tokens.getToken();
+    const metadata = JSON.stringify({
+      name: input.name,
+      mimeType: input.mimeType,
+      parents: [input.parentId],
+    });
+    const boundary = `box_${Date.now().toString(16)}`;
+    const body = Buffer.concat([
+      Buffer.from(
+        `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: ${input.mimeType}\r\n\r\n`,
+      ),
+      input.bytes,
+      Buffer.from(`\r\n--${boundary}--`),
+    ]);
+    const url = new URL(
+      "https://www.googleapis.com/upload/drive/v3/files",
+    );
+    url.searchParams.set("uploadType", "multipart");
+    url.searchParams.set("supportsAllDrives", "true");
+    url.searchParams.set("fields", FILE_FIELDS);
+    const res = await this.fetchImpl(url, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": `multipart/related; boundary=${boundary}`,
+      },
+      body,
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`Drive upload failed (${res.status}): ${text.slice(0, 300)}`);
+    }
+    return (await res.json()) as DriveFile;
+  }
+
+  async trashFile(fileId: string): Promise<void> {
+    const token = await this.tokens.getToken();
+    const url = new URL(`${DRIVE_API}/files/${encodeURIComponent(fileId)}`);
+    url.searchParams.set("supportsAllDrives", "true");
+    const res = await this.fetchImpl(url, {
+      method: "PATCH",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ trashed: true }),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`Drive trash failed (${res.status}): ${text.slice(0, 300)}`);
+    }
   }
 }
 

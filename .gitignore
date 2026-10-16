@@ -49,6 +49,9 @@ yarn-error.log*
 # local promo uploads (dev)
 /public/uploads
 
+# local inventory photo storage (dev)
+.data/
+
 
 # vercel
 .vercel

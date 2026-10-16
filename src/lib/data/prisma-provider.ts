@@ -47,6 +47,17 @@ import type {
   Bounty,
   BountyStatus,
   CreditLedgerEntry,
+  InventoryArea,
+  InventoryItem,
+  AreaSteward,
+  ItemPhoto,
+  ItemEvent,
+  ItemCondition,
+  ItemStatus,
+  ReviewStatus,
+  PhotoKind,
+  ItemEventType,
+  AcquisitionSource,
 } from "./types";
 
 function parseJsonArray<T = string>(str: string | null | undefined): T[] {
@@ -322,6 +333,19 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
     ]);
   const creditLedgerRows =
     (await prismaLoose.creditLedgerEntry?.findMany?.()) ?? [];
+  const [
+    inventoryAreaRows,
+    areaStewardRows,
+    inventoryItemRows,
+    itemPhotoRows,
+    itemEventRows,
+  ] = await Promise.all([
+    prismaLoose.inventoryArea?.findMany?.() ?? Promise.resolve([]),
+    prismaLoose.areaSteward?.findMany?.() ?? Promise.resolve([]),
+    prismaLoose.inventoryItem?.findMany?.() ?? Promise.resolve([]),
+    prismaLoose.itemPhoto?.findMany?.() ?? Promise.resolve([]),
+    prismaLoose.itemEvent?.findMany?.() ?? Promise.resolve([]),
+  ]);
 
   if (!settingsRow) {
     throw new Error(
@@ -835,6 +859,84 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
         createdAt: toIsoRequired(e.createdAt as Date),
         updatedAt: toIsoRequired(e.updatedAt as Date),
         deletedAt: toIso(e.deletedAt as Date | null),
+      }),
+    ),
+    inventoryAreas: (inventoryAreaRows as Array<Record<string, unknown>>).map(
+      (a): InventoryArea => ({
+        id: String(a.id),
+        slug: String(a.slug),
+        name: String(a.name),
+        sortOrder: Number(a.sortOrder ?? 0),
+        active: Boolean(a.active ?? true),
+        createdAt: toIsoRequired(a.createdAt as Date),
+        updatedAt: toIsoRequired(a.updatedAt as Date),
+      }),
+    ),
+    areaStewards: (areaStewardRows as Array<Record<string, unknown>>).map(
+      (s): AreaSteward => ({
+        id: String(s.id),
+        areaId: String(s.areaId),
+        userId: String(s.userId),
+        createdAt: toIsoRequired(s.createdAt as Date),
+      }),
+    ),
+    inventoryItems: (inventoryItemRows as Array<Record<string, unknown>>).map(
+      (i): InventoryItem => ({
+        id: String(i.id),
+        tagNumber: Number(i.tagNumber),
+        name: String(i.name),
+        model: (i.model as string | null) ?? null,
+        manufacturer: (i.manufacturer as string | null) ?? null,
+        serialNumber: (i.serialNumber as string | null) ?? null,
+        noSerial: Boolean(i.noSerial),
+        quantity: Number(i.quantity ?? 1),
+        isMachine: Boolean(i.isMachine),
+        areaId: (i.areaId as string | null) ?? null,
+        location: (i.location as string | null) ?? null,
+        condition: i.condition as ItemCondition,
+        status: i.status as ItemStatus,
+        notes: (i.notes as string | null) ?? null,
+        reviewStatus: i.reviewStatus as ReviewStatus,
+        reviewedById: (i.reviewedById as string | null) ?? null,
+        reviewedAt: toIso(i.reviewedAt as Date | null),
+        rejectReason: (i.rejectReason as string | null) ?? null,
+        acquisitionSource: (i.acquisitionSource as AcquisitionSource | null) ?? null,
+        acquiredAt: toIso(i.acquiredAt as Date | null),
+        donorName: (i.donorName as string | null) ?? null,
+        estimatedValue:
+          i.estimatedValue == null ? null : Number(i.estimatedValue),
+        labelPrintedAt: toIso(i.labelPrintedAt as Date | null),
+        retiredAt: toIso(i.retiredAt as Date | null),
+        retiredReason: (i.retiredReason as string | null) ?? null,
+        createdById: String(i.createdById),
+        createdAt: toIsoRequired(i.createdAt as Date),
+        updatedAt: toIsoRequired(i.updatedAt as Date),
+      }),
+    ),
+    itemPhotos: (itemPhotoRows as Array<Record<string, unknown>>).map(
+      (p): ItemPhoto => ({
+        id: String(p.id),
+        itemId: (p.itemId as string | null) ?? null,
+        kind: p.kind as PhotoKind,
+        storageKey: String(p.storageKey),
+        thumbKey: (p.thumbKey as string | null) ?? null,
+        mimeType: String(p.mimeType),
+        width: (p.width as number | null) ?? null,
+        height: (p.height as number | null) ?? null,
+        uploadedById: String(p.uploadedById),
+        createdAt: toIsoRequired(p.createdAt as Date),
+      }),
+    ),
+    itemEvents: (itemEventRows as Array<Record<string, unknown>>).map(
+      (e): ItemEvent => ({
+        id: String(e.id),
+        itemId: String(e.itemId),
+        type: e.type as ItemEventType,
+        actorId: String(e.actorId),
+        changes: parseJsonObject(e.changes as string | null) as ItemEvent["changes"],
+        note: (e.note as string | null) ?? null,
+        photoId: (e.photoId as string | null) ?? null,
+        createdAt: toIsoRequired(e.createdAt as Date),
       }),
     ),
   };
@@ -1452,6 +1554,91 @@ export async function persistBundleToPrisma(
           createdAt: asDate(e.createdAt) ?? new Date(),
           updatedAt: asDate(e.updatedAt) ?? new Date(),
           deletedAt: asDate(e.deletedAt),
+        })),
+      );
+    }
+
+    if (db.inventoryArea) {
+      await upsertManyIfAny(
+        (args) => db.inventoryArea.upsert(args),
+        (bundle.inventoryAreas ?? []).map((a) => ({
+          id: a.id,
+          slug: a.slug,
+          name: a.name,
+          sortOrder: a.sortOrder,
+          active: a.active,
+          createdAt: asDate(a.createdAt) ?? new Date(),
+          updatedAt: asDate(a.updatedAt) ?? new Date(),
+        })),
+      );
+      await upsertManyIfAny(
+        (args) => db.areaSteward.upsert(args),
+        (bundle.areaStewards ?? []).map((s) => ({
+          id: s.id,
+          areaId: s.areaId,
+          userId: s.userId,
+          createdAt: asDate(s.createdAt) ?? new Date(),
+        })),
+      );
+      await upsertManyIfAny(
+        (args) => db.inventoryItem.upsert(args),
+        (bundle.inventoryItems ?? []).map((i) => ({
+          id: i.id,
+          tagNumber: i.tagNumber,
+          name: i.name,
+          model: i.model ?? null,
+          manufacturer: i.manufacturer ?? null,
+          serialNumber: i.serialNumber ?? null,
+          noSerial: i.noSerial,
+          quantity: i.quantity,
+          isMachine: i.isMachine,
+          areaId: i.areaId ?? null,
+          location: i.location ?? null,
+          condition: i.condition,
+          status: i.status,
+          notes: i.notes ?? null,
+          reviewStatus: i.reviewStatus,
+          reviewedById: i.reviewedById ?? null,
+          reviewedAt: asDate(i.reviewedAt),
+          rejectReason: i.rejectReason ?? null,
+          acquisitionSource: i.acquisitionSource ?? null,
+          acquiredAt: asDate(i.acquiredAt),
+          donorName: i.donorName ?? null,
+          estimatedValue: i.estimatedValue ?? null,
+          labelPrintedAt: asDate(i.labelPrintedAt),
+          retiredAt: asDate(i.retiredAt),
+          retiredReason: i.retiredReason ?? null,
+          createdById: i.createdById,
+          createdAt: asDate(i.createdAt) ?? new Date(),
+          updatedAt: asDate(i.updatedAt) ?? new Date(),
+        })),
+      );
+      await upsertManyIfAny(
+        (args) => db.itemPhoto.upsert(args),
+        (bundle.itemPhotos ?? []).map((p) => ({
+          id: p.id,
+          itemId: p.itemId ?? null,
+          kind: p.kind,
+          storageKey: p.storageKey,
+          thumbKey: p.thumbKey ?? null,
+          mimeType: p.mimeType,
+          width: p.width ?? null,
+          height: p.height ?? null,
+          uploadedById: p.uploadedById,
+          createdAt: asDate(p.createdAt) ?? new Date(),
+        })),
+      );
+      await upsertManyIfAny(
+        (args) => db.itemEvent.upsert(args),
+        (bundle.itemEvents ?? []).map((e) => ({
+          id: e.id,
+          itemId: e.itemId,
+          type: e.type,
+          actorId: e.actorId,
+          changes: e.changes ? JSON.stringify(e.changes) : null,
+          note: e.note ?? null,
+          photoId: e.photoId ?? null,
+          createdAt: asDate(e.createdAt) ?? new Date(),
         })),
       );
     }

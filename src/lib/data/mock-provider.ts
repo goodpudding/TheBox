@@ -58,6 +58,15 @@ import type {
   VolunteerInterestInput,
   BountyRequestInput,
   BountyView,
+  CreateInventoryItemInput,
+  InventoryCsvMappedRow,
+  InventoryDuplicateHit,
+  InventoryImportResult,
+  InventoryIssueInput,
+  InventoryItemDetail,
+  InventoryItemView,
+  InventoryListFilters,
+  UpdateInventoryItemInput,
 } from "./provider";
 import { buildDisplayFeed, buildMachineStatuses } from "./display-feed";
 import {
@@ -131,7 +140,30 @@ import type {
   ToolChampionTerm,
   Bounty,
   BountyStatus,
+  InventoryArea,
+  InventoryItem,
+  ItemEvent,
+  ItemEventType,
+  ItemPhoto,
+  ItemStatus,
+  PhotoKind,
 } from "./types";
+import {
+  canInventory,
+  formatAssetTag,
+  INVENTORY_AUTO_APPROVE_STEWARDS,
+  isTempPhotoExpired,
+  parseAssetTag,
+  stewardAreaIds,
+} from "../inventory";
+import { notifyStewardsOfIssue } from "../inventory/notify";
+import { putPhoto } from "../inventory/storage";
+import { DriveClient } from "../google/drive";
+import {
+  getGoogleCmsConfig,
+  ServiceAccountTokenSource,
+  DRIVE_READONLY_SCOPE,
+} from "../google";
 
 const TZ = "America/Los_Angeles";
 
@@ -283,6 +315,11 @@ export class MockDataProvider implements DataProvider {
     this.state.people ??= [];
     this.state.bounties ??= [];
     this.state.creditLedgerEntries ??= [];
+    this.state.inventoryAreas ??= [];
+    this.state.areaStewards ??= [];
+    this.state.inventoryItems ??= [];
+    this.state.itemPhotos ??= [];
+    this.state.itemEvents ??= [];
     this.currentUserId =
       initialUserId === undefined ? "u-maya" : initialUserId;
   }
@@ -3731,6 +3768,800 @@ export class MockDataProvider implements DataProvider {
       readerKey,
       badgeUids,
       versionHash: simpleHash(badgeUids.join(",")),
+    };
+  }
+
+  private recordItemEvent(input: {
+    itemId: string;
+    type: ItemEventType;
+    actorId: string;
+    changes?: ItemEvent["changes"];
+    note?: string | null;
+    photoId?: string | null;
+  }): ItemEvent {
+    const event: ItemEvent = {
+      id: this.id("ie"),
+      itemId: input.itemId,
+      type: input.type,
+      actorId: input.actorId,
+      changes: input.changes ?? null,
+      note: input.note ?? null,
+      photoId: input.photoId ?? null,
+      createdAt: this.now(),
+    };
+    this.state.itemEvents.push(event);
+    return event;
+  }
+
+  private nextTagNumber(): number {
+    const max = this.state.inventoryItems.reduce(
+      (m, item) => Math.max(m, item.tagNumber),
+      0,
+    );
+    return max + 1;
+  }
+
+  private toInventoryView(item: InventoryItem): InventoryItemView {
+    const area = item.areaId
+      ? this.state.inventoryAreas.find((a) => a.id === item.areaId)
+      : undefined;
+    const createdBy = this.state.users.find((u) => u.id === item.createdById);
+    const reviewedBy = item.reviewedById
+      ? this.state.users.find((u) => u.id === item.reviewedById)
+      : undefined;
+    const front =
+      this.state.itemPhotos.find(
+        (p) => p.itemId === item.id && p.kind === "FRONT",
+      ) ??
+      this.state.itemPhotos.find((p) => p.itemId === item.id) ??
+      null;
+    return {
+      ...item,
+      assetTag: formatAssetTag(item.tagNumber),
+      areaName: area?.name ?? null,
+      createdByName: createdBy?.displayName ?? null,
+      reviewedByName: reviewedBy?.displayName ?? null,
+      frontPhoto: front,
+    };
+  }
+
+  private requireInventoryItem(id: string): InventoryItem {
+    const item = this.state.inventoryItems.find((i) => i.id === id);
+    if (!item) throw new Error("Item not found");
+    return item;
+  }
+
+  private cleanupTempPhotos(): void {
+    const leftover = this.state.itemPhotos.filter(
+      (p) => !p.itemId && isTempPhotoExpired(p.createdAt),
+    );
+    if (leftover.length === 0) return;
+    const drop = new Set(leftover.map((p) => p.id));
+    this.state.itemPhotos = this.state.itemPhotos.filter((p) => !drop.has(p.id));
+    void Promise.all(
+      leftover.map((p) =>
+        import("../inventory/storage").then((s) =>
+          s.deletePhoto(p.storageKey).catch(() => undefined),
+        ),
+      ),
+    );
+  }
+
+  async listInventoryAreas(): Promise<InventoryArea[]> {
+    return this.state.inventoryAreas
+      .slice()
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
+  }
+
+  async listAreaStewards() {
+    return this.state.areaStewards.slice();
+  }
+
+  async upsertInventoryArea(
+    actorId: string,
+    data: { id?: string; slug: string; name: string; active?: boolean },
+  ): Promise<InventoryArea> {
+    const actor = this.requireUser(actorId);
+    if (!canInventory(actor, "manageAreas")) {
+      throw new Error("Staff only");
+    }
+    const slug = data.slug.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-");
+    const name = data.name.trim();
+    if (!slug || !name) throw new Error("Area name and slug are required");
+    const now = this.now();
+    const existing = data.id
+      ? this.state.inventoryAreas.find((a) => a.id === data.id)
+      : this.state.inventoryAreas.find((a) => a.slug === slug);
+    if (existing) {
+      existing.name = name;
+      existing.slug = slug;
+      existing.active = data.active ?? existing.active;
+      existing.updatedAt = now;
+      return existing;
+    }
+    const area: InventoryArea = {
+      id: this.id("ia"),
+      slug,
+      name,
+      sortOrder:
+        this.state.inventoryAreas.reduce((m, a) => Math.max(m, a.sortOrder), 0) +
+        1,
+      active: data.active ?? true,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.state.inventoryAreas.push(area);
+    return area;
+  }
+
+  async listInventoryManufacturers(): Promise<string[]> {
+    const set = new Set<string>();
+    for (const item of this.state.inventoryItems) {
+      if (item.manufacturer?.trim()) set.add(item.manufacturer.trim());
+    }
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }
+
+  async listInventoryLocations(): Promise<string[]> {
+    const set = new Set<string>();
+    for (const item of this.state.inventoryItems) {
+      if (item.location?.trim()) set.add(item.location.trim());
+    }
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }
+
+  async pendingInventoryCount(userId: string): Promise<number> {
+    const user = this.requireUser(userId);
+    if (!canInventory(user, "viewPending", { stewards: this.state.areaStewards })) {
+      return 0;
+    }
+    const staff = user.role === "staff" || user.role === "admin";
+    const areas = stewardAreaIds(user, this.state.areaStewards);
+    return this.state.inventoryItems.filter((item) => {
+      if (item.reviewStatus !== "PENDING") return false;
+      if (staff) return true;
+      if (!item.areaId) return true;
+      return areas.includes(item.areaId);
+    }).length;
+  }
+
+  async listInventoryItems(
+    viewerId: string,
+    filters?: InventoryListFilters,
+  ): Promise<InventoryItemView[]> {
+    const viewer = this.requireUser(viewerId);
+    const canPending = canInventory(viewer, "viewPending", {
+      stewards: this.state.areaStewards,
+    });
+    const staff = viewer.role === "staff" || viewer.role === "admin";
+    const areas = stewardAreaIds(viewer, this.state.areaStewards);
+    const search = filters?.search?.trim().toLowerCase();
+    const conditions = filters?.condition
+      ? Array.isArray(filters.condition)
+        ? filters.condition
+        : [filters.condition]
+      : null;
+    const statuses = filters?.status
+      ? Array.isArray(filters.status)
+        ? filters.status
+        : [filters.status]
+      : null;
+    const reviews = filters?.reviewStatus
+      ? Array.isArray(filters.reviewStatus)
+        ? filters.reviewStatus
+        : [filters.reviewStatus]
+      : null;
+    const includeRetired = Boolean(filters?.includeRetired);
+    const includePending = Boolean(filters?.includePending) && canPending;
+
+    return this.state.inventoryItems
+      .filter((item) => {
+        if (!includeRetired && item.status === "RETIRED") return false;
+        if (item.reviewStatus === "REJECTED") {
+          if (!canPending) return false;
+        }
+        if (item.reviewStatus === "PENDING") {
+          if (!includePending || !canPending) return false;
+          if (!staff && item.areaId && !areas.includes(item.areaId)) return false;
+        }
+        if (filters?.areaId && item.areaId !== filters.areaId) return false;
+        if (filters?.location && item.location !== filters.location) return false;
+        if (conditions && !conditions.includes(item.condition)) return false;
+        if (statuses && !statuses.includes(item.status)) return false;
+        if (reviews && !reviews.includes(item.reviewStatus)) return false;
+        if (search) {
+          const tag = formatAssetTag(item.tagNumber).toLowerCase();
+          const hay = [
+            item.name,
+            item.model,
+            item.manufacturer,
+            item.serialNumber,
+            tag,
+            item.location,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+          if (!hay.includes(search)) return false;
+        }
+        return true;
+      })
+      .map((item) => this.toInventoryView(item))
+      .sort((a, b) => a.tagNumber - b.tagNumber);
+  }
+
+  async getInventoryItem(
+    viewerId: string,
+    assetTag: string,
+  ): Promise<InventoryItemDetail | null> {
+    const viewer = this.requireUser(viewerId);
+    const tagNumber = parseAssetTag(assetTag);
+    if (tagNumber == null) return null;
+    const item = this.state.inventoryItems.find((i) => i.tagNumber === tagNumber);
+    if (!item) return null;
+    const canPending = canInventory(viewer, "viewPending", {
+      areaId: item.areaId,
+      stewards: this.state.areaStewards,
+    });
+    if (item.reviewStatus !== "APPROVED" && !canPending) return null;
+    const photos = this.state.itemPhotos
+      .filter((p) => p.itemId === item.id)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const events = this.state.itemEvents
+      .filter((e) => e.itemId === item.id)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .map((e) => ({
+        ...e,
+        actorName:
+          this.state.users.find((u) => u.id === e.actorId)?.displayName ?? null,
+      }));
+    return { ...this.toInventoryView(item), photos, events };
+  }
+
+  async findInventoryBySerial(serial: string): Promise<InventoryDuplicateHit[]> {
+    const key = serial.trim().toLowerCase();
+    if (!key) return [];
+    return this.state.inventoryItems
+      .filter(
+        (i) => i.serialNumber && i.serialNumber.trim().toLowerCase() === key,
+      )
+      .map((i) => ({
+        id: i.id,
+        assetTag: formatAssetTag(i.tagNumber),
+        name: i.name,
+      }));
+  }
+
+  async createInventoryItem(
+    userId: string,
+    data: CreateInventoryItemInput,
+  ): Promise<InventoryItemView> {
+    this.cleanupTempPhotos();
+    const user = this.requireUser(userId);
+    if (!canInventory(user, "submit", { stewards: this.state.areaStewards })) {
+      throw new Error("Sign in as a volunteer or staff to add inventory");
+    }
+    const name = data.name.trim();
+    if (!name) throw new Error("Item name is required");
+    const photos = data.photoKeys ?? [];
+    const hasFront = photos.some((p) => p.kind === "FRONT");
+    const hasSide = photos.some((p) => p.kind === "SIDE");
+    if (!hasFront || !hasSide) {
+      throw new Error("Front and side photos are required");
+    }
+    const noSerial = Boolean(data.noSerial);
+    const serial = noSerial ? null : data.serialNumber?.trim() || null;
+    if (!noSerial && !photos.some((p) => p.kind === "SERIAL") && !serial) {
+      throw new Error("Add a serial photo or mark that there is no serial");
+    }
+    if (serial && !data.continueDespiteDuplicate) {
+      const dupes = await this.findInventoryBySerial(serial);
+      if (dupes.length > 0) {
+        throw new Error(
+          `This might already be in inventory: ${dupes.map((d) => `${d.assetTag} ${d.name}`).join(", ")}`,
+        );
+      }
+    }
+    const now = this.now();
+    const stewardOwn =
+      canInventory(user, "approve", {
+        areaId: data.areaId ?? null,
+        stewards: this.state.areaStewards,
+      }) && Boolean(data.areaId);
+    const auto =
+      INVENTORY_AUTO_APPROVE_STEWARDS && stewardOwn;
+    const item: InventoryItem = {
+      id: this.id("inv"),
+      tagNumber: this.nextTagNumber(),
+      name,
+      model: data.model?.trim() || null,
+      manufacturer: data.manufacturer?.trim() || null,
+      serialNumber: serial,
+      noSerial,
+      quantity: Math.max(1, Math.floor(data.quantity ?? 1)),
+      isMachine: Boolean(data.isMachine),
+      areaId: data.areaId ?? null,
+      location: data.location?.trim() || null,
+      condition: data.condition,
+      status: "ACTIVE",
+      notes: data.notes?.trim() || null,
+      reviewStatus: auto ? "APPROVED" : "PENDING",
+      reviewedById: auto ? user.id : null,
+      reviewedAt: auto ? now : null,
+      rejectReason: null,
+      createdById: user.id,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.state.inventoryItems.push(item);
+    for (const photo of photos) {
+      this.state.itemPhotos.push({
+        id: this.id("ip"),
+        itemId: item.id,
+        kind: photo.kind,
+        storageKey: photo.storageKey,
+        thumbKey: photo.thumbKey ?? photo.storageKey,
+        mimeType: photo.mimeType,
+        width: photo.width ?? null,
+        height: photo.height ?? null,
+        uploadedById: user.id,
+        createdAt: now,
+      });
+    }
+    this.recordItemEvent({
+      itemId: item.id,
+      type: "CREATED",
+      actorId: user.id,
+    });
+    if (auto) {
+      this.recordItemEvent({
+        itemId: item.id,
+        type: "APPROVED",
+        actorId: user.id,
+        changes: { reviewStatus: { from: "PENDING", to: "APPROVED" } },
+      });
+    }
+    return this.toInventoryView(item);
+  }
+
+  async updateInventoryItem(
+    userId: string,
+    id: string,
+    patch: UpdateInventoryItemInput,
+  ): Promise<InventoryItemView> {
+    const user = this.requireUser(userId);
+    const item = this.requireInventoryItem(id);
+    if (
+      !canInventory(user, "edit", {
+        areaId: patch.areaId !== undefined ? patch.areaId : item.areaId,
+        stewards: this.state.areaStewards,
+      })
+    ) {
+      throw new Error("Stewards can edit items in their areas");
+    }
+    const changes: NonNullable<ItemEvent["changes"]> = {};
+    const apply = <K extends keyof InventoryItem>(
+      field: K,
+      next: InventoryItem[K] | undefined,
+    ) => {
+      if (next === undefined) return;
+      if (item[field] === next) return;
+      changes[field] = { from: item[field], to: next };
+      item[field] = next;
+    };
+    apply("name", patch.name?.trim() as InventoryItem["name"] | undefined);
+    apply("model", patch.model === undefined ? undefined : patch.model?.trim() || null);
+    apply(
+      "manufacturer",
+      patch.manufacturer === undefined
+        ? undefined
+        : patch.manufacturer?.trim() || null,
+    );
+    apply(
+      "serialNumber",
+      patch.serialNumber === undefined
+        ? undefined
+        : patch.serialNumber?.trim() || null,
+    );
+    apply("noSerial", patch.noSerial);
+    apply(
+      "quantity",
+      patch.quantity == null
+        ? undefined
+        : (Math.max(1, Math.floor(patch.quantity)) as InventoryItem["quantity"]),
+    );
+    apply("isMachine", patch.isMachine);
+    apply("areaId", patch.areaId === undefined ? undefined : patch.areaId);
+    apply(
+      "location",
+      patch.location === undefined ? undefined : patch.location?.trim() || null,
+    );
+    apply("condition", patch.condition);
+    apply("notes", patch.notes === undefined ? undefined : patch.notes?.trim() || null);
+    this.touch(item);
+    if (Object.keys(changes).length > 0) {
+      this.recordItemEvent({
+        itemId: item.id,
+        type: changes.condition ? "CONDITION_CHANGED" : "UPDATED",
+        actorId: user.id,
+        changes,
+      });
+    }
+    return this.toInventoryView(item);
+  }
+
+  async reviewInventoryItem(
+    userId: string,
+    id: string,
+    decision: "approve" | "reject",
+    reason?: string,
+  ): Promise<InventoryItemView> {
+    const user = this.requireUser(userId);
+    const item = this.requireInventoryItem(id);
+    const action = decision === "approve" ? "approve" : "reject";
+    if (
+      !canInventory(user, action, {
+        areaId: item.areaId,
+        stewards: this.state.areaStewards,
+      })
+    ) {
+      throw new Error("Stewards can only review items in their areas");
+    }
+    if (item.reviewStatus !== "PENDING") {
+      throw new Error("This item is not awaiting review");
+    }
+    const now = this.now();
+    if (decision === "reject") {
+      const why = reason?.trim();
+      if (!why) throw new Error("A reject reason is required");
+      item.reviewStatus = "REJECTED";
+      item.rejectReason = why;
+      item.reviewedById = user.id;
+      item.reviewedAt = now;
+      this.touch(item);
+      this.recordItemEvent({
+        itemId: item.id,
+        type: "REJECTED",
+        actorId: user.id,
+        changes: { reviewStatus: { from: "PENDING", to: "REJECTED" } },
+        note: why,
+      });
+      return this.toInventoryView(item);
+    }
+    item.reviewStatus = "APPROVED";
+    item.reviewedById = user.id;
+    item.reviewedAt = now;
+    item.rejectReason = null;
+    this.touch(item);
+    this.recordItemEvent({
+      itemId: item.id,
+      type: "APPROVED",
+      actorId: user.id,
+      changes: { reviewStatus: { from: "PENDING", to: "APPROVED" } },
+    });
+    return this.toInventoryView(item);
+  }
+
+  async changeInventoryStatus(
+    userId: string,
+    id: string,
+    status: ItemStatus,
+    note?: string,
+  ): Promise<InventoryItemView> {
+    const user = this.requireUser(userId);
+    const item = this.requireInventoryItem(id);
+    if (
+      !canInventory(user, "changeStatus", {
+        areaId: item.areaId,
+        stewards: this.state.areaStewards,
+      })
+    ) {
+      throw new Error("Stewards can change status in their areas");
+    }
+    if (status === "RETIRED") {
+      return this.retireInventoryItem(userId, id, note ?? "retired");
+    }
+    const from = item.status;
+    item.status = status;
+    this.touch(item);
+    this.recordItemEvent({
+      itemId: item.id,
+      type: "STATUS_CHANGED",
+      actorId: user.id,
+      changes: { status: { from, to: status } },
+      note: note?.trim() || null,
+    });
+    return this.toInventoryView(item);
+  }
+
+  async moveInventoryItem(
+    userId: string,
+    id: string,
+    location: string,
+    note?: string,
+  ): Promise<InventoryItemView> {
+    const user = this.requireUser(userId);
+    const item = this.requireInventoryItem(id);
+    if (
+      !canInventory(user, "move", {
+        areaId: item.areaId,
+        stewards: this.state.areaStewards,
+      })
+    ) {
+      throw new Error("Stewards can move items in their areas");
+    }
+    const next = location.trim();
+    if (!next) throw new Error("Location is required");
+    const from = item.location ?? null;
+    item.location = next;
+    this.touch(item);
+    this.recordItemEvent({
+      itemId: item.id,
+      type: "MOVED",
+      actorId: user.id,
+      changes: { location: { from, to: next } },
+      note: note?.trim() || null,
+    });
+    return this.toInventoryView(item);
+  }
+
+  async reportInventoryIssue(
+    userId: string,
+    id: string,
+    input: InventoryIssueInput,
+  ): Promise<ItemEvent> {
+    const user = this.requireUser(userId);
+    const item = this.requireInventoryItem(id);
+    if (item.reviewStatus !== "APPROVED") {
+      throw new Error("Only approved items can receive issue reports");
+    }
+    if (!canInventory(user, "reportIssue")) {
+      throw new Error("Sign in to report an issue");
+    }
+    let photoId: string | null = null;
+    if (input.photoKey) {
+      const photo: ItemPhoto = {
+        id: this.id("ip"),
+        itemId: item.id,
+        kind: "OTHER",
+        storageKey: input.photoKey,
+        thumbKey: input.photoKey,
+        mimeType: input.photoMimeType ?? "image/jpeg",
+        uploadedById: user.id,
+        createdAt: this.now(),
+      };
+      this.state.itemPhotos.push(photo);
+      photoId = photo.id;
+    }
+    const event = this.recordItemEvent({
+      itemId: item.id,
+      type: "ISSUE_REPORTED",
+      actorId: user.id,
+      note: [input.type, input.note?.trim()].filter(Boolean).join(" · ") || input.type,
+      photoId,
+    });
+    const area = item.areaId
+      ? this.state.inventoryAreas.find((a) => a.id === item.areaId) ?? null
+      : null;
+    const stewardUsers = this.state.areaStewards
+      .filter((s) => (item.areaId ? s.areaId === item.areaId : true))
+      .map((s) => this.state.users.find((u) => u.id === s.userId))
+      .filter((u): u is User => Boolean(u));
+    const staff = this.state.users.filter(
+      (u) => u.role === "staff" || u.role === "admin",
+    );
+    void notifyStewardsOfIssue({
+      itemName: item.name,
+      assetTag: formatAssetTag(item.tagNumber),
+      area,
+      stewards: stewardUsers.length > 0 ? stewardUsers : staff,
+      reporterName: user.displayName,
+      issueType: input.type,
+      note: input.note,
+    });
+    return event;
+  }
+
+  async retireInventoryItem(
+    userId: string,
+    id: string,
+    reason: string,
+  ): Promise<InventoryItemView> {
+    const user = this.requireUser(userId);
+    const item = this.requireInventoryItem(id);
+    if (!canInventory(user, "retire")) {
+      throw new Error("Only staff can retire items");
+    }
+    const why = reason.trim();
+    if (!why) throw new Error("A retire reason is required");
+    const from = item.status;
+    item.status = "RETIRED";
+    item.retiredAt = this.now();
+    item.retiredReason = why;
+    this.touch(item);
+    this.recordItemEvent({
+      itemId: item.id,
+      type: "RETIRED",
+      actorId: user.id,
+      changes: { status: { from, to: "RETIRED" } },
+      note: why,
+    });
+    return this.toInventoryView(item);
+  }
+
+  async addInventoryPhoto(
+    userId: string,
+    itemId: string,
+    photo: {
+      storageKey: string;
+      thumbKey?: string | null;
+      kind: PhotoKind;
+      mimeType: string;
+      width?: number | null;
+      height?: number | null;
+    },
+  ): Promise<ItemPhoto> {
+    const user = this.requireUser(userId);
+    const item = this.requireInventoryItem(itemId);
+    if (
+      !canInventory(user, "addPhoto", {
+        areaId: item.areaId,
+        stewards: this.state.areaStewards,
+      })
+    ) {
+      throw new Error("Volunteers can add photos");
+    }
+    const row: ItemPhoto = {
+      id: this.id("ip"),
+      itemId: item.id,
+      kind: photo.kind,
+      storageKey: photo.storageKey,
+      thumbKey: photo.thumbKey ?? photo.storageKey,
+      mimeType: photo.mimeType,
+      width: photo.width ?? null,
+      height: photo.height ?? null,
+      uploadedById: user.id,
+      createdAt: this.now(),
+    };
+    this.state.itemPhotos.push(row);
+    this.recordItemEvent({
+      itemId: item.id,
+      type: "PHOTO_ADDED",
+      actorId: user.id,
+      photoId: row.id,
+    });
+    this.touch(item);
+    return row;
+  }
+
+  async markInventoryLabelsPrinted(
+    userId: string,
+    itemIds: string[],
+  ): Promise<void> {
+    const user = this.requireUser(userId);
+    if (!canInventory(user, "printLabels")) {
+      throw new Error("Staff only");
+    }
+    const now = this.now();
+    for (const id of itemIds) {
+      const item = this.state.inventoryItems.find((i) => i.id === id);
+      if (!item) continue;
+      item.labelPrintedAt = now;
+      this.touch(item);
+      this.recordItemEvent({
+        itemId: item.id,
+        type: "LABEL_PRINTED",
+        actorId: user.id,
+      });
+    }
+  }
+
+  async importInventoryCsv(
+    userId: string,
+    rows: InventoryCsvMappedRow[],
+    dryRun: boolean,
+  ): Promise<InventoryImportResult> {
+    const user = this.requireUser(userId);
+    if (!canInventory(user, "importCsv")) {
+      throw new Error("Staff only");
+    }
+    const failed: InventoryImportResult["failed"] = [];
+    const preview: InventoryImportResult["preview"] = [];
+    let created = 0;
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i]!;
+      const name = row.name?.trim();
+      if (!name) {
+        failed.push({ row: i + 1, reason: "Missing item name" });
+        continue;
+      }
+      const photoLinks = row.photoLinks ?? {};
+      const photoCount = Object.values(photoLinks).filter(Boolean).length;
+      preview.push({
+        row: i + 1,
+        name,
+        areaId: row.areaId ?? null,
+        condition: row.condition,
+        photoCount,
+      });
+      if (dryRun) continue;
+      const photoKeys: CreateInventoryItemInput["photoKeys"] = [];
+      for (const kind of ["FRONT", "SIDE", "SERIAL"] as PhotoKind[]) {
+        const link = photoLinks[kind];
+        if (!link) continue;
+        try {
+          const copied = await this.copyDrivePhoto(link, kind);
+          if (copied) photoKeys.push(copied);
+        } catch (err) {
+          failed.push({
+            row: i + 1,
+            reason: `Photo ${kind}: ${err instanceof Error ? err.message : "copy failed"}`,
+          });
+        }
+      }
+      if (!photoKeys.some((p) => p.kind === "FRONT")) {
+        photoKeys.push({
+          storageKey: `fixture:import-${name.toLowerCase().replace(/\s+/g, "-")}-front`,
+          kind: "FRONT",
+          mimeType: "image/svg+xml",
+        });
+      }
+      if (!photoKeys.some((p) => p.kind === "SIDE")) {
+        photoKeys.push({
+          storageKey: `fixture:import-${name.toLowerCase().replace(/\s+/g, "-")}-side`,
+          kind: "SIDE",
+          mimeType: "image/svg+xml",
+        });
+      }
+      const item = await this.createInventoryItem(userId, {
+        name,
+        model: row.model,
+        manufacturer: row.manufacturer,
+        serialNumber: row.serialNumber,
+        noSerial: !row.serialNumber,
+        quantity: row.quantity ?? 1,
+        areaId: row.areaId,
+        location: row.location,
+        condition: row.condition,
+        notes: row.notes
+          ? `${row.notes}\nImported from Google Form`
+          : "Imported from Google Form",
+        photoKeys,
+        continueDespiteDuplicate: true,
+      });
+      const createdEvent = this.state.itemEvents.find(
+        (e) => e.itemId === item.id && e.type === "CREATED",
+      );
+      if (createdEvent) createdEvent.note = "Imported from Google Form";
+      created += 1;
+    }
+    return { dryRun, created, failed, preview };
+  }
+
+  private async copyDrivePhoto(
+    link: string,
+    kind: PhotoKind,
+  ): Promise<CreateInventoryItemInput["photoKeys"][number] | null> {
+    const google = getGoogleCmsConfig();
+    if (!google) return null;
+    const { extractDriveId } = await import("../google/content");
+    const fileId = extractDriveId(link);
+    if (!fileId) return null;
+    const tokens = new ServiceAccountTokenSource(google.serviceAccount, [
+      DRIVE_READONLY_SCOPE,
+    ]);
+    const client = new DriveClient(tokens);
+    const bytes = await client.downloadFile(fileId);
+    const stored = await putPhoto({
+      bytes,
+      mimeType: "image/jpeg",
+      filename: `${kind.toLowerCase()}.jpg`,
+      folder: "temp",
+    });
+    return {
+      storageKey: stored.storageKey,
+      kind,
+      mimeType: "image/jpeg",
     };
   }
 

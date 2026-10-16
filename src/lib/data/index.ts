@@ -11,6 +11,17 @@ export {
   CLASS_INTEREST_PRIORITY_HOURS,
 } from "./class-interest";
 export { canClaimBounty, canCompleteBounty } from "./bounties";
+export {
+  canInventory,
+  formatAssetTag,
+  parseAssetTag,
+  conditionLabel,
+  CONDITION_CARDS,
+  STATUS_LABELS,
+  REVIEW_LABELS,
+  EVENT_LABELS,
+  PHOTO_KIND_LABELS,
+} from "../inventory";
 export { createMockDataProvider, MockDataProvider } from "./mock-provider";
 export { createPrismaDataProvider } from "./prisma-provider";
 export { loadFixtures, cloneFixtures } from "./load-fixtures";

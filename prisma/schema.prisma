@@ -118,6 +118,11 @@ model User {
   workstationLaunches    WorkstationLaunch[]
   loginChallengesApproved WorkstationLoginChallenge[]
   equipmentJobs          EquipmentJob[]
+  inventoryItemsCreated  InventoryItem[]         @relation("ItemsCreated")
+  inventoryItemsReviewed InventoryItem[]         @relation("ItemsReviewed")
+  inventoryPhotos        ItemPhoto[]             @relation("ItemPhotosUploaded")
+  inventoryEvents        ItemEvent[]             @relation("ItemEvents")
+  areaStewardships       AreaSteward[]           @relation("AreaStewardships")
 }
 
 model Badge {
@@ -880,4 +885,116 @@ model EquipmentJob {
 
   @@index([userId, completedAt])
   @@index([machineId])
+}
+
+// ── Inventory (shop stock / materials — not Zeffy billing) ───────────────────
+// SQLite: tagNumber is assigned in code (max+1). No @default(autoincrement()).
+// Enum-like fields are String to match the rest of this schema.
+
+model InventoryArea {
+  id        String          @id @default(cuid())
+  slug      String          @unique // "fdm", "sla", "laser", "cnc", "woodshop", "textiles-vinyl", "sublimation"
+  name      String
+  sortOrder Int             @default(0)
+  active    Boolean         @default(true)
+  items     InventoryItem[]
+  stewards  AreaSteward[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
+
+model AreaSteward {
+  id        String        @id @default(cuid())
+  areaId    String
+  area      InventoryArea @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User          @relation("AreaStewardships", fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+
+  @@unique([areaId, userId])
+}
+
+model InventoryItem {
+  id        String @id @default(cuid())
+  tagNumber Int    @unique // displayed as BX-00042; assigned in code for SQLite
+
+  name         String
+  model        String?
+  manufacturer String?
+  serialNumber String?
+  noSerial     Boolean @default(false)
+  quantity     Int     @default(1)
+  isMachine    Boolean @default(false)
+
+  areaId    String?
+  area      InventoryArea? @relation(fields: [areaId], references: [id])
+  location  String?
+  condition String // NEW | GOOD | FAIR | NEEDS_REPAIR | BROKEN
+  status    String         @default("ACTIVE") // ACTIVE | IN_REPAIR | OUT_ON_LOAN | MISSING | RETIRED
+  notes     String?
+
+  reviewStatus String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  reviewedById String?
+  reviewedBy   User?     @relation("ItemsReviewed", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  rejectReason String?
+
+  acquisitionSource String? // DONATED | PURCHASED | LOANED_IN | UNKNOWN
+  acquiredAt        DateTime?
+  donorName         String?
+  estimatedValue    Float?
+
+  labelPrintedAt DateTime?
+  retiredAt      DateTime?
+  retiredReason  String?
+
+  createdById String
+  createdBy   User   @relation("ItemsCreated", fields: [createdById], references: [id])
+
+  photos ItemPhoto[]
+  events ItemEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([areaId])
+  @@index([status])
+  @@index([reviewStatus])
+  @@index([serialNumber])
+  @@index([name])
+}
+
+model ItemPhoto {
+  id           String         @id @default(cuid())
+  itemId       String?
+  item         InventoryItem? @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  kind         String // FRONT | SIDE | SERIAL | OTHER
+  storageKey   String
+  thumbKey     String?
+  mimeType     String
+  width        Int?
+  height       Int?
+  uploadedById String
+  uploadedBy   User           @relation("ItemPhotosUploaded", fields: [uploadedById], references: [id])
+  createdAt    DateTime       @default(now())
+
+  @@index([itemId])
+  @@index([itemId, kind])
+  @@index([createdAt])
+}
+
+model ItemEvent {
+  id        String        @id @default(cuid())
+  itemId    String
+  item      InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  type      String // CREATED | UPDATED | APPROVED | REJECTED | …
+  actorId   String
+  actor     User          @relation("ItemEvents", fields: [actorId], references: [id])
+  changes   String? // JSON { field: { from, to } }
+  note      String?
+  photoId   String?
+  createdAt DateTime      @default(now())
+
+  @@index([itemId, createdAt])
+  @@index([type])
 }

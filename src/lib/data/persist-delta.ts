@@ -38,6 +38,11 @@ const ARRAY_KEYS = [
   "auditEvents",
   "membershipProducts",
   "creditLedgerEntries",
+  "inventoryAreas",
+  "areaStewards",
+  "inventoryItems",
+  "itemPhotos",
+  "itemEvents",
 ] as const;
 
 export function sliceChangedBundle(

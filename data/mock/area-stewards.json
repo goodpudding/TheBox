@@ -1,0 +1,14 @@
+[
+  {
+    "id": "as-maya-woodshop",
+    "areaId": "ia-woodshop",
+    "userId": "u-maya",
+    "createdAt": "2026-02-01T10:00:00-08:00"
+  },
+  {
+    "id": "as-jordan-textiles",
+    "areaId": "ia-textiles-vinyl",
+    "userId": "u-jordan",
+    "createdAt": "2026-02-01T10:00:00-08:00"
+  }
+]
