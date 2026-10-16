@@ -2,7 +2,6 @@ import type {
   ItemCondition,
   InventoryArea,
 } from "@/lib/data/types";
-import { extractDriveId } from "@/lib/google/content";
 
 export const INVENTORY_CSV_FIELDS = [
   "name",
@@ -145,7 +144,17 @@ export function matchAreaId(
 }
 
 export function driveLinkFromCell(raw: string): string | null {
-  return extractDriveId(raw);
+  const v = raw.trim();
+  if (!v) return null;
+  const patterns = [
+    /\/(?:d|folders)\/([A-Za-z0-9_-]{19,})/,
+    /[?&]id=([A-Za-z0-9_-]{19,})/,
+  ];
+  for (const re of patterns) {
+    const m = v.match(re);
+    if (m) return m[1] ?? null;
+  }
+  return /^[A-Za-z0-9_-]{19,}$/.test(v) ? v : null;
 }
 
 export function toCsvRow(values: Array<string | number | null | undefined>): string {

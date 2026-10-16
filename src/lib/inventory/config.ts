@@ -6,6 +6,15 @@ export const INVENTORY_AUTO_APPROVE_STEWARDS = false;
 
 export const INVENTORY_TEMP_UPLOAD_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
+export function isTempPhotoExpired(
+  createdAtIso: string,
+  nowMs = Date.now(),
+): boolean {
+  const created = new Date(createdAtIso).getTime();
+  if (Number.isNaN(created)) return false;
+  return nowMs - created > INVENTORY_TEMP_UPLOAD_MAX_AGE_MS;
+}
+
 export const INVENTORY_PHOTO_LONG_EDGE = 1600;
 export const INVENTORY_THUMB_LONG_EDGE = 400;
 export const INVENTORY_JPEG_QUALITY = 0.8;

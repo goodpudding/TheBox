@@ -5,6 +5,7 @@ export {
   INVENTORY_PHOTO_LONG_EDGE,
   INVENTORY_TEMP_UPLOAD_MAX_AGE_MS,
   INVENTORY_THUMB_LONG_EDGE,
+  isTempPhotoExpired,
 } from "./config";
 export {
   canInventory,
@@ -31,9 +32,3 @@ export {
   toCsvRow,
 } from "./csv";
 export type { InventoryCsvField } from "./csv";
-export {
-  deletePhoto,
-  getPhoto,
-  isTempPhotoExpired,
-  putPhoto,
-} from "./storage";

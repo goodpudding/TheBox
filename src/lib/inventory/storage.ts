@@ -15,7 +15,6 @@ import {
   type DriveFile,
 } from "@/lib/google/drive";
 import { ServiceAccountTokenSource } from "@/lib/google/auth";
-import { INVENTORY_TEMP_UPLOAD_MAX_AGE_MS } from "./config";
 
 const LOCAL_DIR = path.join(process.cwd(), ".data", "inventory-photos");
 
@@ -224,15 +223,6 @@ export async function getPhoto(
 
 export async function deletePhoto(storageKey: string): Promise<void> {
   return getPhotoStorage().deletePhoto(storageKey);
-}
-
-export function isTempPhotoExpired(
-  createdAtIso: string,
-  nowMs = Date.now(),
-): boolean {
-  const created = new Date(createdAtIso).getTime();
-  if (Number.isNaN(created)) return false;
-  return nowMs - created > INVENTORY_TEMP_UPLOAD_MAX_AGE_MS;
 }
 
 export { type DriveFile, MIME };

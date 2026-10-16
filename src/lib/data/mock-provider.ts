@@ -157,13 +157,6 @@ import {
   stewardAreaIds,
 } from "../inventory";
 import { notifyStewardsOfIssue } from "../inventory/notify";
-import { putPhoto } from "../inventory/storage";
-import { DriveClient } from "../google/drive";
-import {
-  getGoogleCmsConfig,
-  ServiceAccountTokenSource,
-  DRIVE_READONLY_SCOPE,
-} from "../google";
 
 const TZ = "America/Los_Angeles";
 
@@ -3838,13 +3831,6 @@ export class MockDataProvider implements DataProvider {
     if (leftover.length === 0) return;
     const drop = new Set(leftover.map((p) => p.id));
     this.state.itemPhotos = this.state.itemPhotos.filter((p) => !drop.has(p.id));
-    void Promise.all(
-      leftover.map((p) =>
-        import("../inventory/storage").then((s) =>
-          s.deletePhoto(p.storageKey).catch(() => undefined),
-        ),
-      ),
-    );
   }
 
   async listInventoryAreas(): Promise<InventoryArea[]> {
@@ -4539,30 +4525,11 @@ export class MockDataProvider implements DataProvider {
   }
 
   private async copyDrivePhoto(
-    link: string,
-    kind: PhotoKind,
+    _link: string,
+    _kind: PhotoKind,
   ): Promise<CreateInventoryItemInput["photoKeys"][number] | null> {
-    const google = getGoogleCmsConfig();
-    if (!google) return null;
-    const { extractDriveId } = await import("../google/content");
-    const fileId = extractDriveId(link);
-    if (!fileId) return null;
-    const tokens = new ServiceAccountTokenSource(google.serviceAccount, [
-      DRIVE_READONLY_SCOPE,
-    ]);
-    const client = new DriveClient(tokens);
-    const bytes = await client.downloadFile(fileId);
-    const stored = await putPhoto({
-      bytes,
-      mimeType: "image/jpeg",
-      filename: `${kind.toLowerCase()}.jpg`,
-      folder: "temp",
-    });
-    return {
-      storageKey: stored.storageKey,
-      kind,
-      mimeType: "image/jpeg",
-    };
+    // Drive copy lives in API/storage (server-only). Mock UI uses fixture placeholders.
+    return null;
   }
 
   async getDisplayFeed() {
