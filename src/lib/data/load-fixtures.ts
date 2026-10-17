@@ -26,6 +26,9 @@ import volunteerRoles from "../../../data/mock/volunteer-roles.json";
 import volunteerInterests from "../../../data/mock/volunteer-interests.json";
 import people from "../../../data/mock/people.json";
 import bounties from "../../../data/mock/bounties.json";
+import wishlistZones from "../../../data/mock/wishlist-zones.json";
+import wishlistItems from "../../../data/mock/wishlist-items.json";
+import wishlistPurchaseReports from "../../../data/mock/wishlist-purchase-reports.json";
 import contentPages from "../../../data/mock/content-pages.json";
 import waiverSignatures from "../../../data/mock/waiver-signatures.json";
 import policyAcknowledgements from "../../../data/mock/policy-acknowledgements.json";
@@ -273,6 +276,10 @@ export function loadFixtures(): MockFixtureBundle {
       volunteerInterests as MockFixtureBundle["volunteerInterests"],
     people: people as MockFixtureBundle["people"],
     bounties: bounties as MockFixtureBundle["bounties"],
+    wishlistZones: wishlistZones as MockFixtureBundle["wishlistZones"],
+    wishlistItems: wishlistItems as MockFixtureBundle["wishlistItems"],
+    wishlistPurchaseReports:
+      wishlistPurchaseReports as MockFixtureBundle["wishlistPurchaseReports"],
     contentPages: contentPages as MockFixtureBundle["contentPages"],
     waiverSignatures:
       waiverSignatures as MockFixtureBundle["waiverSignatures"],

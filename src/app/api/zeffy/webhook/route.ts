@@ -121,19 +121,22 @@ export async function POST(request: NextRequest) {
     envelope.dispatchedAt,
   );
 
+  const result = applied.result;
   const status =
-    applied.result.status === "applied" || applied.result.status === "duplicate"
-      ? applied.result.status === "duplicate"
+    result.status === "applied" || result.status === "wishlist_applied"
+      ? "applied"
+      : result.status === "duplicate" || result.status === "wishlist_duplicate"
         ? "duplicate"
-        : "applied"
-      : "ignored";
+        : "ignored";
   let detail: string | undefined;
-  if (applied.result.status === "ignored") {
-    detail = applied.result.reason;
-  } else if (applied.kind === "ticket") {
-    detail = applied.result.bookingId;
+  if (result.status === "ignored") {
+    detail = result.reason;
+  } else if ("itemId" in result) {
+    detail = result.itemId;
+  } else if ("bookingId" in result) {
+    detail = result.bookingId;
   } else {
-    detail = applied.result.userId;
+    detail = result.userId;
   }
 
   await recordEvent({

@@ -140,6 +140,14 @@ export type ZeffyApplyResult =
       bookingId: string;
     }
   | {
+      status: "wishlist_applied";
+      itemId: string;
+    }
+  | {
+      status: "wishlist_duplicate";
+      itemId: string;
+    }
+  | {
       status: "ignored";
       reason:
         | "not_ticketing"
@@ -148,7 +156,9 @@ export type ZeffyApplyResult =
         | "no_email"
         | "no_member"
         | "class_full"
-        | "unsupported_event";
+        | "unsupported_event"
+        | "not_succeeded"
+        | "already_fulfilled";
       detail?: string;
     };
 

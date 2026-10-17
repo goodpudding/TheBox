@@ -22,6 +22,17 @@ export {
   EVENT_LABELS,
   PHOTO_KIND_LABELS,
 } from "../inventory";
+export {
+  canMarkWishlistPurchased,
+  formatWishlistPrice,
+  isNeededWishlistItem,
+  isRecentlyFunded,
+  matchesWishlistPriceBand,
+  RECENTLY_FUNDED_DAYS,
+  WISHLIST_PRICE_BANDS,
+  wishlistStats,
+} from "./wishlist";
+export type { WishlistPriceBandId, WishlistStats } from "./wishlist";
 export { createMockDataProvider, MockDataProvider } from "./mock-provider";
 export { createPrismaDataProvider } from "./prisma-provider";
 export { loadFixtures, cloneFixtures } from "./load-fixtures";

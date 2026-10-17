@@ -18,6 +18,7 @@ const publicLinks = [
   { href: "/bounties", label: "Bounties" },
   { href: "/history", label: "History" },
   { href: "/staff", label: "Staff" },
+  { href: "/wishlist", label: "Wishlist" },
   { href: "/support", label: "Support" },
   { href: "/policies", label: "Policies" },
   { href: "/volunteer", label: "Volunteer" },

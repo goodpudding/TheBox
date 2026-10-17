@@ -67,6 +67,10 @@ import type {
   InventoryItemView,
   InventoryListFilters,
   UpdateInventoryItemInput,
+  WishlistCatalog,
+  WishlistItemView,
+  WishlistPurchaseReportInput,
+  WishlistPurchaseReportView,
 } from "./provider";
 import { buildDisplayFeed, buildMachineStatuses } from "./display-feed";
 import {
@@ -89,6 +93,13 @@ import {
   machineDebitCents,
   machineDebitNote,
 } from "../credits";
+import {
+  canMarkWishlistPurchased,
+  isRecentlyFunded,
+  isValidWishlistEmail,
+  matchZeffyPaymentToWishlistItem,
+  wishlistStats,
+} from "./wishlist";
 import type {
   AccessLog,
   AuditAction,
@@ -147,6 +158,8 @@ import type {
   ItemPhoto,
   ItemStatus,
   PhotoKind,
+  WishlistItem,
+  WishlistPurchaseReport,
 } from "./types";
 import {
   canInventory,
@@ -313,6 +326,9 @@ export class MockDataProvider implements DataProvider {
     this.state.inventoryItems ??= [];
     this.state.itemPhotos ??= [];
     this.state.itemEvents ??= [];
+    this.state.wishlistZones ??= [];
+    this.state.wishlistItems ??= [];
+    this.state.wishlistPurchaseReports ??= [];
     this.currentUserId =
       initialUserId === undefined ? "u-maya" : initialUserId;
   }
@@ -2288,6 +2304,205 @@ export class MockDataProvider implements DataProvider {
     return this.touch(bounty);
   }
 
+  private toWishlistItemView(item: WishlistItem): WishlistItemView {
+    const zone = this.state.wishlistZones.find((z) => z.id === item.zoneId);
+    const pendingReportCount = this.state.wishlistPurchaseReports.filter(
+      (r) => r.itemId === item.id && r.status === "pending",
+    ).length;
+    return {
+      ...item,
+      zoneName: zone?.name ?? item.zoneId,
+      pendingReportCount,
+    };
+  }
+
+  async getWishlistCatalog(): Promise<WishlistCatalog> {
+    const zones = [...this.state.wishlistZones].sort(
+      (a, b) => a.sortOrder - b.sortOrder,
+    );
+    const items = this.state.wishlistItems.map((i) =>
+      this.toWishlistItemView(i),
+    );
+    const recentlyFunded = items
+      .filter((i) => isRecentlyFunded(i))
+      .sort((a, b) => {
+        const aAt = a.fulfilledAt ? new Date(a.fulfilledAt).getTime() : 0;
+        const bAt = b.fulfilledAt ? new Date(b.fulfilledAt).getTime() : 0;
+        return bAt - aAt;
+      });
+    return {
+      zones,
+      items,
+      recentlyFunded,
+      stats: wishlistStats(this.state.wishlistItems),
+    };
+  }
+
+  async reportWishlistPurchase(
+    input: WishlistPurchaseReportInput,
+  ): Promise<WishlistPurchaseReport> {
+    const item = this.state.wishlistItems.find((i) => i.id === input.itemId);
+    if (!item) throw new Error("Wishlist item not found");
+    if (item.status === "fulfilled") {
+      throw new Error("This item is already marked purchased");
+    }
+    const name = input.name.trim();
+    const email = input.email.trim();
+    if (!name) throw new Error("Name is required");
+    if (!isValidWishlistEmail(email)) {
+      throw new Error("A valid email is required so staff can follow up");
+    }
+    const now = this.now();
+    const report: WishlistPurchaseReport = {
+      id: this.id("wpr"),
+      itemId: item.id,
+      name,
+      email,
+      note: input.note?.trim() || null,
+      userId: input.userId ?? null,
+      status: "pending",
+      reviewedById: null,
+      reviewedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.state.wishlistPurchaseReports.push(report);
+    this.pushAudit({
+      action: "wishlist_purchase_reported",
+      actorId: input.userId ?? null,
+      entityType: "WishlistPurchaseReport",
+      entityId: report.id,
+      metadata: { itemId: item.id },
+    });
+    return report;
+  }
+
+  async adminListWishlistPurchaseReports(filters?: {
+    status?:
+      | import("./types").WishlistPurchaseReportStatus
+      | import("./types").WishlistPurchaseReportStatus[];
+  }): Promise<WishlistPurchaseReportView[]> {
+    const statuses = filters?.status
+      ? Array.isArray(filters.status)
+        ? filters.status
+        : [filters.status]
+      : null;
+    return this.state.wishlistPurchaseReports
+      .filter((r) => (statuses ? statuses.includes(r.status) : true))
+      .map((r) => {
+        const item = this.state.wishlistItems.find((i) => i.id === r.itemId);
+        return {
+          ...r,
+          itemName: item?.name ?? r.itemId,
+          itemStatus: item?.status ?? "needed",
+          itemModel: item?.model ?? "",
+        };
+      })
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
+  }
+
+  private fulfillWishlistItem(
+    item: WishlistItem,
+    actorId: string,
+    by: "staff" | "zeffy",
+    paymentId?: string | null,
+  ): WishlistItem {
+    const now = this.now();
+    item.status = "fulfilled";
+    item.fulfilledAt = now;
+    item.fulfilledBy = by;
+    if (paymentId) item.zeffyPaymentId = paymentId;
+    this.touch(item);
+    for (const report of this.state.wishlistPurchaseReports) {
+      if (report.itemId === item.id && report.status === "pending") {
+        report.status = "confirmed";
+        report.reviewedById = actorId;
+        report.reviewedAt = now;
+        this.touch(report);
+      }
+    }
+    this.pushAudit({
+      action: "wishlist_item_fulfilled",
+      actorId,
+      entityType: "WishlistItem",
+      entityId: item.id,
+      metadata: { by, paymentId: paymentId ?? null },
+    });
+    return item;
+  }
+
+  async adminConfirmWishlistPurchase(
+    reportId: string,
+    actorId: string,
+  ): Promise<WishlistItem> {
+    const actor = this.state.users.find((u) => u.id === actorId);
+    if (!canMarkWishlistPurchased(actor)) {
+      throw new Error("Only staff can confirm a wishlist purchase");
+    }
+    const report = this.state.wishlistPurchaseReports.find(
+      (r) => r.id === reportId,
+    );
+    if (!report) throw new Error("Purchase report not found");
+    if (report.status !== "pending") {
+      throw new Error("This report is no longer pending");
+    }
+    const item = this.state.wishlistItems.find((i) => i.id === report.itemId);
+    if (!item) throw new Error("Wishlist item not found");
+    if (item.status === "fulfilled") {
+      report.status = "confirmed";
+      report.reviewedById = actorId;
+      report.reviewedAt = this.now();
+      this.touch(report);
+      return item;
+    }
+    return this.fulfillWishlistItem(item, actorId, "staff");
+  }
+
+  async adminDismissWishlistPurchase(
+    reportId: string,
+    actorId: string,
+  ): Promise<WishlistPurchaseReport> {
+    const actor = this.state.users.find((u) => u.id === actorId);
+    if (!canMarkWishlistPurchased(actor)) {
+      throw new Error("Only staff can dismiss a purchase report");
+    }
+    const report = this.state.wishlistPurchaseReports.find(
+      (r) => r.id === reportId,
+    );
+    if (!report) throw new Error("Purchase report not found");
+    if (report.status !== "pending") {
+      throw new Error("This report is no longer pending");
+    }
+    report.status = "dismissed";
+    report.reviewedById = actorId;
+    report.reviewedAt = this.now();
+    this.pushAudit({
+      action: "wishlist_purchase_dismissed",
+      actorId,
+      entityType: "WishlistPurchaseReport",
+      entityId: report.id,
+      metadata: { itemId: report.itemId },
+    });
+    return this.touch(report);
+  }
+
+  async adminMarkWishlistPurchased(
+    itemId: string,
+    actorId: string,
+  ): Promise<WishlistItem> {
+    const actor = this.state.users.find((u) => u.id === actorId);
+    if (!canMarkWishlistPurchased(actor)) {
+      throw new Error("Only staff can mark a wishlist item purchased");
+    }
+    const item = this.state.wishlistItems.find((i) => i.id === itemId);
+    if (!item) throw new Error("Wishlist item not found");
+    if (item.status === "fulfilled") return item;
+    return this.fulfillWishlistItem(item, actorId, "staff");
+  }
+
   async getSettings(): Promise<OrgSettings> {
     return { ...this.state.settings };
   }
@@ -2815,7 +3030,7 @@ export class MockDataProvider implements DataProvider {
       "@/lib/zeffy/apply-payment"
     );
 
-    return applyZeffyPaymentToStore(
+    const ticket = applyZeffyPaymentToStore(
       payment,
       {
         findBookingByPaymentId: (paymentId) =>
@@ -2877,6 +3092,25 @@ export class MockDataProvider implements DataProvider {
       },
       paidAtIso,
     );
+    if (ticket.status === "applied" || ticket.status === "duplicate") {
+      return ticket;
+    }
+
+    const match = matchZeffyPaymentToWishlistItem(
+      payment,
+      this.state.wishlistItems,
+    );
+    if (match.status === "duplicate") {
+      return { status: "wishlist_duplicate", itemId: match.itemId };
+    }
+    if (match.status === "applied") {
+      const item = this.state.wishlistItems.find((i) => i.id === match.itemId);
+      if (item && item.status !== "fulfilled") {
+        this.fulfillWishlistItem(item, "system:zeffy", "zeffy", payment.id);
+      }
+      return { status: "wishlist_applied", itemId: match.itemId };
+    }
+    return ticket;
   }
 
   async applyZeffyMembershipPayment(
