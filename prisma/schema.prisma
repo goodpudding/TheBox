@@ -72,6 +72,8 @@ model User {
   emergencyContactRelation String?
   profileComplete          Boolean   @default(false)
   notes                    String?
+  /** Shop-floor PIN (scrypt). Never store plaintext. */
+  kioskPinHash             String?
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
   deletedAt                DateTime?
@@ -110,6 +112,9 @@ model User {
   bountiesClaimed        Bounty[]               @relation("BountyClaimedBy")
   creditLedgerEntries    CreditLedgerEntry[]
   creditGrantsGiven      CreditLedgerEntry[]     @relation("CreditActor")
+  workstationSessions    WorkstationSession[]
+  workstationLaunches    WorkstationLaunch[]
+  loginChallengesApproved WorkstationLoginChallenge[]
 }
 
 model Badge {
@@ -215,6 +220,9 @@ model Machine {
   maintenanceBlocks         MaintenanceBlock[]
   usageSessions             UsageSession[]
   accessLogs                AccessLog[]
+  billedWorkstations        Workstation[]          @relation("WorkstationBilledMachine")
+  softwareMaps              MachineSoftwareMap[]
+  launches                  WorkstationLaunch[]
 }
 
 model Reservation {
@@ -342,20 +350,22 @@ model CreditLedgerEntry {
   userId          String
   kind            String
   amountCents     Int
-  sourcePaymentId String?
-  usageSessionId  String?
-  bookingId       String?
-  actorId         String?
+  sourcePaymentId      String?
+  usageSessionId       String?
+  workstationSessionId String? @unique
+  bookingId            String?
+  actorId              String?
   note            String?
   occurredAt      DateTime
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   deletedAt       DateTime?
 
-  user         User          @relation(fields: [userId], references: [id])
-  actor        User?         @relation("CreditActor", fields: [actorId], references: [id])
-  usageSession UsageSession? @relation(fields: [usageSessionId], references: [id])
-  booking      Booking?      @relation(fields: [bookingId], references: [id])
+  user                User                 @relation(fields: [userId], references: [id])
+  actor               User?                @relation("CreditActor", fields: [actorId], references: [id])
+  usageSession        UsageSession?        @relation(fields: [usageSessionId], references: [id])
+  workstationSession  WorkstationSession?  @relation(fields: [workstationSessionId], references: [id])
+  booking             Booking?             @relation(fields: [bookingId], references: [id])
 
   @@index([userId])
   @@index([sourcePaymentId])
@@ -725,4 +735,105 @@ model DisplayConfig {
   nameDisplayMode            String   @default("first")
   membershipEveryNRotations  Int      @default(3)
   updatedAt                  DateTime @updatedAt
+}
+
+// ── Shared Windows workstations (Tauri kiosk) ────────────────────────────────
+
+model Workstation {
+  id                 String    @id
+  name               String
+  deviceId           String    @unique
+  location           String    @default("")
+  active             Boolean   @default(true)
+  /** Machine whose credit rate this desk bills. Vinyl/sublimation stay per-sheet. */
+  billedMachineId    String
+  idleLockMinutes    Int       @default(10)
+  idleLogoutMinutes  Int       @default(30)
+  lastSeenAt         DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+
+  billedMachine Machine               @relation("WorkstationBilledMachine", fields: [billedMachineId], references: [id])
+  sessions      WorkstationSession[]
+  softwareMaps  MachineSoftwareMap[]
+  launches      WorkstationLaunch[]
+  challenges    WorkstationLoginChallenge[]
+}
+
+model WorkstationSession {
+  id              String    @id
+  workstationId   String
+  userId          String
+  tokenHash       String    @unique
+  billedMachineId String
+  startedAt       DateTime
+  endedAt         DateTime?
+  endedBy         String?
+  lastSeenAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  workstation  Workstation         @relation(fields: [workstationId], references: [id])
+  user         User                @relation(fields: [userId], references: [id])
+  creditLedger CreditLedgerEntry?
+  launches     WorkstationLaunch[]
+
+  @@index([workstationId, endedAt])
+  @@index([userId])
+}
+
+model WorkstationLaunch {
+  id            String    @id
+  workstationId String
+  sessionId     String
+  userId        String
+  machineId     String
+  softwareMapId String?
+  allowed       Boolean
+  reason        String
+  exeName       String
+  createdAt     DateTime  @default(now())
+
+  workstation Workstation         @relation(fields: [workstationId], references: [id])
+  session     WorkstationSession  @relation(fields: [sessionId], references: [id])
+  user        User                @relation(fields: [userId], references: [id])
+  machine     Machine             @relation(fields: [machineId], references: [id])
+  softwareMap MachineSoftwareMap? @relation(fields: [softwareMapId], references: [id])
+
+  @@index([sessionId])
+}
+
+model MachineSoftwareMap {
+  id            String    @id
+  machineId     String?
+  workstationId String?
+  displayName   String
+  exeName       String
+  exePath       String?
+  sortOrder     Int       @default(0)
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  machine     Machine?            @relation(fields: [machineId], references: [id])
+  workstation Workstation?        @relation(fields: [workstationId], references: [id])
+  launches    WorkstationLaunch[]
+}
+
+model WorkstationLoginChallenge {
+  id             String    @id
+  workstationId  String
+  userCode       String
+  expiresAt      DateTime
+  approvedUserId String?
+  consumedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  workstation  Workstation @relation(fields: [workstationId], references: [id])
+  approvedUser User?       @relation(fields: [approvedUserId], references: [id])
+
+  @@index([workstationId])
 }

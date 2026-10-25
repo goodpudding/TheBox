@@ -383,6 +383,7 @@ export interface CreditLedgerEntry extends Timestamps {
   amountCents: number;
   sourcePaymentId?: string | null;
   usageSessionId?: string | null;
+  workstationSessionId?: string | null;
   bookingId?: string | null;
   actorId?: string | null;
   note?: string | null;

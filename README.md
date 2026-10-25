@@ -64,7 +64,17 @@ npm run db:seed
 - Seed: `npm run db:seed` loads `data/mock/*.json`
 - Provider: `createPrismaDataProvider()` when `DATA_PROVIDER=prisma` (see `src/lib/data/factory.ts`)
 
-The interactive UI continues to use `MockDataProvider` in the browser. Prisma is ready for server routes, Auth, seed, and sync. Switching the client over to a server RPC bridge is a follow-up polish step before Phase 6 access API goes live.
+The interactive UI continues to use `MockDataProvider` in the browser. Prisma is ready for server routes, Auth, seed, and sync. `/workstation` and `/api/me` talk to Prisma directly (incremental upserts — no full-table wipe).
+
+## Workstation (shared Windows PCs)
+
+`/workstation?device=BOX-PC-1` is the kiosk UI (no public header/footer/Dev toolbar). PIN or phone QR logs in the same `User` row. Magic links stay for home use.
+
+Login **starts a billed session** at that desk’s machine rate (3D $1/hr, laser $15/hr, CNC $10/hr, plasma $50 setup + $20/hr, woodshop $0). Vinyl/sublimation stay per-sheet — occupying those desks does not invent an hourly charge. Logout / idle timeout ends the session and debits the wallet (negative allowed). Prints and spooler jobs are not cancelled.
+
+Tauri 2 shell: `apps/workstation-shell/` (autostart, Credential Manager, launch mapped `.exe`s after `POST /api/workstation/launch`).
+
+Seeded demo PIN for active fixture members: **2468**. Maya: `maya.chen@example.com`.
 
 ## Auth.js magic links
 

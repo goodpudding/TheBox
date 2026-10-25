@@ -1,0 +1,747 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { BrandMark } from "@/components/brand-logo";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { StatusPill } from "@/components/status-pill";
+import { formatDateTime } from "@/lib/format";
+import { formatMoneyExact, formatTier } from "@/lib/utils";
+import { isTauriShell, nativeInvoke } from "@/lib/workstation/native";
+
+type Billing = {
+  machineId: string;
+  machineName: string;
+  area: string;
+  mode: "hourly" | "per_sheet" | "free";
+  hourlyRateCents: number;
+  setupFeeCents: number;
+  sessionUnit: "sheet" | null;
+};
+
+type Me = {
+  user: {
+    id: string;
+    email: string;
+    firstName: string;
+    displayName: string;
+    status: string;
+    tier: string | null;
+    shopAccess: boolean;
+    role: string;
+  };
+  waiverCurrent: boolean;
+  certifications: {
+    id: string;
+    name: string;
+    status: string;
+    expiresAt: string | null;
+  }[];
+  creditBalanceCents: number;
+  reservations: {
+    id: string;
+    machineId: string;
+    machineName: string;
+    startsAt: string;
+    endsAt: string;
+  }[];
+  session: {
+    id: string;
+    workstationName: string;
+    deviceId: string;
+    location: string;
+    startedAt: string;
+    idleLockMinutes: number;
+    idleLogoutMinutes: number;
+    billing: Billing;
+    estimatedCents: number;
+  };
+};
+
+type Config = {
+  workstation: {
+    id: string;
+    name: string;
+    deviceId: string;
+    location: string;
+    idleLockMinutes: number;
+    idleLogoutMinutes: number;
+    billing: Billing;
+  };
+  equipment: {
+    machineId: string;
+    name: string;
+    area: string;
+    areaLabel: string;
+    locationLabel: string;
+    reservationRequired: boolean;
+    requiredCertificationIds: string[];
+    software: {
+      id: string;
+      displayName: string;
+      exeName: string;
+      exePath: string | null;
+    } | null;
+  }[];
+  generalSoftware: {
+    id: string;
+    displayName: string;
+    exeName: string;
+    exePath: string | null;
+  }[];
+};
+
+function estimateNow(startedAt: string, billing: Billing, now = Date.now()) {
+  if (billing.mode === "per_sheet" || billing.mode === "free") {
+    return billing.mode === "free" ? 0 : 0;
+  }
+  const hours = Math.max(0, (now - new Date(startedAt).getTime()) / 3_600_000);
+  return billing.setupFeeCents + Math.round(hours * billing.hourlyRateCents);
+}
+
+const TOKEN_KEY = "thebox_workstation_token";
+
+function readStoredToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.sessionStorage.getItem(TOKEN_KEY);
+}
+
+function writeStoredToken(token: string | null) {
+  if (typeof window === "undefined") return;
+  if (token) window.sessionStorage.setItem(TOKEN_KEY, token);
+  else window.sessionStorage.removeItem(TOKEN_KEY);
+}
+
+async function apiFetch(input: string, init: RequestInit = {}) {
+  const headers = new Headers(init.headers);
+  const token = readStoredToken();
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  return fetch(input, { ...init, headers, cache: "no-store" });
+}
+
+function formatElapsed(startedAt: string, now = Date.now()) {
+  const ms = Math.max(0, now - new Date(startedAt).getTime());
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+async function nativeStoreToken(token: string) {
+  await nativeInvoke("store_session_token", { token });
+}
+
+async function nativeClear() {
+  await nativeInvoke("clear_session_token");
+  await nativeInvoke("clear_webview_data");
+}
+
+export function WorkstationClient() {
+  const params = useSearchParams();
+  const device = params.get("device") || "BOX-PC-1";
+  const [config, setConfig] = useState<Config | null>(null);
+  const [me, setMe] = useState<Me | null>(null);
+  const [tab, setTab] = useState<"pin" | "qr">("pin");
+  const [email, setEmail] = useState("maya.chen@example.com");
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  const [qr, setQr] = useState<{
+    challengeId: string;
+    userCode: string;
+    qrDataUrl: string;
+    expiresAt: string;
+  } | null>(null);
+  const [locked, setLocked] = useState(false);
+  const [lockPin, setLockPin] = useState("");
+  const [now, setNow] = useState(Date.now());
+  const [lastActivity, setLastActivity] = useState(Date.now());
+  const [launchNote, setLaunchNote] = useState<string | null>(null);
+  const demoHint =
+    process.env.NODE_ENV !== "production" ||
+    process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+
+  const refreshMe = useCallback(async () => {
+    const res = await apiFetch("/api/me");
+    if (!res.ok) {
+      setMe(null);
+      return null;
+    }
+    const body = (await res.json()) as Me;
+    setMe(body);
+    return body;
+  }, []);
+
+  useEffect(() => {
+    void (async () => {
+      const stored = await nativeInvoke<string>("get_session_token");
+      if (stored) writeStoredToken(stored);
+      const cfg = await fetch(`/api/workstations/${encodeURIComponent(device)}/config`);
+      if (cfg.ok) setConfig((await cfg.json()) as Config);
+      await refreshMe();
+    })();
+  }, [device, refreshMe]);
+
+  useEffect(() => {
+    const tick = () => setNow(Date.now());
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const bump = () => setLastActivity(Date.now());
+    window.addEventListener("pointerdown", bump);
+    window.addEventListener("keydown", bump);
+    return () => {
+      window.removeEventListener("pointerdown", bump);
+      window.removeEventListener("keydown", bump);
+    };
+  }, []);
+
+  const logout = useCallback(async (endedBy: "logout" | "idle" = "logout") => {
+    await apiFetch("/api/workstation/logout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endedBy }),
+    });
+    writeStoredToken(null);
+    await nativeClear();
+    setMe(null);
+    setLocked(false);
+    setLaunchNote(null);
+  }, []);
+
+  useEffect(() => {
+    if (!me) return;
+    const idleMs = Date.now() - lastActivity;
+    const lockMs = me.session.idleLockMinutes * 60_000;
+    const logoutMs = me.session.idleLogoutMinutes * 60_000;
+    if (idleMs >= logoutMs) {
+      void logout("idle");
+    } else if (idleMs >= lockMs) {
+      setLocked(true);
+    }
+  }, [now, lastActivity, me, logout]);
+
+  useEffect(() => {
+    if (!qr || me) return;
+    const id = window.setInterval(async () => {
+      const res = await fetch(
+        `/api/workstation/qr/status?challengeId=${encodeURIComponent(qr.challengeId)}`,
+      );
+      if (!res.ok) return;
+      const body = (await res.json()) as { status: string; token?: string; me?: Me };
+      if (body.status === "approved" && body.me) {
+        if (body.token) {
+          writeStoredToken(body.token);
+          await nativeStoreToken(body.token);
+        }
+        setMe(body.me);
+        setLastActivity(Date.now());
+        setQr(null);
+      }
+      if (body.status === "expired") setQr(null);
+    }, 1500);
+    return () => window.clearInterval(id);
+  }, [qr, me]);
+
+  async function login(e: React.FormEvent) {
+    e.preventDefault();
+    setPending(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/workstation/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workstationId: config?.workstation.id ?? device,
+          email,
+          pin,
+        }),
+      });
+      const body = (await res.json()) as { error?: string; token?: string; me?: Me };
+      if (!res.ok) throw new Error(body.error ?? "Could not sign in");
+      if (body.token) {
+        writeStoredToken(body.token);
+        await nativeStoreToken(body.token);
+      }
+      setMe(body.me ?? null);
+      setLastActivity(Date.now());
+      setPin("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not sign in");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function startQr() {
+    setPending(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/workstation/qr/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workstationId: config?.workstation.id ?? device,
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? "Could not start QR login");
+      setQr(body);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not start QR login");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function unlock(e: React.FormEvent) {
+    e.preventDefault();
+    if (lockPin.length >= 4) {
+      setLocked(false);
+      setLockPin("");
+      setLastActivity(Date.now());
+    }
+  }
+
+  async function launch(softwareMapId: string, machineId: string | null) {
+    setLaunchNote(null);
+    const res = await apiFetch("/api/workstation/launch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ softwareMapId, machineId }),
+    });
+    const body = await res.json();
+    if (!res.ok) {
+      setLaunchNote(body.error ?? body.reason ?? "Launch blocked");
+      return;
+    }
+    const path = body.launch?.exePath || body.launch?.exeName;
+    const launched = await nativeInvoke("launch_executable", { path });
+    if (launched == null && !isTauriShell()) {
+      setLaunchNote(
+        `Recorded ${body.launch?.displayName}. On the shop PC this opens ${path}. Prints keep running after logout.`,
+      );
+    } else {
+      setLaunchNote(`Opened ${body.launch?.displayName}.`);
+    }
+  }
+
+  const billing = me?.session.billing ?? config?.workstation.billing;
+  const estimated = me
+    ? estimateNow(me.session.startedAt, me.session.billing, now)
+    : 0;
+
+  const certSet = useMemo(() => {
+    const ids = new Set(
+      (me?.certifications ?? [])
+        .filter((c) => c.status === "certified")
+        .map((c) => c.id),
+    );
+    return ids;
+  }, [me]);
+
+  if (!config) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-page px-6">
+        <p className="text-secondary">Loading {device}…</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-page text-charcoal">
+      {locked && me ? (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-brown/90 px-6">
+          <form
+            onSubmit={unlock}
+            className="w-full max-w-md rounded-[2rem] bg-page p-8"
+          >
+            <p className="eyebrow">Idle lock</p>
+            <h1 className="mt-2 font-display text-3xl font-semibold text-brown">
+              {me.user.firstName} is still signed in
+            </h1>
+            <p className="mt-3 text-secondary">
+              Enter your PIN to keep working. Time is still being billed to this
+              desk.
+            </p>
+            <Label htmlFor="lock-pin" className="mt-6 block">
+              PIN
+            </Label>
+            <Input
+              id="lock-pin"
+              className="mt-2"
+              inputMode="numeric"
+              autoComplete="off"
+              value={lockPin}
+              onChange={(e) => setLockPin(e.target.value)}
+            />
+            <div className="mt-6 flex gap-3">
+              <Button type="submit">Unlock</Button>
+              <Button type="button" variant="outline" onClick={() => void logout()}>
+                Log out &amp; bill
+              </Button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+      <header className="flex items-center justify-between gap-4 border-b border-border px-6 py-4">
+        <BrandMark href="/workstation" compact />
+        <div className="text-right">
+          <p className="font-display text-sm font-semibold text-brown">
+            {config.workstation.name}
+          </p>
+          <p className="text-xs text-secondary">
+            {config.workstation.location} · {config.workstation.deviceId}
+          </p>
+        </div>
+      </header>
+
+      {!me ? (
+        <div className="mx-auto max-w-xl px-6 py-12">
+          <p className="eyebrow">Shop computer</p>
+          <h1 className="mt-3 font-display text-4xl font-semibold text-brown">
+            Sign in to this desk
+          </h1>
+          <p className="mt-4 text-lg text-secondary leading-relaxed">
+            PIN is enough without a phone. QR is optional. Magic links stay for
+            home use of the website.
+          </p>
+          {billing ? (
+            <p className="mt-4 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-brown">
+              {billing.mode === "hourly"
+                ? `This PC bills ${billing.machineName} at ${formatMoneyExact(billing.hourlyRateCents)}/hr${billing.setupFeeCents ? ` plus ${formatMoneyExact(billing.setupFeeCents)} setup` : ""} while you are logged in.`
+                : billing.mode === "per_sheet"
+                  ? `${billing.machineName} stays per-sheet — sitting here does not invent an hourly charge.`
+                  : `${billing.machineName} is free on this desk.`}
+            </p>
+          ) : null}
+
+          <div className="mt-8 flex gap-2">
+            <Button
+              type="button"
+              variant={tab === "pin" ? "default" : "outline"}
+              onClick={() => setTab("pin")}
+            >
+              PIN
+            </Button>
+            <Button
+              type="button"
+              variant={tab === "qr" ? "default" : "outline"}
+              onClick={() => {
+                setTab("qr");
+                if (!qr) void startQr();
+              }}
+            >
+              QR
+            </Button>
+          </div>
+
+          {tab === "pin" ? (
+            <form onSubmit={login} className="mt-8 space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email on your membership</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pin">PIN</Label>
+                <Input
+                  id="pin"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  required
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value)}
+                />
+              </div>
+              {demoHint ? (
+                <p className="text-sm text-secondary">
+                  Demo seeded members use PIN <strong>2468</strong> (Maya Chen
+                  is pre-filled).
+                </p>
+              ) : null}
+              {error ? (
+                <p className="text-sm text-accent" role="alert">
+                  {error}
+                </p>
+              ) : null}
+              <Button type="submit" disabled={pending}>
+                {pending ? "Signing in…" : "Start billed session"}
+              </Button>
+            </form>
+          ) : (
+            <div className="mt-8">
+              {qr ? (
+                <div className="rounded-[2rem] border border-border bg-surface p-6 text-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={qr.qrDataUrl}
+                    alt="Approve this desk on your phone"
+                    className="mx-auto h-56 w-56"
+                  />
+                  <p className="mt-4 font-display text-3xl font-semibold tracking-[0.3em] text-brown">
+                    {qr.userCode}
+                  </p>
+                  <p className="mt-2 text-sm text-secondary">
+                    Scan with your phone and approve. Code expires in a few
+                    minutes.
+                  </p>
+                </div>
+              ) : (
+                <Button type="button" onClick={() => void startQr()} disabled={pending}>
+                  Show QR
+                </Button>
+              )}
+              {error ? (
+                <p className="mt-4 text-sm text-accent" role="alert">
+                  {error}
+                </p>
+              ) : null}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="mx-auto max-w-6xl px-6 py-8">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="eyebrow">Signed in</p>
+              <h1 className="mt-2 font-display text-4xl font-semibold text-brown">
+                {me.user.displayName}
+              </h1>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <StatusPill
+                  tone={me.user.status === "active" ? "ok" : "danger"}
+                >
+                  {me.user.status}
+                </StatusPill>
+                <StatusPill tone="info">{formatTier(me.user.tier)}</StatusPill>
+                <StatusPill tone={me.waiverCurrent ? "ok" : "warn"}>
+                  {me.waiverCurrent ? "Waiver current" : "Waiver needed"}
+                </StatusPill>
+                {!me.user.shopAccess ? (
+                  <StatusPill tone="muted">No shop access</StatusPill>
+                ) : null}
+              </div>
+            </div>
+            <Button variant="outline" onClick={() => void logout()}>
+              Log out
+            </Button>
+          </div>
+
+          <section className="mt-8 grid gap-4 lg:grid-cols-3">
+            <div className="rounded-[1.75rem] border border-primary/30 bg-primary/10 px-5 py-5">
+              <p className="eyebrow">Session clock</p>
+              <p className="mt-2 font-display text-4xl font-semibold tabular-nums text-brown">
+                {formatElapsed(me.session.startedAt, now)}
+              </p>
+              <p className="mt-2 text-sm text-secondary">
+                Started {formatDateTime(me.session.startedAt)}
+              </p>
+            </div>
+            <div className="rounded-[1.75rem] border border-border bg-surface px-5 py-5">
+              <p className="eyebrow">Estimated charge</p>
+              {me.session.billing.mode === "hourly" ? (
+                <>
+                  <p className="mt-2 font-display text-4xl font-semibold text-brown">
+                    {formatMoneyExact(estimated)}
+                  </p>
+                  <p className="mt-2 text-sm text-secondary">
+                    {me.session.billing.machineName} ·{" "}
+                    {formatMoneyExact(me.session.billing.hourlyRateCents)}/hr
+                    {me.session.billing.setupFeeCents
+                      ? ` + ${formatMoneyExact(me.session.billing.setupFeeCents)} setup`
+                      : ""}
+                    . Billed when you log out. Negative is allowed.
+                  </p>
+                </>
+              ) : me.session.billing.mode === "per_sheet" ? (
+                <>
+                  <p className="mt-2 font-display text-2xl font-semibold text-brown">
+                    Per sheet
+                  </p>
+                  <p className="mt-2 text-sm text-secondary">
+                    {me.session.billing.machineName} is not billed by time.
+                    Vinyl/sublimation stay per sheet.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="mt-2 font-display text-4xl font-semibold text-brown">
+                    {formatMoneyExact(0)}
+                  </p>
+                  <p className="mt-2 text-sm text-secondary">
+                    {me.session.billing.machineName} is free on this desk.
+                  </p>
+                </>
+              )}
+            </div>
+            <div className="rounded-[1.75rem] border border-border bg-surface px-5 py-5">
+              <p className="eyebrow">Machine credits</p>
+              <p className="mt-2 font-display text-4xl font-semibold text-brown">
+                {formatMoneyExact(me.creditBalanceCents)}
+              </p>
+              <p className="mt-2 text-sm text-secondary">
+                Wallet in this app. If a job overruns you still finish; the next
+                grant pays the debt first.
+              </p>
+            </div>
+          </section>
+
+          <p className="mt-6 max-w-3xl text-sm text-secondary leading-relaxed">
+            This shop PC starts a billed session when you sign in. Launching
+            vendor software is not a physical machine lock — there is no ESP32
+            on these desks. Logout does not cancel a print already on the
+            printer or in the Windows spooler.
+          </p>
+
+          <section className="mt-10">
+            <p className="eyebrow">Certifications</p>
+            {me.certifications.filter((c) => c.status === "certified").length >
+            0 ? (
+              <ul className="mt-3 flex flex-wrap gap-2">
+                {me.certifications
+                  .filter((c) => c.status === "certified")
+                  .map((c) => (
+                    <li key={c.id}>
+                      <StatusPill tone="ok">{c.name}</StatusPill>
+                    </li>
+                  ))}
+              </ul>
+            ) : (
+              <p className="mt-3 text-secondary">None certified yet.</p>
+            )}
+          </section>
+
+          <section className="mt-10">
+            <p className="eyebrow">Upcoming reservations</p>
+            {me.reservations.length > 0 ? (
+              <ul className="mt-3 divide-y divide-border border-y border-border">
+                {me.reservations.map((r) => (
+                  <li
+                    key={r.id}
+                    className="flex flex-wrap justify-between gap-2 py-3"
+                  >
+                    <span className="font-display font-medium text-brown">
+                      {r.machineName}
+                    </span>
+                    <span className="text-sm text-secondary">
+                      {formatDateTime(r.startsAt)} – {formatDateTime(r.endsAt)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-3 text-secondary">No upcoming reservations.</p>
+            )}
+          </section>
+
+          {config.generalSoftware.length > 0 ? (
+            <section className="mt-10">
+              <p className="eyebrow">General software</p>
+              <div className="mt-3 flex flex-wrap gap-3">
+                {config.generalSoftware.map((s) => (
+                  <Button
+                    key={s.id}
+                    type="button"
+                    variant="secondary"
+                    onClick={() => void launch(s.id, null)}
+                  >
+                    Launch {s.displayName}
+                  </Button>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          <section className="mt-10">
+            <p className="eyebrow">Equipment</p>
+            {launchNote ? (
+              <p className="mt-3 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-brown">
+                {launchNote}
+              </p>
+            ) : null}
+            <ul className="mt-4 grid gap-3 md:grid-cols-2">
+              {config.equipment.map((eq) => {
+                const certified = eq.requiredCertificationIds.every((id) =>
+                  certSet.has(id),
+                );
+                return (
+                  <li
+                    key={eq.machineId}
+                    className="rounded-2xl border border-border bg-surface px-4 py-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs uppercase tracking-wider text-secondary">
+                          {eq.areaLabel}
+                        </p>
+                        <h2 className="mt-1 font-display text-lg font-semibold text-brown">
+                          {eq.name}
+                        </h2>
+                        <p className="mt-1 text-sm text-secondary">
+                          {eq.locationLabel}
+                        </p>
+                      </div>
+                      <StatusPill tone={certified ? "ok" : "warn"}>
+                        {certified ? "Certified" : "Request training"}
+                      </StatusPill>
+                    </div>
+                    <div className="mt-4">
+                      {eq.software ? (
+                        certified ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() =>
+                              void launch(eq.software!.id, eq.machineId)
+                            }
+                          >
+                            Launch {eq.software.displayName}
+                          </Button>
+                        ) : (
+                          <a
+                            href="/learn"
+                            className="font-display text-sm font-semibold text-primary-text underline-offset-2 hover:underline"
+                          >
+                            Request training
+                          </a>
+                        )
+                      ) : certified ? (
+                        <p className="text-sm text-secondary">
+                          No app mapped to this desk
+                        </p>
+                      ) : (
+                        <a
+                          href="/learn"
+                          className="font-display text-sm font-semibold text-primary-text underline-offset-2 hover:underline"
+                        >
+                          Request training
+                        </a>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,3 +1,5 @@
+"use client";
+
 export function DemoBanner() {
   if (process.env.NEXT_PUBLIC_DEMO_MODE !== "true") return null;
 
