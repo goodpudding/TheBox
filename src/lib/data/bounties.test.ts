@@ -58,16 +58,18 @@ describe("bounty board", () => {
   });
 
   it("puts open and recently claimed bounties on the lobby feed, not completed", async () => {
-    const provider = createMockDataProvider(null);
+    const provider = createMockDataProvider("u-maya");
+    // Claim inside the test so "recent" does not depend on the fixture date.
+    await provider.claimBounty("bounty-open-hooks", "u-maya");
     const feed = await provider.getDisplayFeed();
     const ids = feed.bounties.map((b) => b.id);
     expect(ids).toContain("bounty-open-sign");
-    expect(ids).toContain("bounty-claimed-aprons");
+    expect(ids).toContain("bounty-open-hooks");
     expect(ids).not.toContain("bounty-done-keychains");
     expect(feed.bounties.every((b) => b.status === "open" || b.status === "claimed")).toBe(
       true,
     );
-    const claimed = feed.bounties.find((b) => b.id === "bounty-claimed-aprons");
+    const claimed = feed.bounties.find((b) => b.id === "bounty-open-hooks");
     expect(claimed?.claimedByDisplayName).toBeTruthy();
     expect(
       JSON.stringify(feed.bounties).includes("@"),
