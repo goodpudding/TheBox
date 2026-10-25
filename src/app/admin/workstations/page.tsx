@@ -137,7 +137,7 @@ export default function AdminWorkstationsPage() {
   return (
     <AdminShell
       title="Workstations"
-      description="Shared Windows PCs. Login starts a billed session at the desk’s machine rate. No ESP32 on these computers."
+      description="Shared Windows PCs. Login is identity and which software they may open — it does not bill desk time. No ESP32 on these computers."
     >
       {error ? <p className="mb-4 text-accent">{error}</p> : null}
       {message ? <p className="mb-4 text-brown">{message}</p> : null}
@@ -159,10 +159,12 @@ export default function AdminWorkstationsPage() {
               </StatusPill>
             </div>
             <p className="mt-1 text-sm text-secondary">
-              {w.deviceId} · {w.location} · bills {w.billedMachineName} (
-              {w.billing.mode === "hourly"
-                ? `${formatMoneyExact(w.billing.hourlyRateCents)}/hr`
-                : w.billing.mode}
+              {w.deviceId} · {w.location} · primary {w.billedMachineName} (
+              {w.billing.mode === "hourly_job"
+                ? `${formatMoneyExact(w.billing.hourlyRateCents)}/hr of job time`
+                : w.billing.mode === "per_gram"
+                  ? "filament grams + 30%"
+                  : w.billing.mode}
               )
             </p>
           </li>
@@ -190,7 +192,7 @@ export default function AdminWorkstationsPage() {
           <Input id="location" name="location" placeholder="3D lab" />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="billedMachineId">Billed machine</Label>
+          <Label htmlFor="billedMachineId">Primary machine at this desk</Label>
           <select
             id="billedMachineId"
             name="billedMachineId"

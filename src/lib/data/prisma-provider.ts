@@ -827,6 +827,7 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
         usageSessionId: (e.usageSessionId as string | null) ?? null,
         workstationSessionId:
           (e.workstationSessionId as string | null) ?? null,
+        equipmentJobId: (e.equipmentJobId as string | null) ?? null,
         bookingId: (e.bookingId as string | null) ?? null,
         actorId: (e.actorId as string | null) ?? null,
         note: (e.note as string | null) ?? null,
@@ -841,7 +842,8 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
 
 /**
  * Incremental upsert of an in-memory fixture bundle.
- * Does not wipe tables. Does not touch Workstation* rows or User.kioskPinHash.
+ * Does not wipe tables. Does not touch Workstation* rows, EquipmentJob,
+ * or User.kioskPinHash.
  * When `previous` is passed, only mutated rows are written.
  */
 export async function persistBundleToPrisma(
@@ -1442,6 +1444,7 @@ export async function persistBundleToPrisma(
           sourcePaymentId: e.sourcePaymentId ?? null,
           usageSessionId: e.usageSessionId ?? null,
           workstationSessionId: e.workstationSessionId ?? null,
+          equipmentJobId: e.equipmentJobId ?? null,
           bookingId: e.bookingId ?? null,
           actorId: e.actorId ?? null,
           note: e.note ?? null,

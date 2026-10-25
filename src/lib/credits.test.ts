@@ -8,7 +8,13 @@ import {
   inferCreditGrantCents,
   machineDebitCents,
   machineDebitNote,
-  workstationBillingMode,
+  billedMinutesFromSeconds,
+  centsPerGramFromFilament,
+  jobRuntimeDebitCents,
+  machineBillingMode,
+  plasmaSetupWaived,
+  printJobDebitCents,
+  quoteMachineJob,
   workstationTimeDebitCents,
 } from "./credits";
 import { createMockDataProvider, MockDataProvider } from "@/lib/data/mock-provider";
@@ -80,12 +86,15 @@ describe("credit math", () => {
       hourlyRateCents: TREY_MACHINE_RATES.plasmaHourlyCents,
       setupFeeCents: TREY_MACHINE_RATES.plasmaSetupCents,
     });
-    expect(defaultBillingFor(printer).hourlyRateCents).toBe(100);
+    expect(defaultBillingFor(printer).hourlyRateCents).toBe(0);
+    expect(defaultBillingFor(printer).sessionUnit).toBe("gram");
+    expect(defaultBillingFor(printer).gramRateCents).toBeCloseTo(1.56);
     expect(defaultBillingFor(vinyl)).toMatchObject({
-      sessionRateCents: 500,
-      sessionUnit: "sheet",
+      sessionRateCents: 0,
+      sessionUnit: null,
     });
     expect(defaultBillingFor(sub).sessionRateCents).toBe(100);
+    expect(defaultBillingFor(sub).nonmemberSessionRateCents).toBe(200);
     expect(defaultBillingFor(sewing).sessionRateCents).toBe(0);
     expect(
       defaultBillingFor({
@@ -97,25 +106,25 @@ describe("credit math", () => {
 
     expect(
       machineDebitCents(printer, "2026-09-01T10:00:00Z", "2026-09-01T11:00:00Z"),
-    ).toBe(100);
+    ).toBe(0);
     expect(
       machineDebitCents(printer, "2026-09-01T10:00:00Z", "2026-09-01T10:30:00Z"),
-    ).toBe(50);
+    ).toBe(0);
     expect(
       machineDebitCents(wood, "2026-09-01T10:00:00Z", "2026-09-01T12:00:00Z"),
     ).toBe(0);
     expect(
       machineDebitCents(plasma, "2026-09-01T10:00:00Z", "2026-09-01T10:15:00Z"),
-    ).toBe(5000 + 500);
+    ).toBe(0);
     expect(
       machineDebitCents(vinyl, "2026-09-01T10:00:00Z", "2026-09-01T10:45:00Z"),
-    ).toBe(500);
+    ).toBe(0);
     expect(
       machineDebitNote(plasma, "2026-09-01T10:00:00Z", "2026-09-01T10:15:00Z"),
-    ).toBe("Avid CNC Plasma Pro6060 · setup · 15 min");
+    ).toMatch(/not billed for session time/);
   });
 
-  it("bills workstation occupancy as hourly time, never vinyl/sublimation sheets", () => {
+  it("never bills desk login; jobs use the Oct 2026 rate card", () => {
     const printer = {
       id: "m-bambu-a1",
       name: "Bambu Lab A1",
@@ -158,52 +167,59 @@ describe("credit math", () => {
         "2026-09-01T10:00:00Z",
         "2026-09-01T11:00:00Z",
       ),
-    ).toBe(100);
+    ).toBe(0);
     expect(
       workstationTimeDebitCents(
         laser,
         "2026-09-01T10:00:00Z",
         "2026-09-01T11:00:00Z",
       ),
-    ).toBe(TREY_MACHINE_RATES.laserHourlyCents);
-    expect(
-      workstationTimeDebitCents(
-        cnc,
-        "2026-09-01T10:00:00Z",
-        "2026-09-01T12:00:00Z",
-      ),
-    ).toBe(TREY_MACHINE_RATES.regularCncHourlyCents * 2);
-    expect(
-      workstationTimeDebitCents(
-        plasma,
-        "2026-09-01T10:00:00Z",
-        "2026-09-01T10:15:00Z",
-      ),
-    ).toBe(5000 + 500);
-    expect(
-      workstationTimeDebitCents(
-        wood,
-        "2026-09-01T10:00:00Z",
-        "2026-09-01T12:00:00Z",
-      ),
     ).toBe(0);
+    const member = { shopAccess: true, status: "active", tier: "maker" as const };
+    const guest = { shopAccess: true, status: "active", tier: "day" as const };
+    expect(centsPerGramFromFilament()).toBeCloseTo(1.56);
+    expect(printJobDebitCents(printer, 50, member)).toBe(100);
     expect(
-      workstationTimeDebitCents(
-        vinyl,
-        "2026-09-01T10:00:00Z",
-        "2026-09-01T10:45:00Z",
-      ),
-    ).toBe(0);
+      quoteMachineJob({ machine: printer, payer: member, filamentGrams: 50 })
+        .minimumApplied,
+    ).toBe(true);
+    expect(printJobDebitCents(printer, 50, guest)).toBe(500);
     expect(
-      workstationTimeDebitCents(
-        sub,
-        "2026-09-01T10:00:00Z",
-        "2026-09-01T11:00:00Z",
-      ),
+      quoteMachineJob({
+        machine: printer,
+        payer: { ...member, tier: "unlimited" },
+        filamentGrams: 50,
+      }).billedCents,
     ).toBe(0);
-    expect(workstationBillingMode(vinyl)).toBe("per_sheet");
-    expect(workstationBillingMode(printer)).toBe("hourly");
-    expect(workstationBillingMode(wood)).toBe("free");
+    expect(billedMinutesFromSeconds(60)).toBe(5);
+    expect(billedMinutesFromSeconds(6 * 60)).toBe(10);
+    expect(jobRuntimeDebitCents(laser, 3600, member)).toBe(1500);
+    expect(jobRuntimeDebitCents(laser, 60, member)).toBe(500);
+    expect(jobRuntimeDebitCents(laser, 3600, guest)).toBe(2500);
+    expect(jobRuntimeDebitCents(cnc, 3600, member)).toBe(1000);
+    expect(jobRuntimeDebitCents(cnc, 60, member)).toBe(1000);
+    expect(
+      quoteMachineJob({
+        machine: plasma,
+        payer: member,
+        runtimeSeconds: 15 * 60,
+        at: new Date(2026, 9, 15),
+      }).billedCents,
+    ).toBe(5000 + 375);
+    expect(plasmaSetupWaived(new Date(2026, 9, 31))).toBe(true);
+    expect(
+      quoteMachineJob({
+        machine: plasma,
+        payer: member,
+        runtimeSeconds: 15 * 60,
+        at: new Date(2026, 9, 31),
+      }).setupWaived,
+    ).toBe(true);
+    expect(machineBillingMode(vinyl)).toBe("free");
+    expect(machineBillingMode(sub)).toBe("per_print");
+    expect(machineBillingMode(printer)).toBe("per_gram");
+    expect(machineBillingMode(wood)).toBe("free");
+    expect(machineBillingMode(laser)).toBe("hourly_job");
   });
 
   it("settles overage by addition — next grant pays debt first", () => {
@@ -287,42 +303,75 @@ describe("credit ledger in the mock provider", () => {
     expect((await provider.getCreditWallet("u-maya")).balanceCents).toBe(5000);
   });
 
-  it("debits machine time on endAccess and will not block a negative balance", async () => {
+  it("does not debit occupancy on endAccess — jobs are the meter", async () => {
     const bundle = cloneFixtures(loadFixtures());
     bundle.creditLedgerEntries = [];
+    const now = "2026-10-25T21:00:00.000Z";
+    bundle.usageSessions.push(
+      {
+        id: "us-test-vinyl",
+        userId: "u-maya",
+        machineId: "m-vinyl-cutter",
+        badgeId: "badge-maya",
+        startedAt: now,
+        endedAt: null,
+        reservationId: null,
+        endedBy: "reader",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "us-test-3d",
+        userId: "u-maya",
+        machineId: "m-bambu-a1",
+        badgeId: "badge-maya",
+        startedAt: now,
+        endedAt: null,
+        reservationId: null,
+        endedBy: "reader",
+        createdAt: now,
+        updatedAt: now,
+      },
+    );
     const provider = new MockDataProvider(bundle, "u-maya");
+    const vinyl = (await provider.listMachines()).find(
+      (m) => m.id === "m-vinyl-cutter",
+    )!;
+    const printer = (await provider.listMachines()).find(
+      (m) => m.id === "m-bambu-a1",
+    )!;
 
-    const open = (await provider.getUsage("u-maya")).find((s) => !s.endedAt);
-    expect(open).toBeTruthy();
-    const machine = (await provider.listMachines()).find(
-      (m) => m.id === open!.machineId,
-    );
-    expect(machine).toBeTruthy();
-
-    const ended = await provider.endAccess({
-      readerKey: machine!.readerKey,
-      sessionId: open!.id,
+    const endedVinyl = await provider.endAccess({
+      readerKey: vinyl.readerKey,
+      sessionId: "us-test-vinyl",
     });
-    expect(ended.endedAt).toBeTruthy();
-
+    expect(endedVinyl.endedAt).toBeTruthy();
     const wallet = await provider.getCreditWallet("u-maya");
-    const machineLine = wallet.entries.find(
-      (e) => e.kind === "machine" && e.usageSessionId === ended.id,
+    const vinylLine = wallet.entries.find(
+      (e) => e.kind === "machine" && e.usageSessionId === endedVinyl.id,
     );
-    expect(machineLine).toBeTruthy();
-    expect(machineLine!.amountCents).toBeLessThan(0);
+    expect(vinylLine).toBeUndefined();
+
+    await provider.endAccess({
+      readerKey: printer.readerKey,
+      sessionId: "us-test-3d",
+    });
+    const afterPrint = await provider.getCreditWallet("u-maya");
+    expect(
+      afterPrint.entries.filter((e) => e.usageSessionId === "us-test-3d"),
+    ).toHaveLength(0);
 
     await provider
       .endAccess({
-        readerKey: machine!.readerKey,
-        sessionId: open!.id,
+        readerKey: vinyl.readerKey,
+        sessionId: "us-test-vinyl",
       })
       .catch(() => undefined);
-
-    const after = await provider.getCreditWallet("u-maya");
     expect(
-      after.entries.filter((e) => e.usageSessionId === ended.id),
-    ).toHaveLength(1);
+      (await provider.getCreditWallet("u-maya")).entries.filter(
+        (e) => e.usageSessionId === endedVinyl.id,
+      ),
+    ).toHaveLength(0);
   });
 
   it("lets a job finish past zero, then next Plus grant pays the debt first", async () => {

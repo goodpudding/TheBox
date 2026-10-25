@@ -280,7 +280,7 @@ export interface Machine extends Timestamps {
   sortOrder: number;
   /**
    * Optional hourly override. When omitted, Trey’s fixture rates in
-   * `src/lib/credits.ts` apply (woodshop free, plasma setup+$20/hr, 3D $1/hr…).
+   * `src/lib/credits.ts` apply (woodshop free, plasma setup+$20/hr, 3D grams TBD…).
    */
   hourlyRateCents?: number | null;
 }
@@ -369,6 +369,7 @@ export type CreditLedgerKind =
   | "staff_grant"
   | "zeffy_payment"
   | "machine"
+  | "machine_refund"
   | "class"
   | "class_refund";
 
@@ -384,6 +385,7 @@ export interface CreditLedgerEntry extends Timestamps {
   sourcePaymentId?: string | null;
   usageSessionId?: string | null;
   workstationSessionId?: string | null;
+  equipmentJobId?: string | null;
   bookingId?: string | null;
   actorId?: string | null;
   note?: string | null;

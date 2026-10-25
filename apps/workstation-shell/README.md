@@ -11,7 +11,7 @@ Thin Windows WebView2 wrapper around `/workstation` on the website. It does not 
 - Clears WebView data on logout
 - **Does not** kill child processes, cancel the print spooler, or power-cycle machines
 
-Login starts a **billed** workstation session. Logout / idle timeout ends it and debits machine credits at this desk’s hourly rate.
+Login identifies the member and which software they may open. It does **not** start a clock or debit credits. Charge when a job is sent (estimate first). Logout / idle ends the session only.
 
 ## Run (on a Windows shop PC)
 
@@ -24,6 +24,6 @@ npm create tauri-app@latest -- --yes  # not required; sources are already here
 cargo tauri build
 ```
 
-`BOX-PC-1` is Design PC 1 (Bambu A1, $1/hr). `BOX-PC-2` is the laser desk ($15/hr until Trey prices it).
+`BOX-PC-1` is Design PC 1 (Bambu A1, grams × filament+30%). `BOX-PC-2` is the laser desk ($15/$25/hr of estimated run time, not login).
 
 General software (Notepad) needs no machine cert. Vendor apps still go through `POST /api/workstation/launch`.

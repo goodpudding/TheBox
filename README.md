@@ -70,7 +70,7 @@ The interactive UI continues to use `MockDataProvider` in the browser. Prisma is
 
 `/workstation?device=BOX-PC-1` is the kiosk UI (no public header/footer/Dev toolbar). PIN or phone QR logs in the same `User` row. Magic links stay for home use.
 
-Login **starts a billed session** at that desk’s machine rate (3D $1/hr, laser $15/hr, CNC $10/hr, plasma $50 setup + $20/hr, woodshop $0). Vinyl/sublimation stay per-sheet — occupying those desks does not invent an hourly charge. Logout / idle timeout ends the session and debits the wallet (negative allowed). Prints and spooler jobs are not cancelled.
+Login is **identity + which software you may open**. Sitting at a desk URL does not start a clock or debit credits. Charge when a **job is sent** (estimate shown first). 3D: grams × (filament $/kg × 1.30 / 1000), default ~$12/kg PLA → ~1.56¢/g, min $1 member / $5 nonmember. Laser/CNC: estimated run time rounded up 5 min (member/nonmember rates). Vinyl, woodshop, sewing, hand tools: included. Sublimation $1/$2 per print. Unlimited: log the job at $0 machine time. Prints and spooler jobs are not cancelled on logout.
 
 Tauri 2 shell: `apps/workstation-shell/` (autostart, Credential Manager, launch mapped `.exe`s after `POST /api/workstation/launch`).
 

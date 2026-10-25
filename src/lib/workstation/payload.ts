@@ -5,7 +5,7 @@ import {
   evaluateLaunchAccess,
   walletBalanceCents,
 } from "./server";
-import { workstationTimeDebitCents } from "@/lib/credits";
+import { listUserJobs } from "./jobs";
 
 export async function memberMePayload(input: {
   userId: string;
@@ -30,7 +30,7 @@ export async function memberMePayload(input: {
     };
   };
 }) {
-  const [userRow, certRows, certCatalog, reservations, settings, balance] =
+  const [userRow, certRows, certCatalog, reservations, settings, balance, jobs] =
     await Promise.all([
       prisma.user.findUniqueOrThrow({ where: { id: input.userId } }),
       prisma.userCertification.findMany({
@@ -54,6 +54,7 @@ export async function memberMePayload(input: {
       }),
       prisma.orgSettings.findUnique({ where: { id: "default" } }),
       walletBalanceCents(input.userId),
+      listUserJobs(input.userId),
     ]);
   const user = mapUserRow(userRow);
   const waiver = await prisma.waiverSignature.findFirst({
@@ -64,17 +65,6 @@ export async function memberMePayload(input: {
     },
   });
   const billing = billingPayload(input.workstation.billedMachine);
-  const now = new Date();
-  const estimatedCents = workstationTimeDebitCents(
-    {
-      id: billing.machineId,
-      name: billing.machineName,
-      area: billing.area,
-      hourlyRateCents: billing.hourlyRateCents,
-    },
-    input.session.startedAt.toISOString(),
-    now.toISOString(),
-  );
 
   return {
     user: {
@@ -109,6 +99,7 @@ export async function memberMePayload(input: {
       endsAt: r.endsAt.toISOString(),
       status: r.status,
     })),
+    jobs,
     session: {
       id: input.session.id,
       workstationId: input.session.workstationId,
@@ -120,11 +111,10 @@ export async function memberMePayload(input: {
       idleLogoutMinutes: input.workstation.idleLogoutMinutes,
       billedMachineId: input.session.billedMachineId,
       billing,
-      estimatedCents,
       creditBalanceCents: balance,
     },
     honorLock: false,
-    billedSession: true,
+    billedSession: false,
   };
 }
 

@@ -4,9 +4,8 @@ import { auth } from "@/auth";
 import { evaluateMachineAccess } from "@/lib/data/access";
 import {
   billingFor,
-  workstationBillingMode,
-  workstationTimeDebitCents,
-  workstationTimeDebitNote,
+  deskChargeHint,
+  machineBillingMode,
 } from "@/lib/credits";
 import { isStaffRole } from "@/lib/data/access";
 import type { User } from "@/lib/data/types";
@@ -156,40 +155,6 @@ export async function evaluateLaunchAccess(input: {
   });
 }
 
-async function debitWorkstationSession(session: {
-  id: string;
-  userId: string;
-  billedMachineId: string;
-  startedAt: Date;
-  endedAt: Date | null;
-}) {
-  if (!session.endedAt) return null;
-  const existing = await prisma.creditLedgerEntry.findUnique({
-    where: { workstationSessionId: session.id },
-  });
-  if (existing) return existing;
-  const machineRow = await prisma.machine.findUnique({
-    where: { id: session.billedMachineId },
-  });
-  if (!machineRow) return null;
-  const machine = mapMachineRow(machineRow);
-  const startedAt = session.startedAt.toISOString();
-  const endedAt = session.endedAt.toISOString();
-  const debit = workstationTimeDebitCents(machine, startedAt, endedAt);
-  if (debit <= 0) return null;
-  return prisma.creditLedgerEntry.create({
-    data: {
-      id: newId("cl"),
-      userId: session.userId,
-      kind: "machine",
-      amountCents: -debit,
-      workstationSessionId: session.id,
-      note: workstationTimeDebitNote(machine, startedAt, endedAt),
-      occurredAt: session.endedAt,
-    },
-  });
-}
-
 export async function endWorkstationSession(input: {
   sessionId: string;
   endedBy: EndedBy;
@@ -198,12 +163,10 @@ export async function endWorkstationSession(input: {
     where: { id: input.sessionId },
   });
   if (!open || open.endedAt) return open;
-  const ended = await prisma.workstationSession.update({
+  return prisma.workstationSession.update({
     where: { id: input.sessionId },
     data: { endedAt: new Date(), endedBy: input.endedBy },
   });
-  await debitWorkstationSession(ended);
-  return ended;
 }
 
 export async function startWorkstationSession(input: {
@@ -375,15 +338,24 @@ export function billingPayload(machineRow: {
     deletedAt: null,
   });
   const billing = billingFor(machine);
-  const mode = workstationBillingMode(machine);
+  const mode = machineBillingMode(machine);
   return {
     machineId: machine.id,
     machineName: machine.name,
     area: machine.area,
     mode,
     hourlyRateCents: billing.hourlyRateCents,
+    nonmemberHourlyCents: billing.nonmemberHourlyCents,
     setupFeeCents: billing.setupFeeCents,
     sessionUnit: billing.sessionUnit,
+    gramRateCents: billing.gramRateCents,
+    minimumCents: billing.minimumCents,
+    deskLoginBills: false as const,
+    hint: deskChargeHint({
+      id: machine.id,
+      name: machine.name,
+      area: machine.area,
+    }),
   };
 }
 

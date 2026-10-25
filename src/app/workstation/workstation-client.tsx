@@ -9,16 +9,34 @@ import { Label } from "@/components/ui/label";
 import { StatusPill } from "@/components/status-pill";
 import { formatDateTime } from "@/lib/format";
 import { formatMoneyExact, formatTier } from "@/lib/utils";
+import { quoteMachineJob } from "@/lib/credits";
+import type { MachineArea, MembershipTier } from "@/lib/data/types";
 import { isTauriShell, nativeInvoke } from "@/lib/workstation/native";
 
 type Billing = {
   machineId: string;
   machineName: string;
   area: string;
-  mode: "hourly" | "per_sheet" | "free";
+  mode: "hourly_job" | "per_gram" | "per_print" | "free";
   hourlyRateCents: number;
   setupFeeCents: number;
-  sessionUnit: "sheet" | null;
+  sessionUnit: "print" | "gram" | null;
+  gramRateCents: number;
+  deskLoginBills: false;
+  hint: string;
+};
+
+type Job = {
+  id: string;
+  machineId: string;
+  machineName: string;
+  filamentGrams: number | null;
+  billedCents: number | null;
+  billed: boolean;
+  note: string | null;
+  completedAt: string | null;
+  status?: string;
+  unlimited?: boolean;
 };
 
 type Me = {
@@ -47,6 +65,7 @@ type Me = {
     startsAt: string;
     endsAt: string;
   }[];
+  jobs: Job[];
   session: {
     id: string;
     workstationName: string;
@@ -56,7 +75,6 @@ type Me = {
     idleLockMinutes: number;
     idleLogoutMinutes: number;
     billing: Billing;
-    estimatedCents: number;
   };
 };
 
@@ -93,14 +111,6 @@ type Config = {
   }[];
 };
 
-function estimateNow(startedAt: string, billing: Billing, now = Date.now()) {
-  if (billing.mode === "per_sheet" || billing.mode === "free") {
-    return billing.mode === "free" ? 0 : 0;
-  }
-  const hours = Math.max(0, (now - new Date(startedAt).getTime()) / 3_600_000);
-  return billing.setupFeeCents + Math.round(hours * billing.hourlyRateCents);
-}
-
 const TOKEN_KEY = "thebox_workstation_token";
 
 function readStoredToken(): string | null {
@@ -121,18 +131,6 @@ async function apiFetch(input: string, init: RequestInit = {}) {
     headers.set("Authorization", `Bearer ${token}`);
   }
   return fetch(input, { ...init, headers, cache: "no-store" });
-}
-
-function formatElapsed(startedAt: string, now = Date.now()) {
-  const ms = Math.max(0, now - new Date(startedAt).getTime());
-  const totalSec = Math.floor(ms / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  if (h > 0) {
-    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  }
-  return `${m}:${String(s).padStart(2, "0")}`;
 }
 
 async function nativeStoreToken(token: string) {
@@ -165,6 +163,11 @@ export function WorkstationClient() {
   const [now, setNow] = useState(Date.now());
   const [lastActivity, setLastActivity] = useState(Date.now());
   const [launchNote, setLaunchNote] = useState<string | null>(null);
+  const [grams, setGrams] = useState("");
+  const [runtimeMinutes, setRuntimeMinutes] = useState("");
+  const [prints, setPrints] = useState("1");
+  const [jobMachineId, setJobMachineId] = useState("");
+  const [jobPending, setJobPending] = useState(false);
   const demoHint =
     process.env.NODE_ENV !== "production" ||
     process.env.NEXT_PUBLIC_DEMO_MODE === "true";
@@ -336,10 +339,99 @@ export function WorkstationClient() {
     }
   }
 
+  async function sendJob(e: React.FormEvent) {
+    e.preventDefault();
+    const machineId =
+      jobMachineId ||
+      printers[0]?.machineId ||
+      billing?.machineId ||
+      "";
+    if (!machineId) {
+      setLaunchNote("Pick a machine.");
+      return;
+    }
+    const filamentGrams = Number(grams);
+    const minutes = Number(runtimeMinutes);
+    const printCount = Number(prints);
+    const payload: Record<string, unknown> = { machineId };
+    if (Number.isFinite(filamentGrams) && filamentGrams > 0) {
+      payload.filamentGrams = filamentGrams;
+    }
+    if (Number.isFinite(minutes) && minutes > 0) {
+      payload.runtimeSeconds = Math.round(minutes * 60);
+    }
+    if (Number.isFinite(printCount) && printCount > 0) {
+      payload.prints = printCount;
+    }
+    setJobPending(true);
+    setLaunchNote(null);
+    try {
+      const res = await apiFetch("/api/workstation/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = (await res.json()) as {
+        error?: string;
+        job?: Job & { unlimited?: boolean };
+        me?: Me;
+      };
+      if (!res.ok) throw new Error(body.error ?? "Could not send job");
+      if (body.me) setMe(body.me);
+      setGrams("");
+      setRuntimeMinutes("");
+      const job = body.job;
+      if (job) {
+        const charged =
+          job.billedCents && job.billedCents > 0
+            ? formatMoneyExact(job.billedCents)
+            : job.unlimited
+              ? "$0 (Unlimited)"
+              : formatMoneyExact(0);
+        setLaunchNote(
+          `Sent ${job.machineName}. Charged ${charged} from machine credits. Sitting at the desk is not extra.`,
+        );
+      }
+    } catch (err) {
+      setLaunchNote(err instanceof Error ? err.message : "Could not send job");
+    } finally {
+      setJobPending(false);
+    }
+  }
+
   const billing = me?.session.billing ?? config?.workstation.billing;
-  const estimated = me
-    ? estimateNow(me.session.startedAt, me.session.billing, now)
-    : 0;
+  const printers = useMemo(
+    () => (config?.equipment ?? []).filter((eq) => eq.area === "3d_printing"),
+    [config],
+  );
+  const jobMachine =
+    (config?.equipment ?? []).find(
+      (eq) =>
+        eq.machineId ===
+        (jobMachineId ||
+          (billing?.mode === "per_gram" ? printers[0]?.machineId : undefined) ||
+          billing?.machineId),
+    ) ?? null;
+  const jobQuote =
+    me && jobMachine
+      ? quoteMachineJob({
+          machine: {
+            id: jobMachine.machineId,
+            name: jobMachine.name,
+            area: jobMachine.area as MachineArea,
+          },
+          payer: {
+            tier: me.user.tier as MembershipTier | null,
+            shopAccess: me.user.shopAccess,
+            status: me.user.status,
+          },
+          filamentGrams: Number(grams) || null,
+          runtimeSeconds: Number(runtimeMinutes)
+            ? Number(runtimeMinutes) * 60
+            : null,
+          prints: Number(prints) || null,
+        })
+      : null;
 
   const certSet = useMemo(() => {
     const ids = new Set(
@@ -371,8 +463,7 @@ export function WorkstationClient() {
               {me.user.firstName} is still signed in
             </h1>
             <p className="mt-3 text-secondary">
-              Enter your PIN to keep working. Time is still being billed to this
-              desk.
+              Enter your PIN to keep working. Sitting here is not a charge.
             </p>
             <Label htmlFor="lock-pin" className="mt-6 block">
               PIN
@@ -388,7 +479,7 @@ export function WorkstationClient() {
             <div className="mt-6 flex gap-3">
               <Button type="submit">Unlock</Button>
               <Button type="button" variant="outline" onClick={() => void logout()}>
-                Log out &amp; bill
+                Log out
               </Button>
             </div>
           </form>
@@ -419,11 +510,7 @@ export function WorkstationClient() {
           </p>
           {billing ? (
             <p className="mt-4 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-brown">
-              {billing.mode === "hourly"
-                ? `This PC bills ${billing.machineName} at ${formatMoneyExact(billing.hourlyRateCents)}/hr${billing.setupFeeCents ? ` plus ${formatMoneyExact(billing.setupFeeCents)} setup` : ""} while you are logged in.`
-                : billing.mode === "per_sheet"
-                  ? `${billing.machineName} stays per-sheet — sitting here does not invent an hourly charge.`
-                  : `${billing.machineName} is free on this desk.`}
+              {billing.hint}
             </p>
           ) : null}
 
@@ -482,7 +569,7 @@ export function WorkstationClient() {
                 </p>
               ) : null}
               <Button type="submit" disabled={pending}>
-                {pending ? "Signing in…" : "Start billed session"}
+                {pending ? "Signing in…" : "Sign in"}
               </Button>
             </form>
           ) : (
@@ -544,71 +631,145 @@ export function WorkstationClient() {
             </Button>
           </div>
 
-          <section className="mt-8 grid gap-4 lg:grid-cols-3">
-            <div className="rounded-[1.75rem] border border-primary/30 bg-primary/10 px-5 py-5">
-              <p className="eyebrow">Session clock</p>
-              <p className="mt-2 font-display text-4xl font-semibold tabular-nums text-brown">
-                {formatElapsed(me.session.startedAt, now)}
-              </p>
-              <p className="mt-2 text-sm text-secondary">
-                Started {formatDateTime(me.session.startedAt)}
-              </p>
-            </div>
-            <div className="rounded-[1.75rem] border border-border bg-surface px-5 py-5">
-              <p className="eyebrow">Estimated charge</p>
-              {me.session.billing.mode === "hourly" ? (
-                <>
-                  <p className="mt-2 font-display text-4xl font-semibold text-brown">
-                    {formatMoneyExact(estimated)}
-                  </p>
-                  <p className="mt-2 text-sm text-secondary">
-                    {me.session.billing.machineName} ·{" "}
-                    {formatMoneyExact(me.session.billing.hourlyRateCents)}/hr
-                    {me.session.billing.setupFeeCents
-                      ? ` + ${formatMoneyExact(me.session.billing.setupFeeCents)} setup`
-                      : ""}
-                    . Billed when you log out. Negative is allowed.
-                  </p>
-                </>
-              ) : me.session.billing.mode === "per_sheet" ? (
-                <>
-                  <p className="mt-2 font-display text-2xl font-semibold text-brown">
-                    Per sheet
-                  </p>
-                  <p className="mt-2 text-sm text-secondary">
-                    {me.session.billing.machineName} is not billed by time.
-                    Vinyl/sublimation stay per sheet.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="mt-2 font-display text-4xl font-semibold text-brown">
-                    {formatMoneyExact(0)}
-                  </p>
-                  <p className="mt-2 text-sm text-secondary">
-                    {me.session.billing.machineName} is free on this desk.
-                  </p>
-                </>
-              )}
-            </div>
+          <section className="mt-8 grid gap-4 lg:grid-cols-2">
             <div className="rounded-[1.75rem] border border-border bg-surface px-5 py-5">
               <p className="eyebrow">Machine credits</p>
               <p className="mt-2 font-display text-4xl font-semibold text-brown">
                 {formatMoneyExact(me.creditBalanceCents)}
               </p>
               <p className="mt-2 text-sm text-secondary">
-                Wallet in this app. If a job overruns you still finish; the next
-                grant pays the debt first.
+                Wallet in this app. Jobs can go negative; the next grant pays
+                the debt first. This login does not debit it.
+              </p>
+            </div>
+            <div className="rounded-[1.75rem] border border-primary/30 bg-primary/10 px-5 py-5">
+              <p className="eyebrow">This desk</p>
+              <p className="mt-2 text-sm text-brown leading-relaxed">
+                {me.session.billing.hint}
               </p>
             </div>
           </section>
 
           <p className="mt-6 max-w-3xl text-sm text-secondary leading-relaxed">
-            This shop PC starts a billed session when you sign in. Launching
+            PIN/QR is who you are and which software you may open. Launching
             vendor software is not a physical machine lock — there is no ESP32
             on these desks. Logout does not cancel a print already on the
             printer or in the Windows spooler.
           </p>
+
+          {me.session.billing.mode !== "free" ? (
+            <section className="mt-10">
+              <p className="eyebrow">Send a job</p>
+              <p className="mt-2 max-w-2xl text-sm text-secondary">
+                Charge is the print or cut you send, not time sitting here.
+                Monthly credit applies first. Unlimited members are logged at
+                $0 machine time.
+              </p>
+              <form
+                onSubmit={(e) => void sendJob(e)}
+                className="mt-4 flex flex-wrap items-end gap-3"
+              >
+                {me.session.billing.mode === "per_gram" ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="job-machine">Printer</Label>
+                      <select
+                        id="job-machine"
+                        className="flex h-11 min-w-56 rounded-full border border-border bg-surface px-4 font-display text-sm"
+                        value={jobMachineId || printers[0]?.machineId || ""}
+                        onChange={(e) => setJobMachineId(e.target.value)}
+                      >
+                        {printers.map((p) => (
+                          <option key={p.machineId} value={p.machineId}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="filament-grams">Filament used (g)</Label>
+                      <Input
+                        id="filament-grams"
+                        inputMode="decimal"
+                        value={grams}
+                        onChange={(e) => setGrams(e.target.value)}
+                        placeholder="e.g. 50"
+                      />
+                    </div>
+                  </>
+                ) : null}
+                {me.session.billing.mode === "hourly_job" ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="runtime-minutes">
+                      Estimated run time (minutes)
+                    </Label>
+                    <Input
+                      id="runtime-minutes"
+                      inputMode="numeric"
+                      value={runtimeMinutes}
+                      onChange={(e) => setRuntimeMinutes(e.target.value)}
+                      placeholder="e.g. 12"
+                    />
+                  </div>
+                ) : null}
+                {me.session.billing.mode === "per_print" ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="print-count">Prints</Label>
+                    <Input
+                      id="print-count"
+                      inputMode="numeric"
+                      value={prints}
+                      onChange={(e) => setPrints(e.target.value)}
+                    />
+                  </div>
+                ) : null}
+                <Button
+                  type="submit"
+                  disabled={jobPending || !jobQuote || jobQuote.listCents <= 0}
+                >
+                  {jobPending ? "Sending…" : "Send job"}
+                </Button>
+              </form>
+              {jobQuote && (jobQuote.grams || jobQuote.minutesBilled || jobQuote.prints) ? (
+                <p className="mt-4 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-brown">
+                  If you send this job:{" "}
+                  <strong>
+                    {jobQuote.unlimited
+                      ? `${formatMoneyExact(0)} (Unlimited · logged, not charged)`
+                      : formatMoneyExact(jobQuote.billedCents)}
+                  </strong>
+                  {jobQuote.minimumApplied && !jobQuote.unlimited
+                    ? ` (minimum applied)`
+                    : ""}
+                  {jobQuote.setupWaived ? " · plasma setup waived this weekend" : ""}
+                  . Not a live session clock.
+                </p>
+              ) : (
+                <p className="mt-3 text-sm text-secondary">
+                  Enter the job details to see the charge before you send.
+                </p>
+              )}
+              {me.jobs.length > 0 ? (
+                <ul className="mt-4 divide-y divide-border border-y border-border">
+                  {me.jobs.slice(0, 6).map((j) => (
+                    <li
+                      key={j.id}
+                      className="flex flex-wrap justify-between gap-2 py-3 text-sm"
+                    >
+                      <span className="font-display font-medium text-brown">
+                        {j.note ?? j.machineName}
+                      </span>
+                      <span className="text-secondary">
+                        {j.status === "refunded"
+                          ? "Refunded"
+                          : formatMoneyExact(j.billedCents ?? 0)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </section>
+          ) : null}
 
           <section className="mt-10">
             <p className="eyebrow">Certifications</p>

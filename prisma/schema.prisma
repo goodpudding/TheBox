@@ -115,6 +115,7 @@ model User {
   workstationSessions    WorkstationSession[]
   workstationLaunches    WorkstationLaunch[]
   loginChallengesApproved WorkstationLoginChallenge[]
+  equipmentJobs          EquipmentJob[]
 }
 
 model Badge {
@@ -223,6 +224,7 @@ model Machine {
   billedWorkstations        Workstation[]          @relation("WorkstationBilledMachine")
   softwareMaps              MachineSoftwareMap[]
   launches                  WorkstationLaunch[]
+  equipmentJobs             EquipmentJob[]
 }
 
 model Reservation {
@@ -353,6 +355,7 @@ model CreditLedgerEntry {
   sourcePaymentId      String?
   usageSessionId       String?
   workstationSessionId String? @unique
+  equipmentJobId       String?
   bookingId            String?
   actorId              String?
   note            String?
@@ -365,11 +368,13 @@ model CreditLedgerEntry {
   actor               User?                @relation("CreditActor", fields: [actorId], references: [id])
   usageSession        UsageSession?        @relation(fields: [usageSessionId], references: [id])
   workstationSession  WorkstationSession?  @relation(fields: [workstationSessionId], references: [id])
+  equipmentJob        EquipmentJob?        @relation(fields: [equipmentJobId], references: [id])
   booking             Booking?             @relation(fields: [bookingId], references: [id])
 
   @@index([userId])
   @@index([sourcePaymentId])
   @@index([usageSessionId])
+  @@index([equipmentJobId])
   @@index([bookingId])
 }
 
@@ -745,7 +750,7 @@ model Workstation {
   deviceId           String    @unique
   location           String    @default("")
   active             Boolean   @default(true)
-  /** Machine whose credit rate this desk bills. Vinyl/sublimation stay per-sheet. */
+  /** Primary machine at this desk (software/access). Login does not bill. */
   billedMachineId    String
   idleLockMinutes    Int       @default(10)
   idleLogoutMinutes  Int       @default(30)
@@ -759,6 +764,7 @@ model Workstation {
   softwareMaps  MachineSoftwareMap[]
   launches      WorkstationLaunch[]
   challenges    WorkstationLoginChallenge[]
+  jobs          EquipmentJob[]
 }
 
 model WorkstationSession {
@@ -779,6 +785,7 @@ model WorkstationSession {
   user         User                @relation(fields: [userId], references: [id])
   creditLedger CreditLedgerEntry?
   launches     WorkstationLaunch[]
+  jobs         EquipmentJob[]
 
   @@index([workstationId, endedAt])
   @@index([userId])
@@ -836,4 +843,39 @@ model WorkstationLoginChallenge {
   approvedUser User?       @relation(fields: [approvedUserId], references: [id])
 
   @@index([workstationId])
+}
+
+/**
+ * A machine job — the meter. Desk login is not a job.
+ * Charge when the job is sent (estimate), not for sitting at the PC.
+ */
+model EquipmentJob {
+  id                   String    @id
+  userId               String
+  machineId            String
+  workstationId        String?
+  workstationSessionId String?
+  usageSessionId       String?
+  source               String    @default("manual") // manual | mqtt | spooler | estimated
+  status               String    @default("completed") // open | completed | cancelled | refunded
+  filamentGrams        Float?
+  sheets               Int?
+  runtimeSeconds       Int?
+  /** null = not billed yet (3D $/g TBD). 0 = free. */
+  billedCents          Int?
+  note                 String?
+  startedAt            DateTime
+  completedAt          DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  deletedAt            DateTime?
+
+  user         User                 @relation(fields: [userId], references: [id])
+  machine      Machine              @relation(fields: [machineId], references: [id])
+  workstation  Workstation?         @relation(fields: [workstationId], references: [id])
+  session      WorkstationSession?  @relation(fields: [workstationSessionId], references: [id])
+  creditLedgerEntries CreditLedgerEntry[]
+
+  @@index([userId, completedAt])
+  @@index([machineId])
 }
