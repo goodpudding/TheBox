@@ -119,7 +119,7 @@ export default function AdminUsagePage() {
         memberName(s.userId),
         s.machineId,
         machineName(s.machineId),
-        s.badgeId,
+        s.badgeId ?? "",
         s.startedAt,
         s.endedAt ?? "",
         s.endedBy,

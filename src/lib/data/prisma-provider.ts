@@ -132,6 +132,8 @@ function mapOrgSettings(row: {
   scholarshipFundBalanceCents: number;
   scholarshipSeatsAwarded: number;
   showPhase3Tiers: boolean;
+  maxBalanceOwedCents?: number;
+  nonmemberMultiplier?: number;
   updatedAt: Date;
 }): OrgSettings {
   return {
@@ -159,6 +161,8 @@ function mapOrgSettings(row: {
     scholarshipFundBalanceCents: row.scholarshipFundBalanceCents,
     scholarshipSeatsAwarded: row.scholarshipSeatsAwarded,
     showPhase3Tiers: row.showPhase3Tiers,
+    maxBalanceOwedCents: row.maxBalanceOwedCents ?? 5000,
+    nonmemberMultiplier: row.nonmemberMultiplier ?? 1.5,
     updatedAt: toIsoRequired(row.updatedAt),
   };
 }
@@ -197,6 +201,8 @@ function mapUser(row: {
     status: row.status as MembershipStatus,
     tier: (row.tier as MembershipTier | null) ?? null,
     shopAccess: row.shopAccess,
+    balanceOwedCents:
+      (row as { balanceOwedCents?: number }).balanceOwedCents ?? 0,
     isTeacher: Boolean(
       (row as { isTeacher?: boolean }).isTeacher,
     ),
@@ -426,6 +432,7 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
         endedAt: toIso(s.endedAt),
         reservationId: s.reservationId,
         endedBy: s.endedBy as UsageSession["endedBy"],
+        jobId: s.jobId,
         createdAt: toIsoRequired(s.createdAt),
         updatedAt: toIsoRequired(s.updatedAt),
         deletedAt: toIso(s.deletedAt),
@@ -786,6 +793,9 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
         sortOrder: p.sortOrder,
         isAddOn: p.isAddOn,
         cappedSeats: p.cappedSeats,
+        monthlyCreditCents: p.monthlyCreditCents,
+        creditRolloverCapCents: p.creditRolloverCapCents,
+        unlimitedMachines: p.unlimitedMachines,
         createdAt: toIsoRequired(p.createdAt),
         updatedAt: toIsoRequired(p.updatedAt),
         deletedAt: toIso(p.deletedAt),
@@ -976,6 +986,8 @@ export async function persistBundleToPrisma(
           bundle.settings.scholarshipFundBalanceCents,
         scholarshipSeatsAwarded: bundle.settings.scholarshipSeatsAwarded,
         showPhase3Tiers: bundle.settings.showPhase3Tiers,
+        maxBalanceOwedCents: bundle.settings.maxBalanceOwedCents ?? 5000,
+        nonmemberMultiplier: bundle.settings.nonmemberMultiplier ?? 1.5,
         updatedAt: asDate(bundle.settings.updatedAt) ?? new Date(),
       } as any,
     });
@@ -998,6 +1010,9 @@ export async function persistBundleToPrisma(
         sortOrder: p.sortOrder,
         isAddOn: Boolean(p.isAddOn),
         cappedSeats: p.cappedSeats ?? null,
+        monthlyCreditCents: p.monthlyCreditCents ?? 0,
+        creditRolloverCapCents: p.creditRolloverCapCents ?? null,
+        unlimitedMachines: Boolean(p.unlimitedMachines),
         createdAt: asDate(p.createdAt) ?? new Date(),
         updatedAt: asDate(p.updatedAt) ?? new Date(),
         deletedAt: asDate(p.deletedAt),
@@ -1362,6 +1377,7 @@ export async function persistBundleToPrisma(
         userId: s.userId,
         machineId: s.machineId,
         badgeId: s.badgeId,
+        jobId: s.jobId ?? null,
         startedAt: asDate(s.startedAt)!,
         endedAt: asDate(s.endedAt),
         reservationId: s.reservationId ?? null,

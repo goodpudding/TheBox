@@ -72,6 +72,8 @@ model User {
   emergencyContactRelation String?
   profileComplete          Boolean   @default(false)
   notes                    String?
+  /** Running amount owed for released machine jobs, in cents. */
+  balanceOwedCents         Int       @default(0)
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
   deletedAt                DateTime?
@@ -108,6 +110,8 @@ model User {
   classInterestSignups   ClassInterestSignup[]
   bountiesRequested      Bounty[]               @relation("BountyRequester")
   bountiesClaimed        Bounty[]               @relation("BountyClaimedBy")
+  machineJobs            MachineJob[]
+  creditLedger           CreditLedger[]
 }
 
 model Badge {
@@ -211,6 +215,9 @@ model Machine {
   maintenanceBlocks         MaintenanceBlock[]
   usageSessions             UsageSession[]
   accessLogs                AccessLog[]
+  machineRate               MachineRate?
+  machineJobs               MachineJob[]
+  printer                   Printer?
 }
 
 model Reservation {
@@ -250,18 +257,100 @@ model UsageSession {
   id            String    @id
   userId        String
   machineId     String
-  badgeId       String
+  /** Optional so a portal job can open a session without a badge. */
+  badgeId       String?
   startedAt     DateTime
   endedAt       DateTime?
   reservationId String?
   endedBy       String
+  jobId         String?   @unique
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
   user          User      @relation(fields: [userId], references: [id])
   machine       Machine   @relation(fields: [machineId], references: [id])
-  badge         Badge     @relation(fields: [badgeId], references: [id])
+  badge         Badge?    @relation(fields: [badgeId], references: [id])
   reservation   Reservation? @relation(fields: [reservationId], references: [id])
+  job           MachineJob?  @relation(fields: [jobId], references: [id])
+}
+
+// ── Machine billing (docs/machine-billing-spec.md §5) ───────────────────────
+
+model MachineRate {
+  id                     String   @id @default(cuid())
+  machineId              String   @unique
+  machine                Machine  @relation(fields: [machineId], references: [id])
+  unit                   String   // "minute" | "gram" | "print"
+  memberCentsPerUnit     Float    // per minute / gram / print; fractional ok (FDM = 1.56)
+  nonmemberCentsPerUnit  Float?   // null => OrgSettings.nonmemberMultiplier × member
+  memberMinimumCents     Int      @default(0)
+  nonmemberMinimumCents  Int      @default(0)
+  roundingMinutes        Int      @default(5)
+  updatedAt              DateTime @updatedAt
+}
+
+model MachineJob {
+  id                 String    @id @default(cuid())
+  userId             String
+  user               User      @relation(fields: [userId], references: [id])
+  machineId          String
+  machine            Machine   @relation(fields: [machineId], references: [id])
+  status             String    // quoted | awaiting_payment | released | running | done | failed | cancelled
+  source             String    // "3mf" | "typed" | "staff"
+  fileName           String?
+  filePath           String?   // server-side storage path, never public
+  estMinutes         Int?
+  estGrams           Float?
+  estUnits           Float?    // generic (prints, mL)
+  listCents          Int
+  creditAppliedCents Int       @default(0)
+  chargedCents       Int
+  refundCents        Int       @default(0)
+  refundReason       String?
+  rateSnapshot       Json      // the MachineRate row at quote time
+  denyReason         String?   // last failed check, for UX
+  staffOverride      Boolean   @default(false)
+  overrideNote       String?
+  releasedAt         DateTime?
+  startedAt          DateTime?
+  endedAt            DateTime?
+  printerSerial      String?
+  printerProgress    Int?      // 0–100 from MQTT
+  usageSession       UsageSession?
+  creditEntries      CreditLedger[]
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([machineId, status])
+}
+
+model CreditLedger {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  deltaCents Int      // + grant, − spend/expiry
+  kind       String   // grant | spend | rollover | expire | adjust
+  jobId      String?
+  job        MachineJob? @relation(fields: [jobId], references: [id])
+  note       String?
+  periodKey  String   // "2026-10" billing period
+  createdAt  DateTime @default(now())
+
+  @@index([userId, periodKey])
+}
+
+model Printer {
+  id         String    @id @default(cuid())
+  machineId  String    @unique
+  machine    Machine   @relation(fields: [machineId], references: [id])
+  serial     String    @unique
+  host       String    // LAN IP or mDNS
+  /** Keep encrypted at rest; never returned by any API. */
+  accessCode String
+  model      String    @default("A1")
+  lastSeenAt DateTime?
+  state      String?   // idle | printing | error | offline
 }
 
 model AccessLog {
@@ -611,6 +700,12 @@ model MembershipProduct {
   sortOrder        Int       @default(0)
   isAddOn          Boolean   @default(false)
   cappedSeats      Int?
+  /** Monthly machine credit granted on the billing anniversary, in cents. */
+  monthlyCreditCents     Int  @default(0)
+  /** Unused credit rolls over up to this cap (Maker+). Null = no rollover. */
+  creditRolloverCapCents Int?
+  /** Unlimited tier: every job prices to $0 and is still logged. */
+  unlimitedMachines      Boolean @default(false)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   deletedAt        DateTime?
@@ -642,6 +737,10 @@ model OrgSettings {
   scholarshipFundBalanceCents     Int      @default(0)
   scholarshipSeatsAwarded         Int      @default(0)
   showPhase3Tiers                 Boolean  @default(true)
+  /** Refuse release when User.balanceOwedCents exceeds this. Default $50. */
+  maxBalanceOwedCents             Int      @default(5000)
+  /** Used when MachineRate.nonmemberCentsPerUnit is null. */
+  nonmemberMultiplier             Float    @default(1.5)
   updatedAt                       DateTime @updatedAt
 }
 

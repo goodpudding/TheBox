@@ -151,6 +151,8 @@ export interface User extends Timestamps {
   householdPrimaryUserId?: string | null;
   /** Friend (and similar) have no machine access even when status is active. */
   shopAccess: boolean;
+  /** Running amount owed for released machine jobs, in cents. */
+  balanceOwedCents?: number;
   /**
    * Orthogonal to role/status — shop instructors can publish interest boards
    * even without an active membership.
@@ -186,6 +188,12 @@ export interface MembershipProduct extends Timestamps {
   /** e.g. household is an add-on, not a standalone primary */
   isAddOn?: boolean;
   cappedSeats?: number | null;
+  /** Monthly machine credit granted on the billing anniversary, in cents. */
+  monthlyCreditCents: number;
+  /** Maker+ unused credit rolls over up to this cap. Null = no rollover. */
+  creditRolloverCapCents?: number | null;
+  /** Unlimited tier: every job prices to $0. */
+  unlimitedMachines: boolean;
 }
 
 export interface Badge extends Timestamps {
@@ -308,11 +316,13 @@ export interface UsageSession extends Timestamps {
   id: string;
   userId: string;
   machineId: string;
-  badgeId: string;
+  /** Null when the session was opened by a portal job instead of a badge. */
+  badgeId: string | null;
   startedAt: ISODateTime;
   endedAt?: ISODateTime | null;
   reservationId?: string | null;
   endedBy: "reader" | "timeout" | "staff" | "system";
+  jobId?: string | null;
 }
 
 export interface AccessLog extends Timestamps {
@@ -598,6 +608,10 @@ export interface OrgSettings {
   scholarshipSeatsAwarded: number;
   /** Show Phase 3 tiers on Join as coming soon. */
   showPhase3Tiers: boolean;
+  /** Refuse a job release when balance owed exceeds this. Default $50. */
+  maxBalanceOwedCents: number;
+  /** Applied when a machine rate has no explicit nonmember price. */
+  nonmemberMultiplier: number;
   updatedAt: ISODateTime;
 }
 

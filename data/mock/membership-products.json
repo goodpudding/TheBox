@@ -16,7 +16,10 @@
     "isAddOn": false,
     "cappedSeats": null,
     "createdAt": "2025-06-01T10:00:00-07:00",
-    "updatedAt": "2026-09-04T12:00:00-07:00"
+    "updatedAt": "2026-09-04T12:00:00-07:00",
+    "monthlyCreditCents": 0,
+    "creditRolloverCapCents": null,
+    "unlimitedMachines": false
   },
   {
     "id": "mp-community",
@@ -35,7 +38,10 @@
     "isAddOn": false,
     "cappedSeats": 12,
     "createdAt": "2025-06-01T10:00:00-07:00",
-    "updatedAt": "2026-09-04T12:00:00-07:00"
+    "updatedAt": "2026-09-04T12:00:00-07:00",
+    "monthlyCreditCents": 1000,
+    "creditRolloverCapCents": null,
+    "unlimitedMachines": false
   },
   {
     "id": "mp-maker",
@@ -54,7 +60,10 @@
     "isAddOn": false,
     "cappedSeats": null,
     "createdAt": "2025-06-01T10:00:00-07:00",
-    "updatedAt": "2026-09-04T12:00:00-07:00"
+    "updatedAt": "2026-09-04T12:00:00-07:00",
+    "monthlyCreditCents": 1000,
+    "creditRolloverCapCents": null,
+    "unlimitedMachines": false
   },
   {
     "id": "mp-household",
@@ -73,7 +82,10 @@
     "isAddOn": true,
     "cappedSeats": null,
     "createdAt": "2025-06-01T10:00:00-07:00",
-    "updatedAt": "2026-09-04T12:00:00-07:00"
+    "updatedAt": "2026-09-04T12:00:00-07:00",
+    "monthlyCreditCents": 0,
+    "creditRolloverCapCents": null,
+    "unlimitedMachines": false
   },
   {
     "id": "mp-patron",
@@ -92,7 +104,10 @@
     "isAddOn": false,
     "cappedSeats": null,
     "createdAt": "2025-06-01T10:00:00-07:00",
-    "updatedAt": "2026-09-04T12:00:00-07:00"
+    "updatedAt": "2026-09-04T12:00:00-07:00",
+    "monthlyCreditCents": 1000,
+    "creditRolloverCapCents": null,
+    "unlimitedMachines": false
   },
   {
     "id": "mp-friend",
@@ -111,7 +126,10 @@
     "isAddOn": false,
     "cappedSeats": null,
     "createdAt": "2025-06-01T10:00:00-07:00",
-    "updatedAt": "2026-09-04T12:00:00-07:00"
+    "updatedAt": "2026-09-04T12:00:00-07:00",
+    "monthlyCreditCents": 0,
+    "creditRolloverCapCents": null,
+    "unlimitedMachines": false
   },
   {
     "id": "mp-scholarship",
@@ -130,7 +148,10 @@
     "isAddOn": false,
     "cappedSeats": null,
     "createdAt": "2025-06-01T10:00:00-07:00",
-    "updatedAt": "2026-09-04T12:00:00-07:00"
+    "updatedAt": "2026-09-04T12:00:00-07:00",
+    "monthlyCreditCents": 1000,
+    "creditRolloverCapCents": null,
+    "unlimitedMachines": false
   },
   {
     "id": "mp-steward",
@@ -149,7 +170,10 @@
     "isAddOn": false,
     "cappedSeats": 4,
     "createdAt": "2025-06-01T10:00:00-07:00",
-    "updatedAt": "2026-09-04T12:00:00-07:00"
+    "updatedAt": "2026-09-04T12:00:00-07:00",
+    "monthlyCreditCents": 1000,
+    "creditRolloverCapCents": null,
+    "unlimitedMachines": false
   },
   {
     "id": "mp-pro",
@@ -168,7 +192,10 @@
     "isAddOn": false,
     "cappedSeats": null,
     "createdAt": "2025-06-01T10:00:00-07:00",
-    "updatedAt": "2026-09-04T12:00:00-07:00"
+    "updatedAt": "2026-09-04T12:00:00-07:00",
+    "monthlyCreditCents": 5000,
+    "creditRolloverCapCents": 10000,
+    "unlimitedMachines": false
   },
   {
     "id": "mp-unlimited",
@@ -187,7 +214,10 @@
     "isAddOn": false,
     "cappedSeats": 6,
     "createdAt": "2025-06-01T10:00:00-07:00",
-    "updatedAt": "2026-09-04T12:00:00-07:00"
+    "updatedAt": "2026-09-04T12:00:00-07:00",
+    "monthlyCreditCents": 0,
+    "creditRolloverCapCents": null,
+    "unlimitedMachines": true
   },
   {
     "id": "mp-team",
@@ -206,6 +236,9 @@
     "isAddOn": false,
     "cappedSeats": null,
     "createdAt": "2025-06-01T10:00:00-07:00",
-    "updatedAt": "2026-09-04T12:00:00-07:00"
+    "updatedAt": "2026-09-04T12:00:00-07:00",
+    "monthlyCreditCents": 0,
+    "creditRolloverCapCents": null,
+    "unlimitedMachines": false
   }
 ]

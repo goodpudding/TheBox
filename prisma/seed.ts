@@ -5,6 +5,7 @@
 import { PrismaClient } from "@prisma/client";
 import { readFileSync } from "fs";
 import { join } from "path";
+import { DRAFT_RATES, type MachineRateInput } from "../src/lib/jobs/pricing";
 
 const prisma = new PrismaClient();
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -184,6 +185,46 @@ async function main() {
     });
   }
 
+  // Spec §4. Keys are machine ids in data/mock/machines.json.
+  // Woodshop, sewing, vinyl, and hand tools are included — no rate row.
+  // No CNC router machine exists yet (plasma is m-cnc-plasma). DRAFT_RATES.cnc
+  // stays unused until that machine is added.
+  const machineRateKey: Record<string, keyof typeof DRAFT_RATES> = {
+    "m-laser-co2": "laser",
+    "m-prusa-mk4": "fdm",
+    "m-bambu-a1": "fdm",
+    "m-elegoo-saturn": "resin",
+    "m-cnc-plasma": "plasma",
+    // One charge per print; member files the job on one of these machines.
+    "m-sub-printer": "sublimation",
+    "m-heat-press": "sublimation",
+  };
+
+  function rateColumns(rate: MachineRateInput) {
+    return {
+      unit: rate.unit,
+      memberCentsPerUnit: rate.memberCentsPerUnit,
+      nonmemberCentsPerUnit: rate.nonmemberCentsPerUnit ?? null,
+      memberMinimumCents: rate.memberMinimumCents ?? 0,
+      nonmemberMinimumCents: rate.nonmemberMinimumCents ?? 0,
+      roundingMinutes: rate.roundingMinutes ?? 5,
+    };
+  }
+
+  for (const [machineId, key] of Object.entries(machineRateKey)) {
+    const columns = rateColumns(DRAFT_RATES[key]);
+    await prisma.machineRate.upsert({
+      where: { machineId },
+      create: {
+        id: `rate-${machineId}`,
+        machineId,
+        ...columns,
+      },
+      update: columns,
+    });
+  }
+  console.log(`  machine rates: ${Object.keys(machineRateKey).length}`);
+
   const userCerts = readJson<Array<Record<string, unknown>>>("user-certifications.json");
   for (const uc of userCerts) {
     await prisma.userCertification.upsert({
@@ -277,6 +318,8 @@ async function main() {
       scholarshipFundBalanceCents: Number(settings.scholarshipFundBalanceCents),
       scholarshipSeatsAwarded: Number(settings.scholarshipSeatsAwarded),
       showPhase3Tiers: Boolean(settings.showPhase3Tiers),
+      maxBalanceOwedCents: Number(settings.maxBalanceOwedCents ?? 5000),
+      nonmemberMultiplier: Number(settings.nonmemberMultiplier ?? 1.5),
     },
     update: {
       orgName: String(settings.orgName),
@@ -287,6 +330,8 @@ async function main() {
       currentWaiverVersion: String(settings.currentWaiverVersion),
       scholarshipFundBalanceCents: Number(settings.scholarshipFundBalanceCents),
       scholarshipSeatsAwarded: Number(settings.scholarshipSeatsAwarded),
+      maxBalanceOwedCents: Number(settings.maxBalanceOwedCents ?? 5000),
+      nonmemberMultiplier: Number(settings.nonmemberMultiplier ?? 1.5),
     },
   });
 
@@ -310,6 +355,12 @@ async function main() {
         sortOrder: Number(p.sortOrder),
         isAddOn: Boolean(p.isAddOn),
         cappedSeats: (p.cappedSeats as number) ?? null,
+        monthlyCreditCents: Number(p.monthlyCreditCents ?? 0),
+        creditRolloverCapCents:
+          p.creditRolloverCapCents == null
+            ? null
+            : Number(p.creditRolloverCapCents),
+        unlimitedMachines: Boolean(p.unlimitedMachines ?? false),
         createdAt: asDate(p.createdAt as string) ?? new Date(),
         updatedAt: asDate(p.updatedAt as string) ?? new Date(),
       },
@@ -319,6 +370,12 @@ async function main() {
         priceCents: Number(p.priceCents),
         visibleOnJoin: Boolean(p.visibleOnJoin),
         joinable: Boolean(p.joinable),
+        monthlyCreditCents: Number(p.monthlyCreditCents ?? 0),
+        creditRolloverCapCents:
+          p.creditRolloverCapCents == null
+            ? null
+            : Number(p.creditRolloverCapCents),
+        unlimitedMachines: Boolean(p.unlimitedMachines ?? false),
       },
     });
   }

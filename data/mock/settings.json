@@ -23,5 +23,7 @@
   "scholarshipFundBalanceCents": 16000,
   "scholarshipSeatsAwarded": 2,
   "showPhase3Tiers": true,
+  "maxBalanceOwedCents": 5000,
+  "nonmemberMultiplier": 1.5,
   "updatedAt": "2026-09-04T12:00:00-07:00"
 }
