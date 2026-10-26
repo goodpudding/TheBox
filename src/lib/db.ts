@@ -14,32 +14,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
  * available inside a request, not at module load.
  */
 
-<<<<<<< HEAD
 type D1Binding = ConstructorParameters<typeof PrismaD1>[0];
-=======
-function createPrisma() {
-  return new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
-  });
-}
-
-/** PrismaClient always types `equipmentJob`; a pre-generate HMR client may not have it. */
-function isStaleClient(client: PrismaClient): boolean {
-  return !("equipmentJob" in (client as unknown as Record<string, unknown>));
-}
-
-/** Drop a HMR-stale client that was constructed before a schema generate. */
-if (
-  process.env.NODE_ENV !== "production" &&
-  globalForPrisma.prisma &&
-  isStaleClient(globalForPrisma.prisma)
-) {
-  void globalForPrisma.prisma.$disconnect();
-  globalForPrisma.prisma = undefined;
-}
-
-export const prisma = globalForPrisma.prisma ?? createPrisma();
->>>>>>> 98ea5f6 (Fix PIN login crash from a stale Prisma client)
 
 const log: ("error" | "warn")[] =
   process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"];
@@ -56,9 +31,16 @@ function resolveD1(): D1Binding | null {
 
 let cached: { client: PrismaClient; d1: D1Binding | null } | undefined;
 
+/** PrismaClient always types `equipmentJob`; a pre-generate HMR client may not have it. */
+function isStaleClient(client: PrismaClient): boolean {
+  return !("equipmentJob" in (client as unknown as Record<string, unknown>));
+}
+
 function getClient(): PrismaClient {
   const d1 = resolveD1();
-  if (cached && cached.d1 === d1) return cached.client;
+  if (cached && cached.d1 === d1 && !isStaleClient(cached.client)) {
+    return cached.client;
+  }
   const client = d1
     ? new PrismaClient({ adapter: new PrismaD1(d1), log })
     : new PrismaClient({ log });
