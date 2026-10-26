@@ -53,14 +53,11 @@ yarn-error.log*
 .data/
 
 
-# vercel
-.vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 
-.vercel
 
 # ESP32 reader local secrets
 firmware/**/secrets.h
