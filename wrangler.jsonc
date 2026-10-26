@@ -34,9 +34,9 @@
 	// ZEFFY_API_KEY, ZEFFY_WEBHOOK_SECRET, DISPLAY_TOKEN, READER_SHARED_SECRET)
 	// are set in the dashboard under Settings → Variables and Secrets.
 	"vars": {
-		"AUTH_URL": "https://portal.discoverburienmakerspace.com",
-		"NEXT_PUBLIC_SITE_URL": "https://portal.discoverburienmakerspace.com",
-		"AUTH_EMAIL_FROM": "Discover Burien Makerspace <portal@discoverburienmakerspace.com>",
+		"AUTH_URL": "https://discoverburienmakerspace.com",
+		"NEXT_PUBLIC_SITE_URL": "https://discoverburienmakerspace.com",
+		"AUTH_EMAIL_FROM": "Discover Burien Makerspace <hello@discoverburienmakerspace.com>",
 		"PAYMENT_URL": "https://www.zeffy.com/en-US/ticketing/burien-makers-spaces-memberships"
 	},
 	// Branch preview builds (`npx wrangler preview`). Previews do not inherit
