@@ -2,7 +2,11 @@ import type { NextConfig } from "next";
 import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Required for Prisma on Cloudflare Workers: lets OpenNext replace the
+  // generated client with its workerd (WASM) runtime instead of bundling the
+  // Node build, which would look for a native query-engine binary.
+  // https://opennext.js.org/cloudflare/howtos/db
+  serverExternalPackages: ["@prisma/client", ".prisma/client"],
 };
 
 export default nextConfig;
