@@ -59,7 +59,7 @@ export default function AdminContentPage() {
   return (
     <AdminShell
       title="Content"
-      description="Policy and site pages pulled from the shared Google Drive folder. Demo/mock mode uses local markdown stand-ins until Drive sync is configured."
+      description="Policy and site pages pulled from the shared Google Drive folder."
     >
       <div className="flex flex-wrap items-center gap-4">
         <Button type="button" onClick={() => void onSync()} disabled={pending}>
@@ -68,10 +68,7 @@ export default function AdminContentPage() {
         {syncResult ? (
           <p className="text-sm text-secondary">
             Updated {syncResult.count} pages at{" "}
-            {formatDateTime(syncResult.syncedAt)}
-            {" · "}
-            In mock/demo this only refreshes timestamps; production runs the
-            Google Drive pull (`npm run sync:google`).
+            {formatDateTime(syncResult.syncedAt)}.
           </p>
         ) : null}
       </div>

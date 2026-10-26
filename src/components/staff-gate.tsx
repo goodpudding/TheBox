@@ -35,12 +35,12 @@ export function StaffGate({ children }: { children: ReactNode }) {
           Staff sign-in required
         </h1>
         <p className="mt-4 max-w-lg text-secondary leading-relaxed">
-          Use the <strong className="text-charcoal">Dev · Switch user</strong>{" "}
-          bar and pick <strong className="text-charcoal">Sam Stafford</strong>{" "}
-          (staff) or <strong className="text-charcoal">Avery Admin</strong>.
+          Sign in with a staff account to open this area.
         </p>
         <Button asChild className="mt-8">
-          <Link href="/join">Back to join</Link>
+          <Link href={`/login?callbackUrl=${encodeURIComponent(pathname)}`}>
+            Sign in
+          </Link>
         </Button>
       </PageShell>
     );
@@ -54,8 +54,8 @@ export function StaffGate({ children }: { children: ReactNode }) {
           Staff only
         </h1>
         <p className="mt-4 max-w-lg text-secondary leading-relaxed">
-          Signed in as {currentUser.displayName} ({currentUser.role}). Switch to
-          a staff or admin user in the dev toolbar.
+          Signed in as {currentUser.displayName} ({currentUser.role}). This
+          area is for staff.
         </p>
         <Button asChild className="mt-8" variant="secondary">
           <Link href="/dashboard">Member dashboard</Link>

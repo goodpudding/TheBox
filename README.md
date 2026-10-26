@@ -83,9 +83,9 @@ npm run db:seed
 
 | Mode | What to set | What the browser uses |
 | --- | --- | --- |
-| Local dev | leave both unset | In-memory fixtures and the Dev toolbar |
-| Vercel demo | `NEXT_PUBLIC_DEMO_MODE=true` | Fixtures, even in a production build |
-| Production | runtime `DATA_PROVIDER=prisma` and build `NEXT_PUBLIC_DATA_MODE=live` | Auth.js session and D1, through `POST /api/data` |
+| Local `next dev` | leave both unset | Fixtures and the Dev toolbar, for building only |
+| Fixture preview | `NEXT_PUBLIC_DEMO_MODE=true` | Fixtures, even in a production build |
+| Live site | production build (or `NEXT_PUBLIC_DATA_MODE=live`) and `DATA_PROVIDER=prisma` | Auth.js session and D1. A production build does this by default. |
 
 `/workstation` and `/api/me` talk to Prisma directly (incremental upserts — no full-table wipe). The lobby display keeps using `/api/display/feed`.
 
