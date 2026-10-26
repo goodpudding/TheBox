@@ -79,6 +79,12 @@ export type VolunteerInterestStatus =
 /** Member-fulfillable request from a neighbor or local business. */
 export type BountyStatus = "open" | "claimed" | "completed";
 
+/** Public shop ask — only staff (or a succeeded Zeffy match) can mark fulfilled. */
+export type WishlistItemStatus = "needed" | "fulfilled";
+export type WishlistItemTier = "core" | "stretch";
+export type WishlistFulfilledBy = "staff" | "zeffy";
+export type WishlistPurchaseReportStatus = "pending" | "confirmed" | "dismissed";
+
 export type AccessDenyReason =
   | "user_inactive"
   | "waiver_unsigned"
@@ -114,7 +120,10 @@ export type AuditAction =
   | "maintenance_created"
   | "tool_champion_requested"
   | "tool_champion_activated"
-  | "tool_champion_completed";
+  | "tool_champion_completed"
+  | "wishlist_purchase_reported"
+  | "wishlist_item_fulfilled"
+  | "wishlist_purchase_dismissed";
 
 /** 2-month machine maintain + train commitment. */
 export type ToolChampionStatus =
@@ -599,6 +608,48 @@ export interface VolunteerInterest extends Timestamps {
   notes?: string | null;
 }
 
+/** Shop-area grouping on the public wishlist. Catalog is fixture-backed. */
+export interface WishlistZone {
+  id: string;
+  name: string;
+  why: string;
+  sortOrder: number;
+}
+
+/** One ask on the public wishlist. External buy links until a Zeffy campaign is attached. */
+export interface WishlistItem extends Timestamps {
+  id: string;
+  zoneId: string;
+  name: string;
+  model: string;
+  qty: number;
+  priceCents: number;
+  estimated: boolean;
+  url: string | null;
+  /** Optional Zeffy campaign — a succeeded payment with this id fulfills the item. */
+  zeffyCampaignId?: string | null;
+  zeffyPaymentId?: string | null;
+  note?: string | null;
+  tier: WishlistItemTier;
+  status: WishlistItemStatus;
+  fulfilledAt?: ISODateTime | null;
+  fulfilledBy?: WishlistFulfilledBy | null;
+  sortOrder: number;
+}
+
+/** Guest/member “I bought this” — stays pending until staff confirms. Never hides the item. */
+export interface WishlistPurchaseReport extends Timestamps {
+  id: string;
+  itemId: string;
+  name: string;
+  email: string;
+  note?: string | null;
+  userId?: string | null;
+  status: WishlistPurchaseReportStatus;
+  reviewedById?: string | null;
+  reviewedAt?: ISODateTime | null;
+}
+
 /** Public request to have something made in the shop. */
 export interface Bounty extends Timestamps {
   id: string;
@@ -872,6 +923,9 @@ export interface MockFixtureBundle {
   volunteerInterests: VolunteerInterest[];
   people: Person[];
   bounties: Bounty[];
+  wishlistZones: WishlistZone[];
+  wishlistItems: WishlistItem[];
+  wishlistPurchaseReports: WishlistPurchaseReport[];
   contentPages: ContentPage[];
   waiverSignatures: WaiverSignature[];
   policyAcknowledgements: PolicyAcknowledgement[];

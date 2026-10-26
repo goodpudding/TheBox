@@ -59,7 +59,15 @@ import type {
   PhotoKind,
   InventoryIssueType,
   InventoryRetireReason,
+  WishlistItem,
+  WishlistItemStatus,
+  WishlistPurchaseReport,
+  WishlistPurchaseReportStatus,
+  WishlistZone,
 } from "./types";
+import type {
+  WishlistStats,
+} from "./wishlist";
 
 // Re-export view/DTO types used by the provider interface
 export interface DateRange {
@@ -457,6 +465,32 @@ export interface InventoryImportResult {
   }>;
 }
 
+export interface WishlistItemView extends WishlistItem {
+  zoneName: string;
+  pendingReportCount: number;
+}
+
+export interface WishlistCatalog {
+  zones: WishlistZone[];
+  items: WishlistItemView[];
+  recentlyFunded: WishlistItemView[];
+  stats: WishlistStats;
+}
+
+export interface WishlistPurchaseReportInput {
+  itemId: string;
+  name: string;
+  email: string;
+  note?: string | null;
+  userId?: string | null;
+}
+
+export interface WishlistPurchaseReportView extends WishlistPurchaseReport {
+  itemName: string;
+  itemStatus: WishlistItemStatus;
+  itemModel: string;
+}
+
 export interface ClassInterestBoardInput {
   title: string;
   summary: string;
@@ -772,6 +806,25 @@ export interface DataProvider {
     dryRun: boolean,
   ): Promise<InventoryImportResult>;
 
+  getWishlistCatalog(): Promise<WishlistCatalog>;
+  reportWishlistPurchase(
+    input: WishlistPurchaseReportInput,
+  ): Promise<WishlistPurchaseReport>;
+  adminListWishlistPurchaseReports(filters?: {
+    status?: WishlistPurchaseReportStatus | WishlistPurchaseReportStatus[];
+  }): Promise<WishlistPurchaseReportView[]>;
+  adminConfirmWishlistPurchase(
+    reportId: string,
+    actorId: string,
+  ): Promise<WishlistItem>;
+  adminDismissWishlistPurchase(
+    reportId: string,
+    actorId: string,
+  ): Promise<WishlistPurchaseReport>;
+  adminMarkWishlistPurchased(
+    itemId: string,
+    actorId: string,
+  ): Promise<WishlistItem>;
   getSettings(): Promise<OrgSettings>;
   listMembershipProducts(): Promise<MembershipProduct[]>;
   getScholarshipFundSummary(): Promise<ScholarshipFundSummary>;

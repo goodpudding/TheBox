@@ -97,12 +97,21 @@ export default function SupportPage() {
         <h2 className="mt-2 font-display text-2xl font-semibold text-brown">
           Specific asks
         </h2>
+        <p className="mt-4 leading-relaxed text-secondary">
+          The live list is on its own page: stations, supplies, prices, and a
+          link to the exact product. Confirmed purchases come off that list.
+        </p>
         {wishlist ? (
           <div
             className="prose-cms mt-4"
             dangerouslySetInnerHTML={{ __html: wishlist.html }}
           />
         ) : null}
+        <div className="mt-6">
+          <Button asChild>
+            <Link href="/wishlist">Browse the wishlist</Link>
+          </Button>
+        </div>
       </section>
 
       <section className="mt-16 max-w-3xl">

@@ -1,0 +1,50 @@
+[
+  {
+    "id": "build",
+    "name": "Build-out & Shop Basics",
+    "why": "Lumber, paint and storage for our work parties as we reorganize the space, plus the safety gear and supplies every class uses up.",
+    "sortOrder": 1
+  },
+  {
+    "id": "wood",
+    "name": "Woodshop",
+    "why": "A SawStop that stops on contact with skin, real dust collection, and the tools members keep asking for.",
+    "sortOrder": 2
+  },
+  {
+    "id": "laser",
+    "name": "Laser",
+    "why": "Filtered extraction so the laser can run all day without smoke in the room.",
+    "sortOrder": 3
+  },
+  {
+    "id": "print3d",
+    "name": "3D Printing",
+    "why": "Beginner-friendly Bambu printers to replace machines new members find hard to learn.",
+    "sortOrder": 4
+  },
+  {
+    "id": "press",
+    "name": "Print & Press",
+    "why": "A desktop UV printer for full-color prints on wood, acrylic, metal and tumblers.",
+    "sortOrder": 5
+  },
+  {
+    "id": "commons",
+    "name": "Studio & Commons",
+    "why": "A podcast and video corner, plus member storage, the most requested improvement in our survey.",
+    "sortOrder": 6
+  },
+  {
+    "id": "craft",
+    "name": "Electronics Bench",
+    "why": "A soldering and electronics station for LED signs, badges and kits.",
+    "sortOrder": 7
+  },
+  {
+    "id": "textiles",
+    "name": "Textiles",
+    "why": "Cutting and sewing basics for classes like aprons, stockings and bowl cozies.",
+    "sortOrder": 8
+  }
+]

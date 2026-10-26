@@ -368,7 +368,7 @@
     "notionId": null,
     "slug": "wishlist",
     "title": "Wishlist",
-    "html": "<ul><li>Laser tube replacement — $800</li><li>Bandsaw blades &amp; maintenance kit — $150</li><li>Bin of batting for sewing classes — $75</li><li>Sponsor a kid’s seat in the homeschool program — $50</li></ul>",
+    "html": "<p>Pick a station or a $15 spool of filament on the <a href=\"/wishlist\">wishlist</a>. Tell staff before you buy so two people don’t get the same saw.</p>",
     "markdownPath": "content/support/wishlist.md",
     "category": "other",
     "version": "2026.1",

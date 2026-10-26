@@ -52,6 +52,12 @@ export function SiteFooter() {
           <Link href="/staff" className="hover:text-primary transition-colors">
             Staff
           </Link>
+          <Link
+            href="/wishlist"
+            className="hover:text-primary transition-colors"
+          >
+            Wishlist
+          </Link>
           <Link href="/join" className="hover:text-primary transition-colors">
             Join
           </Link>

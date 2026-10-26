@@ -1,6 +1,3 @@
 # Wishlist
 
-- Laser tube replacement — $800
-- Bandsaw blades & maintenance kit — $150
-- Bin of batting for sewing classes — $75
-- Sponsor a kid’s seat in the homeschool program — $50
+Pick a station or a $15 spool of filament on the [wishlist](/wishlist). Tell staff before you buy so two people don’t get the same saw.

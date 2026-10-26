@@ -939,6 +939,10 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
         createdAt: toIsoRequired(e.createdAt as Date),
       }),
     ),
+    // Wishlist catalog + purchase reports stay fixture/mock-backed (no Prisma table).
+    wishlistZones: loadFixtures().wishlistZones,
+    wishlistItems: loadFixtures().wishlistItems,
+    wishlistPurchaseReports: loadFixtures().wishlistPurchaseReports,
   };
 }
 

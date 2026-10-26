@@ -16,6 +16,7 @@ const LINKS = [
   { href: "/inventory", label: "Inventory" },
   { href: "/admin/usage", label: "Usage" },
   { href: "/admin/volunteers", label: "Volunteers" },
+  { href: "/admin/wishlist", label: "Wishlist" },
   { href: "/admin/content", label: "Content" },
   { href: "/admin/display", label: "Display" },
   { href: "/admin/settings", label: "Settings" },
