@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useData } from "@/components/providers";
+import { isLiveDataMode } from "@/lib/data/mode";
 import type { User } from "@/lib/data";
 
 export function DevToolbar() {
@@ -10,8 +11,11 @@ export function DevToolbar() {
   const [open, setOpen] = useState(true);
 
   useEffect(() => {
+    if (isLiveDataMode()) return;
     void provider.listSwitchableUsers().then(setUsers);
   }, [provider, revision]);
+
+  if (isLiveDataMode()) return null;
 
   if (
     process.env.NODE_ENV === "production" &&

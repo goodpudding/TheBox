@@ -18,10 +18,16 @@ export default function LoginPage() {
     setPending(true);
     setError(null);
     try {
+      const callbackUrl = (() => {
+        if (typeof window === "undefined") return "/";
+        const raw = new URLSearchParams(window.location.search).get("callbackUrl");
+        if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/";
+        return raw;
+      })();
       const res = await signIn("email", {
         email,
         redirect: false,
-        callbackUrl: "/",
+        callbackUrl,
       });
       if (res?.error) {
         setError(res.error);
