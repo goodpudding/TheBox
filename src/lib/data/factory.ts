@@ -8,16 +8,28 @@ export function getDataProviderMode(): DataProviderMode {
   return mode === "prisma" ? "prisma" : "mock";
 }
 
+let lastLoad: "bundle" | "cache" | "mock" = "mock";
+
+/** What the most recent createServerDataProvider call did. For RPC logs. */
+export function lastProviderLoad(): "bundle" | "cache" | "mock" {
+  return lastLoad;
+}
+
 /**
- * Server-side factory. Client UI defaults to mock via AppProviders.
+ * Server-side factory. Client UI uses this only through `/api/data` in live mode.
  * PrismaDataProvider is constructed only when DATA_PROVIDER=prisma.
  */
 export async function createServerDataProvider(
   initialUserId?: string | null,
 ): Promise<DataProvider> {
   if (getDataProviderMode() === "prisma") {
-    const { createPrismaDataProvider } = await import("./prisma-provider");
-    return createPrismaDataProvider(initialUserId);
+    const { createPrismaDataProvider, takeBundleLoad } = await import(
+      "./prisma-provider"
+    );
+    const provider = await createPrismaDataProvider(initialUserId);
+    lastLoad = takeBundleLoad();
+    return provider;
   }
+  lastLoad = "mock";
   return createMockDataProvider(initialUserId);
 }

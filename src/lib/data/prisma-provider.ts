@@ -1738,6 +1738,18 @@ function shouldPersistAfter(methodName: string): boolean {
   return true;
 }
 
+const BUNDLE_TTL_MS = 5_000;
+let bundleCache: { at: number; bundle: MockFixtureBundle } | null = null;
+let lastBundleLoad: "bundle" | "cache" = "bundle";
+
+export function takeBundleLoad(): "bundle" | "cache" {
+  return lastBundleLoad;
+}
+
+export function invalidateBundleCache(): void {
+  bundleCache = null;
+}
+
 function createPersistingProxy(mock: MockDataProvider): DataProvider {
   let snapshot = cloneBundle(mock.getState());
   return new Proxy(mock, {
@@ -1753,6 +1765,7 @@ function createPersistingProxy(mock: MockDataProvider): DataProvider {
           const next = target.getState();
           await persistBundleToPrisma(next, snapshot);
           snapshot = cloneBundle(next);
+          invalidateBundleCache();
         }
         return result;
       };
@@ -1762,11 +1775,22 @@ function createPersistingProxy(mock: MockDataProvider): DataProvider {
 
 /**
  * Prisma-backed DataProvider: load DB → MockDataProvider, persist after writes.
+ * The loaded bundle is reused for 5 seconds. Writes drop the cache.
+ * TODO(perf): replace this full-bundle load with per-method Prisma queries.
  */
 export async function createPrismaDataProvider(
   initialUserId?: string | null,
 ): Promise<DataProvider> {
-  const bundle = await loadBundleFromPrisma();
+  const now = Date.now();
+  let bundle: MockFixtureBundle;
+  if (bundleCache && now - bundleCache.at < BUNDLE_TTL_MS) {
+    bundle = bundleCache.bundle;
+    lastBundleLoad = "cache";
+  } else {
+    bundle = await loadBundleFromPrisma();
+    bundleCache = { at: now, bundle };
+    lastBundleLoad = "bundle";
+  }
   const mock = new MockDataProvider(bundle, initialUserId);
   return createPersistingProxy(mock);
 }
