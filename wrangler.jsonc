@@ -39,12 +39,20 @@
 		"AUTH_EMAIL_FROM": "Discover Burien Makerspace <portal@discoverburienmakerspace.com>",
 		"PAYMENT_URL": "https://www.zeffy.com/en-US/ticketing/burien-makers-spaces-memberships"
 	},
-	// Branch preview builds (wrangler preview). Service bindings aren't supported
-	// in previews, so the self-reference is left out here.
+	// Branch preview builds (`npx wrangler preview`). Previews do not inherit
+	// production bindings. OpenNext still needs WORKER_SELF_REFERENCE; a missing
+	// or stale name (package.json is `the-box-portal`) fails Workers Builds on
+	// PRs even when production (`thebox`) is green.
 	"previews": {
 		"images": {
 			"binding": "IMAGES"
 		},
+		"services": [
+			{
+				"binding": "WORKER_SELF_REFERENCE",
+				"service": "thebox"
+			}
+		],
 		"d1_databases": [
 			{
 				"binding": "DB",
