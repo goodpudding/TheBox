@@ -15,7 +15,7 @@ Login identifies the member and which software they may open. It does **not** st
 
 ## Run (on a Windows shop PC)
 
-1. Host the website (Vercel or `npm run dev` on the LAN).
+1. Host the website on Cloudflare (`https://discoverburienmakerspace.com`) or `npm run dev` on the LAN.
 2. Set `THE_BOX_URL` to `https://YOUR_DOMAIN/workstation?device=BOX-PC-1`.
 3. From this folder, with [Rust](https://rustup.rs) installed:
 

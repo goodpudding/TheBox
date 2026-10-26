@@ -149,7 +149,7 @@ export function WorkstationClient() {
   const [config, setConfig] = useState<Config | null>(null);
   const [me, setMe] = useState<Me | null>(null);
   const [tab, setTab] = useState<"pin" | "qr">("pin");
-  const [email, setEmail] = useState("maya.chen@example.com");
+  const [email, setEmail] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -173,9 +173,6 @@ export function WorkstationClient() {
   const [prints, setPrints] = useState("1");
   const [jobMachineId, setJobMachineId] = useState("");
   const [jobPending, setJobPending] = useState(false);
-  const demoHint =
-    process.env.NODE_ENV !== "production" ||
-    process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
   const refreshMe = useCallback(async () => {
     const res = await apiFetch("/api/me");
@@ -676,12 +673,6 @@ export function WorkstationClient() {
                   onChange={(e) => setPin(e.target.value)}
                 />
               </div>
-              {demoHint ? (
-                <p className="text-sm text-secondary">
-                  Demo seeded members use PIN <strong>2468</strong> (Maya Chen
-                  is pre-filled).
-                </p>
-              ) : null}
               {error ? (
                 <p className="text-sm text-accent" role="alert">
                   {error}

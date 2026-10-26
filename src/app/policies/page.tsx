@@ -19,7 +19,7 @@ export default function PoliciesIndexPage() {
       <PageHero
         eyebrow="House policies"
         title="How we share the shop"
-        description="These pages are CMS-editable. Staff can update wording without a developer — in the mock phase they live as markdown under data/mock/content."
+        description="Staff keep these pages up to date from the shared Google Drive folder."
       />
 
       <ul className="mt-12 divide-y divide-border border-y border-border">

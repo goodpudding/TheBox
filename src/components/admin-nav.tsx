@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { isLiveDataMode } from "@/lib/data/mode";
 
 const LINKS = [
   { href: "/admin/members", label: "Members" },
@@ -20,15 +21,16 @@ const LINKS = [
   { href: "/admin/content", label: "Content" },
   { href: "/admin/display", label: "Display" },
   { href: "/admin/settings", label: "Settings" },
-  { href: "/dev/reader", label: "Reader sim" },
+  { href: "/dev/reader", label: "Reader sim", devOnly: true },
 ];
 
 export function AdminNav() {
   const pathname = usePathname();
+  const links = LINKS.filter((link) => !link.devOnly || !isLiveDataMode());
 
   return (
     <nav className="mb-10 -mx-1 flex gap-1 overflow-x-auto pb-2">
-      {LINKS.map((link) => {
+      {links.map((link) => {
         const active =
           pathname === link.href || pathname.startsWith(link.href + "/");
         return (

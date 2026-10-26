@@ -54,7 +54,7 @@ export function parseServiceAccount(
     }
     return {
       client_email: parsed.client_email,
-      // Vercel/CI env editors often flatten newlines to the literal "\n".
+      // Dashboard env editors often flatten newlines to the literal "\n".
       private_key: parsed.private_key.replace(/\\n/g, "\n"),
       private_key_id: parsed.private_key_id,
     };
