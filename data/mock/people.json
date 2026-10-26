@@ -1,0 +1,98 @@
+[
+  {
+    "id": "person-mitchell-allen",
+    "slug": "mitchell-allen",
+    "name": "Mitchell Allen",
+    "roleTitle": "Makerspace Manager",
+    "kind": "staff",
+    "bio": "Mitchell runs The Box. He came from museums and after-school programs, including a Boys & Girls Club summer at the Burien Community Center; 3D printers and shop machines were his hobby first. His job, as he puts it, is to be the catalyst — get members to his level on a tool, then point them at the people who have gone further.",
+    "sortOrder": 1,
+    "published": true,
+    "createdAt": "2021-08-01T10:00:00-07:00",
+    "updatedAt": "2026-09-20T12:00:00-07:00"
+  },
+  {
+    "id": "person-denise-ferguson",
+    "slug": "denise-ferguson",
+    "name": "Denise Ferguson",
+    "roleTitle": "Project Manager",
+    "kind": "staff",
+    "bio": "Denise helped stand the shop up: equipment, work areas by craft, the floor you walk today. She is a long-time Discover Burien employee and Burien small-business owner, with more than twenty years in e-commerce and entrepreneurship — experience she still teaches and mentors from. Her dad was a woodworker; when Debra asked her to help build a makerspace, it was already her alley.",
+    "sortOrder": 2,
+    "published": true,
+    "createdAt": "2021-01-15T10:00:00-07:00",
+    "updatedAt": "2026-09-20T12:00:00-07:00"
+  },
+  {
+    "id": "person-debra-george",
+    "slug": "debra-george",
+    "name": "Debra George",
+    "roleTitle": "Executive Director, Discover Burien",
+    "kind": "staff",
+    "bio": "Debra’s idea for The Box came from the Burien Farmers Market: a vendor who could not make enough product to keep up. Discover Burien is a 501(c)(3) founded in 2002; The Box is one of its programs. She still frames the shop as both a launchpad for micro-businesses and a room where anyone can make.",
+    "sortOrder": 3,
+    "published": true,
+    "createdAt": "2002-01-01T10:00:00-07:00",
+    "updatedAt": "2026-09-20T12:00:00-07:00"
+  },
+  {
+    "id": "person-martha-cabello",
+    "slug": "martha-cabello",
+    "name": "Martha Cabello",
+    "roleTitle": "Office Assistant",
+    "kind": "staff",
+    "bio": "Martha is part of Discover Burien’s small office team — the people who keep the nonprofit, the calendar, and the shop’s front door moving.",
+    "sortOrder": 4,
+    "published": true,
+    "createdAt": "2022-01-01T10:00:00-07:00",
+    "updatedAt": "2026-09-20T12:00:00-07:00"
+  },
+  {
+    "id": "person-wilson-benjamin",
+    "slug": "wilson-benjamin",
+    "name": "Wilson Benjamin",
+    "roleTitle": "Chief Cuteness Officer",
+    "kind": "staff",
+    "bio": "Listed on Discover Burien’s staff page as CCO. Shop morale department. Does not run the laser.",
+    "sortOrder": 5,
+    "published": true,
+    "createdAt": "2022-01-01T10:00:00-07:00",
+    "updatedAt": "2026-09-20T12:00:00-07:00"
+  },
+  {
+    "id": "person-paul-illian",
+    "slug": "paul-illian",
+    "name": "Paul Illian",
+    "roleTitle": "Painting",
+    "kind": "instructor",
+    "bio": "Paul teaches acrylic painting in the shop. Each session is a finished small painting — landscapes, still lifes, animal portraits — with step-by-step guidance so you leave with a piece, not just notes.",
+    "sortOrder": 10,
+    "published": true,
+    "createdAt": "2025-12-17T10:00:00-07:00",
+    "updatedAt": "2026-09-20T12:00:00-07:00"
+  },
+  {
+    "id": "person-wendy",
+    "slug": "wendy",
+    "name": "Wendy",
+    "roleTitle": "Woodworking",
+    "kind": "instructor",
+    "bio": "Wendy teaches beginner and intermediate woodworking: bandsaw setup and cuts, chop saw, drill press, glue-ups, sanding, and project classes from cutting boards and charcuterie boards to tool caddies. Class listings publish her as Wendy; last name is not on the public calendar.",
+    "sortOrder": 11,
+    "published": true,
+    "createdAt": "2025-11-08T10:00:00-07:00",
+    "updatedAt": "2026-09-20T12:00:00-07:00"
+  },
+  {
+    "id": "person-matt-swanson",
+    "slug": "matt-swanson",
+    "name": "Matt Swanson",
+    "roleTitle": "Printmaking",
+    "kind": "instructor",
+    "bio": "Matt is a printmaker, painter, model maker, and illustrator — a Pacific Northwest native whose work often starts from nature, animals, heavy music, and big nerdy monsters. BFA from DigiPen; more than fourteen years in games. His work has won BAFTA and Peabody awards and is in the Smithsonian and MoMA collections. At The Box he teaches relief printing: transfer an image, carve the block, pull a print.",
+    "sortOrder": 12,
+    "published": true,
+    "createdAt": "2025-12-20T10:00:00-07:00",
+    "updatedAt": "2026-09-20T12:00:00-07:00"
+  }
+]

@@ -14,6 +14,8 @@ const AREA_ORDER: MachineArea[] = [
   "woodshop",
   "textiles_vinyl",
   "sublimation",
+  "cnc_plasma",
+  "hand_tools",
 ];
 
 const AREA_LABEL: Record<MachineArea, string> = {
@@ -22,6 +24,8 @@ const AREA_LABEL: Record<MachineArea, string> = {
   woodshop: "Woodshop",
   textiles_vinyl: "Textiles & vinyl",
   sublimation: "Sublimation",
+  cnc_plasma: "CNC & plasma",
+  hand_tools: "Hand tools",
 };
 
 export default function EquipmentIndexPage() {

@@ -1,0 +1,62 @@
+[
+  {
+    "id": "bounty-open-sign",
+    "title": "Laser-cut sandwich board for a cafe",
+    "description": "A-frame sidewalk sign, about 24×36 inches, with our logo and daily specials area. Weather-resistant wood or acrylic is fine. We can drop off the logo file.",
+    "requesterName": "Priya Shah",
+    "requesterEmail": "priya@burienbrew.example",
+    "businessName": "Burien Brew",
+    "userId": null,
+    "status": "open",
+    "claimedByUserId": null,
+    "claimedAt": null,
+    "completedAt": null,
+    "createdAt": "2026-09-12T10:00:00-07:00",
+    "updatedAt": "2026-09-12T10:00:00-07:00"
+  },
+  {
+    "id": "bounty-open-hooks",
+    "title": "Small-batch coat hooks for a boutique",
+    "description": "Twelve wall hooks with a simple geometric shape, mixed wood and metal if possible. We will provide stain samples.",
+    "requesterName": "Luis Ortega",
+    "requesterEmail": "luis@thirdave.example",
+    "businessName": "Third Ave Goods",
+    "userId": null,
+    "status": "open",
+    "claimedByUserId": null,
+    "claimedAt": null,
+    "completedAt": null,
+    "createdAt": "2026-09-15T14:30:00-07:00",
+    "updatedAt": "2026-09-15T14:30:00-07:00"
+  },
+  {
+    "id": "bounty-claimed-aprons",
+    "title": "Embroidered staff aprons",
+    "description": "Eight canvas aprons with a one-color logo on the chest. We can supply the aprons or you can source them.",
+    "requesterName": "Mina Cho",
+    "requesterEmail": "mina@southend.example",
+    "businessName": "South End Noodles",
+    "userId": null,
+    "status": "claimed",
+    "claimedByUserId": "u-maya",
+    "claimedAt": "2026-09-16T11:00:00-07:00",
+    "completedAt": null,
+    "createdAt": "2026-09-10T09:15:00-07:00",
+    "updatedAt": "2026-09-16T11:00:00-07:00"
+  },
+  {
+    "id": "bounty-done-keychains",
+    "title": "3D-printed shop keychains",
+    "description": "Fifty small keychains with our wordmark, two colors. Good as a first-run promo for a new storefront.",
+    "requesterName": "Devon Blake",
+    "requesterEmail": "devon@lakeview.example",
+    "businessName": "Lakeview Records",
+    "userId": null,
+    "status": "completed",
+    "claimedByUserId": "u-jordan",
+    "claimedAt": "2026-08-20T16:00:00-07:00",
+    "completedAt": "2026-08-28T13:00:00-07:00",
+    "createdAt": "2026-08-18T12:00:00-07:00",
+    "updatedAt": "2026-08-28T13:00:00-07:00"
+  }
+]

@@ -8,10 +8,58 @@ import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { Certification, LearningModuleView } from "@/lib/data";
+import type {
+  Certification,
+  LearningModuleView,
+  ModulePublishReadiness,
+} from "@/lib/data";
 
 const selectClass =
   "flex h-11 w-full rounded-full border border-border bg-surface px-4 font-display text-sm text-charcoal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
+
+function ReadinessChips({
+  readiness,
+}: {
+  readiness: ModulePublishReadiness;
+}) {
+  const chips: { label: string; tone: "ok" | "warn" | "muted" }[] = [];
+  if (readiness.canPublish) {
+    chips.push({ label: "Ready to publish", tone: "ok" });
+  }
+  if (readiness.answerPendingCount > 0) {
+    chips.push({
+      label: `${readiness.answerPendingCount} pending answer${readiness.answerPendingCount === 1 ? "" : "s"}`,
+      tone: "warn",
+    });
+  }
+  if (readiness.unreviewedPrimaryVideoCount > 0) {
+    chips.push({
+      label: `${readiness.unreviewedPrimaryVideoCount} unreviewed video${readiness.unreviewedPrimaryVideoCount === 1 ? "" : "s"}`,
+      tone: "warn",
+    });
+  }
+  if (readiness.gapLessonCount > 0) {
+    chips.push({
+      label: `${readiness.gapLessonCount} gap lesson${readiness.gapLessonCount === 1 ? "" : "s"}`,
+      tone: "warn",
+    });
+  }
+  if (readiness.equipmentUnconfirmed) {
+    chips.push({ label: "Equipment unconfirmed", tone: "warn" });
+  }
+  if (chips.length === 0) {
+    chips.push({ label: "Draft", tone: "muted" });
+  }
+  return (
+    <div className="flex flex-wrap justify-end gap-1.5">
+      {chips.map((c) => (
+        <StatusPill key={c.label} tone={c.tone}>
+          {c.label}
+        </StatusPill>
+      ))}
+    </div>
+  );
+}
 
 export default function AdminLearnPage() {
   const { provider, revision, bump } = useData();
@@ -89,9 +137,14 @@ export default function AdminLearnPage() {
                 {mod.slug} · {mod.certification.name} · {mod.lessonCount} lessons
               </p>
             </div>
-            <StatusPill tone={mod.published ? "ok" : "muted"}>
-              {mod.published ? "Published" : "Draft"}
-            </StatusPill>
+            <div className="flex flex-col items-end gap-2">
+              <StatusPill tone={mod.published ? "ok" : "muted"}>
+                {mod.published ? "Published" : "Draft"}
+              </StatusPill>
+              {mod.publishReadiness ? (
+                <ReadinessChips readiness={mod.publishReadiness} />
+              ) : null}
+            </div>
           </li>
         ))}
         {modules.length === 0 ? (
@@ -133,7 +186,7 @@ export default function AdminLearnPage() {
             Knowledge-only (no hands-on checkoff)
           </label>
           <label className="flex items-center gap-2 font-display text-sm text-brown">
-            <input type="checkbox" name="publish" className="size-4" defaultChecked />
+            <input type="checkbox" name="publish" className="size-4" />
             Publish now
           </label>
           <Button type="submit" disabled={pending || certs.length === 0}>

@@ -69,6 +69,8 @@ export function ClassForm({
         capacity: Number(form.get("capacity") ?? 0),
         priceCents: Math.round(dollars * 100),
         zeffyUrl: String(form.get("zeffyUrl") ?? "").trim() || null,
+        zeffyCampaignId:
+          String(form.get("zeffyCampaignId") ?? "").trim() || null,
         location: String(form.get("location") ?? "").trim() || "The Box",
         prerequisiteCertificationIds: prereqs,
         published,
@@ -191,6 +193,25 @@ export function ClassForm({
           placeholder="https://www.zeffy.com/..."
           defaultValue={initial?.zeffyUrl ?? ""}
         />
+        <p className="text-xs text-secondary">
+          Optional if you set a campaign ID —{" "}
+          <code className="font-mono">npm run sync:zeffy</code> fills this from
+          Zeffy.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="zeffyCampaignId">Zeffy campaign ID</Label>
+        <Input
+          id="zeffyCampaignId"
+          name="zeffyCampaignId"
+          placeholder="UUID from Zeffy campaign / event"
+          defaultValue={initial?.zeffyCampaignId ?? ""}
+        />
+        <p className="text-xs text-secondary">
+          Links Register buttons and payment webhooks to this session. Find it in
+          Zeffy under the event (or from the sync script output).
+        </p>
       </div>
 
       <div className="space-y-2">

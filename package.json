@@ -12,9 +12,13 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
     "sync:notion": "tsx scripts/sync-notion.ts",
+    "sync:zeffy": "tsx scripts/sync-zeffy.ts",
+    "sync:google": "tsx scripts/sync-google.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "fixtures:learning": "node scripts/generate-learning-fixtures.mjs",
+    "fixtures:learning:extend": "node scripts/patch-learning-resin-embroidery-sub.mjs && node scripts/generate-learning-fixtures.mjs",
     "docker:mail": "docker compose up mailpit",
     "demo:deploy": "vercel --yes --prod"
   },

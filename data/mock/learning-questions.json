@@ -1,0 +1,2393 @@
+{
+  "_meta": {
+    "description": "Question banks for The Box Portal learning modules. Feeds the Question / QuizAttempt fixtures. Quizzes draw randomly from the bank per the portal spec.",
+    "generatedAt": "2026-09-07",
+    "howQuestionsWereWritten": "IMPORTANT - these questions are TOPIC-grounded, not TRANSCRIPT-grounded. Nobody has watched the videos, so each question tests a fact that any competent video on that topic covers, not a fact confirmed to be stated in the specific video assigned. Every such question carries verifyAgainstVideo: true. When you watch a video, either confirm the question is answerable from it or move the question to a lesson where it is, then clear the flag. A question whose answer is not in the assigned video is a member failing for a reason that is not their fault.",
+    "shopPolicyQuestions": "Questions with source 'shop-policy' have answerPending: true and placeholder options. No video can answer them - they are about The Box specifically. Fill in the real answers before publishing; a quiz that ships with placeholders will teach members the placeholder.",
+    "passRule": {
+      "recommended": "80% overall AND every safetyCritical question answered correctly",
+      "rationale": "A member can miss a slicer setting and still be safe at the machine. They cannot miss what causes kickback. The portal's configurable threshold alone does not express that, so enforce the safety-critical rule in the quiz grader.",
+      "attemptLimit": "3, then the member must book time with staff rather than re-rolling the bank"
+    },
+    "counts": "10-12 questions per module across 12 modules (added embroidery + sublimation).",
+    "resinNote": "Resin safety questions test the in-house learn/resin/safety lesson. IPA disposal uses best-practice King County MRW wording — edit if The Box posts a different route.",
+    "attendedOperationRule": "Confirmed 2026-09-07: laser and plasma must be attended for every second they run, even by a certified member working alone. FDM and resin printers may run unattended. This is asked in Shop Orientation (q-so-11), Plasma (q-pl-10) and Resin (q-rs-11) because members generalise from the first machine they learn."
+  },
+  "banks": [
+    {
+      "moduleId": "mod-shop-orientation",
+      "moduleTitle": "Shop Orientation",
+      "questions": [
+        {
+          "id": "q-so-01",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "yodLMfOZNvA",
+          "verifyAgainstVideo": true,
+          "prompt": "What does the P-A-S-S method stand for when using a fire extinguisher?",
+          "options": [
+            "Pull, Aim, Squeeze, Sweep",
+            "Point, Activate, Spray, Stop",
+            "Prepare, Alert, Signal, Suppress",
+            "Pull, Alert, Squeeze, Stand back"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Pull the pin, Aim at the base of the fire, Squeeze the handle, Sweep side to side."
+        },
+        {
+          "id": "q-so-02",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "yodLMfOZNvA",
+          "verifyAgainstVideo": true,
+          "prompt": "Where do you aim a fire extinguisher?",
+          "options": [
+            "At the base of the flames",
+            "At the top of the flames",
+            "At the middle of the fire",
+            "Above the fire, letting it fall"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Aiming at the flames themselves does nothing. The fuel is at the base."
+        },
+        {
+          "id": "q-so-03",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "TWNyk0ZeeVA",
+          "verifyAgainstVideo": true,
+          "prompt": "Which wood dust is the most dangerous to your lungs?",
+          "options": [
+            "The fine dust you cannot see hanging in the air",
+            "The visible sawdust on the floor",
+            "The chips from the planer",
+            "The shavings from hand planing"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Particles small enough to stay airborne are the ones that reach deep lung tissue. The pile on the floor already fell out of the air and is comparatively harmless."
+        },
+        {
+          "id": "q-so-04",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "TWNyk0ZeeVA",
+          "verifyAgainstVideo": true,
+          "prompt": "A shop looks clean and the air looks clear an hour after cutting. What does that tell you about fine dust?",
+          "options": [
+            "Very little - the finest particles stay airborne for hours and are invisible",
+            "The air is clear, so the dust has settled and it is safe",
+            "Dust only matters while a machine is actually running",
+            "Clear air means the dust collector worked perfectly"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Fine dust can remain suspended long after the visible cloud is gone, which is why respirators and air filtration matter after the cutting stops."
+        },
+        {
+          "id": "q-so-05",
+          "type": "multi",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "FVG4a4jHgEw",
+          "verifyAgainstVideo": true,
+          "prompt": "Which of these should you remove or secure before running any machine? (Select all that apply.)",
+          "options": [
+            "Loose long sleeves",
+            "Dangling jewelry and necklaces",
+            "Long hair left untied",
+            "Gloves at a rotating tool such as a drill press"
+          ],
+          "correct": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "explanation": "Anything that can be caught and pulled into a rotating tool. Gloves are the counterintuitive one - they are correct for handling rough stock, wrong at a spinning bit, because a caught glove takes your hand with it."
+        },
+        {
+          "id": "q-so-06",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "FVG4a4jHgEw",
+          "verifyAgainstVideo": true,
+          "prompt": "You arrive and find a machine running with nobody at it. What do you do?",
+          "options": [
+            "Leave it and find staff - someone may have stepped away mid-operation",
+            "Turn it off so it is safe",
+            "Use it, since it is already on",
+            "Unplug it and move it aside"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Shutting down someone else's running job can ruin their work or their machine. In a shared shop the rule is: if you did not turn it on, do not turn it off - tell staff."
+        },
+        {
+          "id": "q-so-07",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "shop-policy",
+          "answerPending": true,
+          "prompt": "Where is the nearest fire extinguisher to the laser cutter at The Box?",
+          "options": [
+            "[FILL IN - actual location]",
+            "[FILL IN - plausible wrong location]",
+            "[FILL IN - plausible wrong location]",
+            "[FILL IN - plausible wrong location]"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "[FILL IN]"
+        },
+        {
+          "id": "q-so-08",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "shop-policy",
+          "answerPending": true,
+          "prompt": "Someone is injured badly enough to need medical attention. What is the first thing you do?",
+          "options": [
+            "[FILL IN - The Box's actual order of operations; most shops are: call 911 first, then notify staff]",
+            "[FILL IN]",
+            "[FILL IN]",
+            "[FILL IN]"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "[FILL IN - and post this on the wall, not only in the quiz]"
+        },
+        {
+          "id": "q-so-09",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "shop-policy",
+          "answerPending": true,
+          "prompt": "You leave a project in the shop. How long before it becomes property of The Box?",
+          "options": [
+            "90 days without written communication with staff",
+            "30 days",
+            "1 year",
+            "It never does"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "From The Box's storage and abandoned property policy. Confirm the wording matches the published policy before publishing this question."
+        },
+        {
+          "id": "q-so-10",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "shop-policy",
+          "answerPending": true,
+          "prompt": "You have passed this quiz. Which machines may you now use?",
+          "options": [
+            "None yet - a knowledge test never grants machine access on its own; you still need a hands-on checkoff with staff",
+            "All of them",
+            "Only the ones you have watched videos for",
+            "Any machine, as long as staff are in the building"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "This is the single most important thing a member can misunderstand about the learning platform. Worth asking in every module, not just this one."
+        },
+        {
+          "id": "q-so-11",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "shop-policy",
+          "prompt": "Which machines at The Box are allowed to run when nobody is watching them?",
+          "options": [
+            "The 3D printers only - anything that cuts with heat or a blade must be attended for every second it runs",
+            "Any machine, once you are certified on it",
+            "None - every machine must be attended",
+            "Any machine, as long as staff are in the building"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "This is the rule members most reliably get wrong, because they generalise from whichever machine they learned first. A member whose first machine was the Prusa - which is SUPPOSED to run for hours alone - arrives at the plasma table with exactly the wrong instinct. Teach the line, not the individual rules."
+        }
+      ]
+    },
+    {
+      "moduleId": "mod-table-saw",
+      "moduleTitle": "Table Saw",
+      "equipmentStatus": "CONFIRMED by Trey 2026-09-07 - the woodshop exists but is small. All six machines present.",
+      "questions": [
+        {
+          "id": "q-ts-01",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "Q_8QZF3IO0g",
+          "verifyAgainstVideo": true,
+          "prompt": "What is kickback?",
+          "options": [
+            "The workpiece being caught by the rising back teeth of the blade and thrown back at the operator",
+            "The saw motor stalling under load",
+            "The blade slowing down in thick stock",
+            "Vibration in the fence during a cut"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "The back of the blade turns upward and toward you. Anything that lets the workpiece contact it gets launched."
+        },
+        {
+          "id": "q-ts-02",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "Q_8QZF3IO0g",
+          "verifyAgainstVideo": true,
+          "prompt": "What does a riving knife do?",
+          "options": [
+            "Keeps the kerf open behind the blade so the workpiece cannot pinch or contact the rising teeth",
+            "Guides the workpiece against the fence",
+            "Reduces splintering on the underside of the cut",
+            "Holds the blade guard in position"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "It is the single most effective anti-kickback device on the saw, which is why it stays on."
+        },
+        {
+          "id": "q-ts-03",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "Q_8QZF3IO0g",
+          "verifyAgainstVideo": true,
+          "prompt": "Why must you never use the rip fence and the miter gauge together for a crosscut?",
+          "options": [
+            "The offcut becomes trapped between blade and fence and gets thrown",
+            "The cut will be out of square",
+            "It dulls the blade prematurely",
+            "The miter gauge cannot reach the fence"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "The trapped offcut is the classic kickback setup. Use a stop block clamped ahead of the blade instead."
+        },
+        {
+          "id": "q-ts-04",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "Q_8QZF3IO0g",
+          "verifyAgainstVideo": true,
+          "prompt": "Where should you stand while ripping?",
+          "options": [
+            "Slightly to one side, out of the line directly behind the blade",
+            "Directly behind the blade so the cut stays straight",
+            "At the outfeed end of the saw",
+            "As far to the left of the table as you can reach"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Kickback travels straight back along the blade line. Do not be standing in it."
+        },
+        {
+          "id": "q-ts-05",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "Q_8QZF3IO0g",
+          "verifyAgainstVideo": true,
+          "prompt": "You are ripping a narrow strip. When does the push stick become mandatory?",
+          "options": [
+            "Once your hand would otherwise pass within a few inches of the blade",
+            "Only if the stock is under one inch wide",
+            "Only when the guard is removed",
+            "Only for stock longer than four feet"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "The Box should set and post a specific width. Confirm the number before publishing and replace this wording with it."
+        },
+        {
+          "id": "q-ts-06",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "Q_8QZF3IO0g",
+          "verifyAgainstVideo": true,
+          "prompt": "A cut binds partway through and the saw starts to bog down. What do you do?",
+          "options": [
+            "Hold the workpiece firmly, do not pull it back, turn the saw off and let the blade stop",
+            "Pull the workpiece back out of the blade quickly",
+            "Push harder to finish the cut",
+            "Let go of the workpiece and step back"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Pulling back is what feeds the workpiece into the rising teeth. Letting go frees it to be thrown."
+        },
+        {
+          "id": "q-ts-07",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "fEm1DjAKZKY",
+          "verifyAgainstVideo": true,
+          "prompt": "Why should you never cut freehand on a table saw - without the fence or the miter gauge?",
+          "options": [
+            "Nothing keeps the workpiece aligned to the blade, so it twists into the blade and kicks back",
+            "The cut will not be straight enough for good work",
+            "It puts excessive wear on the arbor bearings",
+            "It is only unsafe on thin stock"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "This one is worth stating as an absolute rule rather than a judgment call."
+        },
+        {
+          "id": "q-ts-08",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "Q_8QZF3IO0g",
+          "verifyAgainstVideo": true,
+          "prompt": "How high above the workpiece should the blade be set?",
+          "options": [
+            "Just above the stock - roughly the height of the gullets between teeth",
+            "As high as it goes, for a cleaner cut",
+            "Exactly level with the top of the stock",
+            "At least two inches above the stock"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Lower means less exposed blade and a more downward cutting force. There is a genuine debate about full-height cutting; teach the conservative version in a shared shop."
+        },
+        {
+          "id": "q-ts-09",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "shop-policy",
+          "answerPending": true,
+          "prompt": "Who may change the blade on The Box's table saw?",
+          "options": [
+            "[FILL IN - staff only is the usual answer]",
+            "[FILL IN]",
+            "[FILL IN]",
+            "[FILL IN]"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "[FILL IN]"
+        },
+        {
+          "id": "q-ts-10",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "shop-policy",
+          "answerPending": true,
+          "prompt": "Does The Box's table saw have a blade-brake safety system (such as SawStop)?",
+          "options": [
+            "[FILL IN - the true answer]",
+            "[FILL IN]",
+            "[FILL IN]",
+            "[FILL IN]"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Members behave differently depending on the answer, and a member who assumes a brake exists when it does not is the exact failure this question prevents."
+        }
+      ]
+    },
+    {
+      "moduleId": "mod-woodshop-basics",
+      "moduleTitle": "Woodshop Basics",
+      "equipmentStatus": "CONFIRMED by Trey 2026-09-07 - the woodshop exists but is small. All six machines present.",
+      "questions": [
+        {
+          "id": "q-wb-01",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "Jcn8GjY85nM",
+          "verifyAgainstVideo": true,
+          "prompt": "How high should the band saw's upper blade guard be set?",
+          "options": [
+            "Just above the workpiece - about a quarter inch",
+            "At the top of its travel",
+            "Halfway up the column",
+            "It does not matter as long as it is above the stock"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Lower guard means less exposed blade and better blade support."
+        },
+        {
+          "id": "q-wb-02",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "Jcn8GjY85nM",
+          "verifyAgainstVideo": true,
+          "prompt": "What is a relief cut on a band saw?",
+          "options": [
+            "A straight cut in to the curve line, so the waste falls away and the blade does not bind in a tight radius",
+            "A shallow scoring pass before the full cut",
+            "A cut that relieves tension in the blade",
+            "A cut made with the fence removed"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Tight curves bind the blade; relief cuts are how you avoid forcing it."
+        },
+        {
+          "id": "q-wb-03",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "IMJhES5BS5o",
+          "verifyAgainstVideo": true,
+          "prompt": "After completing a miter saw cut, when may you raise the blade?",
+          "options": [
+            "After releasing the trigger and waiting for the blade to stop spinning",
+            "Immediately, as soon as the cut is through",
+            "As soon as you release the trigger",
+            "While still holding the trigger, to clear the kerf"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Raising a spinning blade can catch the offcut and throw it, or pull stock up into the blade."
+        },
+        {
+          "id": "q-wb-04",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "IMJhES5BS5o",
+          "verifyAgainstVideo": true,
+          "prompt": "You need a very short piece cut on the miter saw. What is the safe approach?",
+          "options": [
+            "Cut it from a longer board using a stop block, so your hands stay well clear",
+            "Hold the short piece with your fingers close to the blade",
+            "Hold it with pliers",
+            "Freehand the cut quickly"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Short offcuts near a miter saw blade are one of the most common ways people get hurt on the machine."
+        },
+        {
+          "id": "q-wb-05",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "V6XzOBiQpnQ",
+          "verifyAgainstVideo": true,
+          "prompt": "Why must you never crosscut - cut across the grain on a short piece - on a jointer?",
+          "options": [
+            "The cutterhead can catch the end grain and throw the piece, or pull your hand in",
+            "It dulls the knives faster than face jointing",
+            "The fence cannot be set square for crosscuts",
+            "It leaves a rough surface"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "A jointer is for edges and faces along the grain, full stop."
+        },
+        {
+          "id": "q-wb-06",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "V6XzOBiQpnQ",
+          "verifyAgainstVideo": true,
+          "prompt": "You run a bowed board through the planer and it comes out the same thickness but still bowed. Why?",
+          "options": [
+            "A planer references the bottom face and cuts parallel to it - you must flatten one face on the jointer first",
+            "The planer knives are dull",
+            "You took too heavy a cut",
+            "The board was too short for the planer"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "This is the single most common misunderstanding about the jointer/planer pair and the reason the jointer exists."
+        },
+        {
+          "id": "q-wb-07",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "88RnZE2YYjE",
+          "verifyAgainstVideo": true,
+          "prompt": "Which stock must never go through the thickness planer?",
+          "options": [
+            "Reclaimed or painted wood that may contain nails, screws, staples or grit",
+            "Any hardwood over one inch thick",
+            "Anything wider than six inches",
+            "Freshly jointed stock"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Hidden metal destroys the knives and can throw fragments. Check reclaimed stock with a metal detector or do not run it."
+        },
+        {
+          "id": "q-wb-08",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "QW5JvkeDik0",
+          "verifyAgainstVideo": true,
+          "prompt": "On a router table, which way do you feed the workpiece relative to the bit?",
+          "options": [
+            "Against the bit's rotation, so the bit pushes the work back toward you and into the fence",
+            "With the bit's rotation, so the bit pulls the work through",
+            "Whichever direction is more comfortable",
+            "It only matters for bits over half an inch"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Feeding with the rotation is a climb cut - the bit grabs the work and rockets it out of your hands."
+        },
+        {
+          "id": "q-wb-09",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "QW5JvkeDik0",
+          "verifyAgainstVideo": true,
+          "prompt": "What is a climb cut?",
+          "options": [
+            "Feeding in the same direction as the bit's rotation, which makes the bit pull the workpiece",
+            "Routing uphill on a sloped surface",
+            "Taking multiple shallow passes instead of one deep one",
+            "Routing with the bit raised above the workpiece"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Experienced woodworkers sometimes use light climb cuts deliberately. In a shared shop, teach it as a thing to recognize and avoid."
+        },
+        {
+          "id": "q-wb-10",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "QW5JvkeDik0",
+          "verifyAgainstVideo": true,
+          "prompt": "You need to remove a lot of material with a router bit. What is the right approach?",
+          "options": [
+            "Several shallow passes, raising the bit between passes",
+            "One full-depth pass with a slow feed rate",
+            "One full-depth pass with a fast feed rate",
+            "Two passes at full depth from opposite directions"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Deep single passes are how bits break and workpieces get grabbed."
+        }
+      ]
+    },
+    {
+      "moduleId": "mod-hand-tools-drill-press",
+      "moduleTitle": "Hand Tools and Drill Press",
+      "equipmentStatus": "CONFIRMED on discoverburien.org/makerspace - 'Hand held power tools, Drill press'",
+      "questions": [
+        {
+          "id": "q-dp-01",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "qOT-GK_BXK4",
+          "verifyAgainstVideo": true,
+          "prompt": "Why should you never wear gloves at the drill press?",
+          "options": [
+            "A glove caught by the rotating bit pulls your hand in with it",
+            "Gloves reduce your grip on the workpiece",
+            "Gloves make the depth stop harder to set",
+            "Gloves are fine at the drill press"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "The counterintuitive one. Gloves protect you from splinters and burn you at rotating machinery."
+        },
+        {
+          "id": "q-dp-02",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "qOT-GK_BXK4",
+          "verifyAgainstVideo": true,
+          "prompt": "You are drilling a hole through a small piece of metal or plastic. How should it be held?",
+          "options": [
+            "Clamped to the table or held in a drill press vise, never by hand",
+            "Firmly by hand, with the other hand on the feed lever",
+            "Held with pliers",
+            "Held against the column for stability"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "When the bit breaks through, the workpiece spins. Small, smooth stock spins fastest and cuts worst."
+        },
+        {
+          "id": "q-dp-03",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "qOT-GK_BXK4",
+          "verifyAgainstVideo": true,
+          "prompt": "You are about to use a large-diameter bit. What should happen to the spindle speed?",
+          "options": [
+            "It should be reduced - bigger bits run slower",
+            "It should be increased - bigger bits need more speed",
+            "It makes no difference",
+            "It should be set to maximum for a cleaner hole"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "The rim of a large bit travels much further per revolution. Same rule as any rotating cutter."
+        },
+        {
+          "id": "q-dp-04",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "qOT-GK_BXK4",
+          "verifyAgainstVideo": true,
+          "prompt": "What must you remove from the chuck before switching the drill press on?",
+          "options": [
+            "The chuck key",
+            "The depth stop",
+            "The table insert",
+            "The belt cover"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "A chuck key left in becomes a projectile. Habit: key never leaves your hand."
+        },
+        {
+          "id": "q-dp-05",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "qOT-GK_BXK4",
+          "verifyAgainstVideo": true,
+          "prompt": "Why place a sacrificial backer board under your workpiece?",
+          "options": [
+            "It prevents blowout on the underside and protects the drill press table",
+            "It raises the work closer to the bit",
+            "It keeps the workpiece from spinning",
+            "It reduces bit wear"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Also stops you from drilling into the table itself, which staff will notice."
+        },
+        {
+          "id": "q-dp-06",
+          "type": "multi",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "FVG4a4jHgEw",
+          "verifyAgainstVideo": true,
+          "prompt": "Before using any handheld power tool, which of these should you check? (Select all that apply.)",
+          "options": [
+            "The cord and plug for damage",
+            "That the guard is present and moves freely",
+            "That the workpiece is secured, not held in your lap or hand",
+            "That the tool is unplugged before you change a blade or bit"
+          ],
+          "correct": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "explanation": "The last one is the one people skip, and it is the one that costs fingers."
+        },
+        {
+          "id": "q-dp-07",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "FVG4a4jHgEw",
+          "verifyAgainstVideo": true,
+          "prompt": "You need to change the blade on a circular saw. What is the first step?",
+          "options": [
+            "Unplug the tool or remove its battery",
+            "Engage the blade lock",
+            "Set the depth to zero",
+            "Put on gloves"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Nothing else matters if the tool can start."
+        },
+        {
+          "id": "q-dp-08",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "FVG4a4jHgEw",
+          "verifyAgainstVideo": true,
+          "prompt": "You are cutting a small piece with a jigsaw. Where should your free hand be?",
+          "options": [
+            "Well clear of the blade path, with the workpiece clamped to a bench",
+            "Holding the workpiece directly beside the cut line",
+            "Under the workpiece, supporting it",
+            "Steadying the shoe of the saw near the blade"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Clamp the work; a hand is not a clamp."
+        },
+        {
+          "id": "q-dp-09",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "shop-policy",
+          "answerPending": true,
+          "prompt": "Which handheld power tools at The Box may members use without a separate checkoff?",
+          "options": [
+            "[FILL IN - The Box's actual policy]",
+            "[FILL IN]",
+            "[FILL IN]",
+            "[FILL IN]"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "[FILL IN. Worth deciding explicitly: 'hand held power tools' as a category covers everything from a palm sander to a circular saw.]"
+        },
+        {
+          "id": "q-dp-10",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "shop-policy",
+          "answerPending": true,
+          "prompt": "Where are the drill press bits and the drill press vise kept, and what do you do with them when you finish?",
+          "options": [
+            "[FILL IN]",
+            "[FILL IN]",
+            "[FILL IN]",
+            "[FILL IN]"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "[FILL IN]"
+        }
+      ]
+    },
+    {
+      "moduleId": "mod-laser-cutter",
+      "moduleTitle": "Laser Cutter (Epilog Fusion Pro 32)",
+      "equipmentStatus": "CONFIRMED - Epilog Fusion Pro 32, 80W CO2, rim drive rotary, CorelDRAW",
+      "questions": [
+        {
+          "id": "q-lc-01",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "3QBn8UIJ1oU",
+          "verifyAgainstVideo": true,
+          "prompt": "Why must PVC never go in the laser?",
+          "options": [
+            "It releases chlorine gas, which is toxic to people and corrodes the machine",
+            "It melts instead of cutting cleanly",
+            "It produces too much smoke for the exhaust",
+            "It reflects the beam back at the lens"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Both halves matter: it hurts people and it destroys a $20k+ machine from the inside."
+        },
+        {
+          "id": "q-lc-02",
+          "type": "multi",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "3QBn8UIJ1oU",
+          "verifyAgainstVideo": true,
+          "prompt": "Which of these must NEVER be cut on a CO2 laser? (Select all that apply.)",
+          "options": [
+            "PVC / vinyl",
+            "Polycarbonate (Lexan)",
+            "ABS",
+            "Materials containing chlorine of any kind"
+          ],
+          "correct": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "explanation": "Polycarbonate burns and yellows rather than cutting; ABS melts and emits cyanide gas. The Box's posted never-cut list is the authority - update this question to match it exactly."
+        },
+        {
+          "id": "q-lc-03",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "uZ6U1lTSD_Q",
+          "verifyAgainstVideo": true,
+          "prompt": "The exhaust fan is not running. Can you start a job?",
+          "options": [
+            "No - never run the laser without verified exhaust",
+            "Yes, for short engraving jobs",
+            "Yes, if you open a door",
+            "Yes, if the material is only wood"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Exhaust is what keeps combustion products out of your lungs and keeps a small flare from becoming a fire."
+        },
+        {
+          "id": "q-lc-04",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "uZ6U1lTSD_Q",
+          "verifyAgainstVideo": true,
+          "prompt": "Why may you never leave a running laser unattended, even for a two-minute job?",
+          "options": [
+            "A flare-up can start at any moment and become a fire within seconds",
+            "The job may finish and waste machine time",
+            "The machine may lose focus mid-job",
+            "Other members may interrupt the job"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "The most common way a makerspace loses a laser - and sometimes a building - is someone stepping out to the bathroom."
+        },
+        {
+          "id": "q-lc-05",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "uZ6U1lTSD_Q",
+          "verifyAgainstVideo": true,
+          "prompt": "A small flame persists on the material during a cut. What is your first action?",
+          "options": [
+            "Stop the job and open the lid only if the flame is out; if it persists, use the extinguisher and get staff",
+            "Blow on it",
+            "Let the job finish - it usually goes out",
+            "Pour water into the bed"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Replace this with The Box's exact posted procedure before publishing. A member should not be improvising here."
+        },
+        {
+          "id": "q-lc-06",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "OGZZI_m3PQc",
+          "verifyAgainstVideo": true,
+          "prompt": "What is kerf on a laser cutter?",
+          "options": [
+            "The width of material the beam removes, which makes cut parts slightly smaller than drawn",
+            "The depth the beam penetrates per pass",
+            "The distance between the lens and the material",
+            "The gap between the honeycomb bed slats"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Matters the moment someone tries to make finger joints or press-fit parts."
+        },
+        {
+          "id": "q-lc-07",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "OGZZI_m3PQc",
+          "verifyAgainstVideo": true,
+          "prompt": "Your laser-cut tabs come out slightly too loose in their slots. What is the likely cause?",
+          "options": [
+            "Kerf - the beam removed material from both the tab and the slot",
+            "The power was set too low",
+            "The material was warped",
+            "The design was drawn at the wrong scale"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Compensating for kerf is the difference between a press fit and a rattle."
+        },
+        {
+          "id": "q-lc-08",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "peDQVh8ye-M",
+          "verifyAgainstVideo": true,
+          "prompt": "In Inkscape, what distinguishes a line the laser will CUT from one it will ENGRAVE?",
+          "options": [
+            "Stroke colour and hairline stroke width, mapped to the laser's colour settings",
+            "The layer it is on",
+            "Whether the object is grouped",
+            "The document units"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Confirm this against The Box's actual colour mapping in the Epilog driver, then rewrite with your exact convention."
+        },
+        {
+          "id": "q-lc-09",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "peDQVh8ye-M",
+          "verifyAgainstVideo": true,
+          "prompt": "You import a JPEG of a logo and want the laser to cut its outline. What must happen first?",
+          "options": [
+            "It must be traced/converted into vector paths - a raster image can only be engraved",
+            "It must be converted to greyscale",
+            "It must be scaled to 100%",
+            "Nothing - the laser cuts raster images directly"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "The raster/vector distinction is the number one thing that sends a member back to the computer."
+        },
+        {
+          "id": "q-lc-10",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "shop-policy",
+          "answerPending": true,
+          "prompt": "You brought your own sheet material from home. What must you do before cutting it?",
+          "options": [
+            "[FILL IN - The Box's material approval process; most spaces require staff sign-off and an SDS or known material type]",
+            "[FILL IN]",
+            "[FILL IN]",
+            "[FILL IN]"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "This is how PVC gets into a laser. Make the process explicit and make this question mandatory."
+        }
+      ]
+    },
+    {
+      "moduleId": "mod-3d-printing",
+      "moduleTitle": "3D Printing - FDM (Prusa i3 MK3S)",
+      "equipmentStatus": "CONFIRMED - Prusa i3 MK3S, PrusaSlicer. Resin split into its own module and bank.",
+      "questions": [
+        {
+          "id": "q-3d-01",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "Z0VLR6aS3FE",
+          "verifyAgainstVideo": true,
+          "prompt": "What does a good first layer look like?",
+          "options": [
+            "Lines squished slightly flat, touching each other with no gaps, evenly stuck to the bed",
+            "Round lines with visible gaps between them",
+            "Lines barely touching the bed, easy to peel",
+            "A translucent, very thin sheet"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Most failures on a shared printer are visible in the first two minutes. Teaching members to look is worth more than any other lesson here."
+        },
+        {
+          "id": "q-3d-02",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "Z0VLR6aS3FE",
+          "verifyAgainstVideo": true,
+          "prompt": "The first layer is not sticking and the print is turning into a bird's nest. What should you do?",
+          "options": [
+            "Cancel the print immediately and tell staff",
+            "Let it run and see if it recovers",
+            "Push the filament down with your fingers",
+            "Increase the print speed"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "A nine-hour spaghetti print wastes filament, machine time and someone else's slot, and can damage the printer."
+        },
+        {
+          "id": "q-3d-03",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "Z0VLR6aS3FE",
+          "verifyAgainstVideo": true,
+          "prompt": "Why must the print bed be free of fingerprints and grease?",
+          "options": [
+            "Oils prevent adhesion and cause the print to lift",
+            "Oils burn and produce fumes",
+            "Oils damage the PEI sheet permanently",
+            "It only matters for large prints"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Clean the sheet with IPA, and handle it by the edges."
+        },
+        {
+          "id": "q-3d-04",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "Or1FP43zx3I",
+          "verifyAgainstVideo": true,
+          "prompt": "You need a part that will sit in a car in summer. Which filament is the wrong choice?",
+          "options": [
+            "PLA - it softens at temperatures a parked car easily reaches",
+            "PETG",
+            "ABS",
+            "ASA"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "The classic beginner surprise: a perfectly good PLA phone mount deforms on the dashboard."
+        },
+        {
+          "id": "q-3d-05",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "Or1FP43zx3I",
+          "verifyAgainstVideo": true,
+          "prompt": "Which filament is the easiest to print and the default for most makerspace work?",
+          "options": [
+            "PLA",
+            "ABS",
+            "Nylon",
+            "Polycarbonate"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Low temperature, minimal warping, no enclosure needed, least fumes."
+        },
+        {
+          "id": "q-3d-06",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "_kIqMPNQNSw",
+          "verifyAgainstVideo": true,
+          "prompt": "What does the slicer actually do?",
+          "options": [
+            "Converts a 3D model into layer-by-layer toolpath instructions (G-code) the printer can run",
+            "Shrinks the model to fit the bed",
+            "Repairs errors in the 3D model",
+            "Compresses the file for the printer's SD card"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Members who understand this stop treating the slicer as a mystery box."
+        },
+        {
+          "id": "q-3d-07",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "_kIqMPNQNSw",
+          "verifyAgainstVideo": true,
+          "prompt": "Where do you find out how long a print will take before you start it?",
+          "options": [
+            "The slicer's estimate after slicing",
+            "The printer's display once the print begins",
+            "By measuring the file size",
+            "There is no way to know in advance"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Tie this directly to billing: The Box's machine rate model charges per print-hour from the slicer estimate, so members need to know where that number lives."
+        },
+        {
+          "id": "q-3d-08",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "_kIqMPNQNSw",
+          "verifyAgainstVideo": true,
+          "prompt": "Your model has a steep overhang. What does the slicer need in order to print it?",
+          "options": [
+            "Support material, or a different part orientation",
+            "A higher infill percentage",
+            "A slower first layer",
+            "A larger brim"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Rotating the part is usually the better answer, and supports are the fallback."
+        },
+        {
+          "id": "q-3d-09",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "SXVK-IHLyQw",
+          "verifyAgainstVideo": true,
+          "prompt": "In Tinkercad, how do you make a hole in a solid shape?",
+          "options": [
+            "Place a shape set to 'Hole', position it, then group it with the solid",
+            "Use the eraser tool",
+            "Set the solid's opacity to zero",
+            "Subtract it in the export settings"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Solid/hole plus group is the entire mental model of Tinkercad. A member who has this can build most things."
+        },
+        {
+          "id": "q-3d-10",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "SXVK-IHLyQw",
+          "verifyAgainstVideo": true,
+          "prompt": "What file format do you export from Tinkercad to bring into the slicer?",
+          "options": [
+            "STL (or 3MF)",
+            "SVG",
+            "DXF",
+            "G-code"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "The Tinkercad → STL → slicer → G-code chain is the whole pipeline; worth a diagram in the lesson text."
+        }
+      ]
+    },
+    {
+      "moduleId": "mod-resin-printing",
+      "moduleTitle": "Resin Printing (Elegoo Saturn 2 + wash/cure)",
+      "equipmentStatus": "CONFIRMED - Elegoo Saturn plus a wash/cure station.",
+      "bankNote": "Questions 1-6 test the in-house safety lesson, which has no video and must be written first. They are the gate on resin access; every one is safetyCritical. Sourced from resin manufacturer safety guidance rather than from any video, so verifyAgainstVideo does not apply to them - verify them against the SDS for the resin The Box stocks.",
+      "questions": [
+        {
+          "id": "q-rs-01",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "shop-policy",
+          "prompt": "Which gloves must you wear when handling uncured resin?",
+          "options": [
+            "Nitrile",
+            "Latex",
+            "Cotton work gloves",
+            "Any glove, as long as it is intact"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Latex is permeable to the chemicals in photopolymer resin and offers little protection. Nitrile only."
+        },
+        {
+          "id": "q-rs-02",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "shop-policy",
+          "prompt": "Uncured resin gets on your bare skin. What do you do?",
+          "options": [
+            "Wash it off immediately with soap and water, and never with IPA on skin",
+            "Let it dry, then peel it off",
+            "Wipe it with an IPA-soaked paper towel",
+            "Nothing - cured resin is inert"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "IPA on skin drives the resin further in and strips the skin's barrier. Soap and water, immediately."
+        },
+        {
+          "id": "q-rs-03",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "shop-policy",
+          "prompt": "Why does repeated skin contact with uncured resin matter even when it does not hurt at the time?",
+          "options": [
+            "Photopolymer resin is a sensitizer - repeated exposure can produce a permanent allergy",
+            "It stains the skin",
+            "It causes immediate chemical burns",
+            "It does not matter if you wash promptly"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "This is the single most important fact in the module. People develop resin allergies after months of casual handling, and then they can never work with it again."
+        },
+        {
+          "id": "q-rs-04",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "shop-policy",
+          "prompt": "What is the hazard with the IPA used for washing prints?",
+          "options": [
+            "It is flammable and its vapour is an inhalation hazard",
+            "It is corrosive to skin",
+            "It reacts with cured resin",
+            "There is no significant hazard"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Keep it capped, keep it away from ignition sources, and keep the area ventilated. A plasma table is in the same building - worth knowing where the IPA lives relative to it."
+        },
+        {
+          "id": "q-rs-05",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "shop-policy",
+          "prompt": "What must happen to failed prints, supports and drips before they go in the trash?",
+          "options": [
+            "They must be fully cured under UV first",
+            "Nothing - they can be binned as-is",
+            "They must be rinsed in IPA",
+            "They must be double-bagged"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Uncured resin in a bin is a hazardous-waste problem and a contact hazard for whoever empties it."
+        },
+        {
+          "id": "q-rs-06",
+          "type": "multi",
+          "safetyCritical": true,
+          "source": "shop-policy",
+          "prompt": "Which of these are required before you start a resin print? (Select all that apply.)",
+          "options": [
+            "Nitrile gloves on",
+            "Eye protection on",
+            "Ventilation running",
+            "Knowing where the liquid resin waste container is"
+          ],
+          "correct": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "explanation": "All four. If any one is not true, do not start."
+        },
+        {
+          "id": "q-rs-07",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "QJogbBasn4s",
+          "verifyAgainstVideo": true,
+          "prompt": "What does the wash station actually do?",
+          "options": [
+            "Removes uncured resin from the surface of the print using IPA",
+            "Cures the print",
+            "Removes support structures",
+            "Dries the print"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Wash then cure, in that order. Curing a print with uncured resin still on it locks a sticky layer onto the surface."
+        },
+        {
+          "id": "q-rs-08",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "QJogbBasn4s",
+          "verifyAgainstVideo": true,
+          "prompt": "Why must a print be washed before it is cured, and not the other way round?",
+          "options": [
+            "Curing traps the uncured surface resin, leaving a permanently tacky, contaminated part",
+            "Curing first makes supports harder to remove",
+            "Washing after curing damages the print",
+            "The order does not matter"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Also means a 'finished' part that still carries uncured resin - a contact hazard for whoever handles it next."
+        },
+        {
+          "id": "q-rs-09",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "aIADEF7Ubv8",
+          "verifyAgainstVideo": true,
+          "prompt": "A print has failed and part of it is stuck to the film at the bottom of the vat. What do you do?",
+          "options": [
+            "Stop and get staff - digging at the FEP film with a tool can puncture it and dump resin into the machine",
+            "Scrape it off with the metal spatula",
+            "Run another print; it will clear itself",
+            "Peel it off with your fingers"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "A punctured FEP means resin in the printer's optics and a repair bill. This is the most common way a shared resin printer gets damaged."
+        },
+        {
+          "id": "q-rs-10",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "shop-policy",
+          "answerPending": false,
+          "prompt": "Where does used IPA go when it is too dirty to wash with?",
+          "options": [
+            "Sealed labeled used-IPA container for staff to take to King County Moderate Risk Waste — never down the drain",
+            "Pour it down the sink with plenty of water",
+            "Leave it open next to the wash station to evaporate",
+            "Dump it in the regular trash once it looks clear"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Best-practice placeholder for The Box. Liquid IPA is household hazardous waste in King County; do not drain it. Staff handle the drop-off. Edit if shop policy differs."
+        },
+        {
+          "id": "q-rs-11",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "shop-policy",
+          "prompt": "Your resin print will take six hours. May you leave it running and go home?",
+          "options": [
+            "Yes - printers are the exception; they may run unattended",
+            "No - no machine at The Box may run unattended",
+            "Only if staff are in the building",
+            "Only if another member agrees to watch it"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Printers may run unattended. The laser and the plasma table may not, even when you are certified and working alone. Learn the line: machines that cut with heat or a blade get watched every second; printers do not. Confirm what The Box requires before walking away - lid closed, ventilation running, name and finish time on the machine."
+        }
+      ]
+    },
+    {
+      "moduleId": "mod-vinyl-cutter",
+      "moduleTitle": "Vinyl Cutter (Silhouette Cameo 4)",
+      "equipmentStatus": "CONFIRMED - Silhouette Cameo 4",
+      "questions": [
+        {
+          "id": "q-vc-01",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "GHJWxETcZIU",
+          "verifyAgainstVideo": true,
+          "prompt": "What does 'weeding' mean in vinyl work?",
+          "options": [
+            "Removing the excess vinyl from around the design after cutting",
+            "Cleaning the cutting mat",
+            "Trimming the vinyl sheet to size before loading",
+            "Removing air bubbles after application"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "The step that takes the longest and that nobody warns beginners about."
+        },
+        {
+          "id": "q-vc-02",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "GHJWxETcZIU",
+          "verifyAgainstVideo": true,
+          "prompt": "What is a 'kiss cut'?",
+          "options": [
+            "Cutting through the vinyl but not through its paper backing",
+            "Cutting the design twice for a cleaner edge",
+            "Cutting two designs at once",
+            "Cutting through both vinyl and backing"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Cut settings that go all the way through ruin the design and score the mat or the machine's strip."
+        },
+        {
+          "id": "q-vc-03",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "GHJWxETcZIU",
+          "verifyAgainstVideo": true,
+          "prompt": "What should you always do before running a full cut on unfamiliar material?",
+          "options": [
+            "Run a test cut and check the depth",
+            "Double the blade depth for safety",
+            "Cut at the slowest speed available",
+            "Cut a mirrored version first"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Ten seconds of test cut versus a ruined sheet."
+        },
+        {
+          "id": "q-vc-04",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "GHJWxETcZIU",
+          "verifyAgainstVideo": true,
+          "prompt": "You are cutting heat transfer vinyl (HTV) for a shirt. What must you remember in the software?",
+          "options": [
+            "Mirror the design before cutting, and load the vinyl shiny-carrier-side down",
+            "Increase the blade depth to maximum",
+            "Cut it at the same settings as adhesive vinyl",
+            "Weed before cutting"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Forgetting to mirror is the single most common HTV mistake and it is unrecoverable."
+        },
+        {
+          "id": "q-vc-05",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "mJ28gAvHMc0",
+          "verifyAgainstVideo": true,
+          "prompt": "What is transfer tape used for?",
+          "options": [
+            "Lifting the weeded design off its backing and placing it on the final surface in one piece",
+            "Holding the vinyl to the cutting mat",
+            "Protecting the design after application",
+            "Masking areas that should not be cut"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Without it, a multi-piece design has to be placed letter by letter."
+        },
+        {
+          "id": "q-vc-06",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "mJ28gAvHMc0",
+          "verifyAgainstVideo": true,
+          "prompt": "When does the vinyl need to be on a cutting mat?",
+          "options": [
+            "When the material has no backing rigid enough to feed on its own, or when cutting sheets rather than roll stock",
+            "Always, for every material",
+            "Never on the Cameo 4",
+            "Only for paper"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Confirm against The Box's actual materials and update - the Cameo 4 handles some roll media matless."
+        },
+        {
+          "id": "q-vc-07",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "mJ28gAvHMc0",
+          "verifyAgainstVideo": true,
+          "prompt": "Your cut is tearing the vinyl and cutting into the backing. What is the most likely fix?",
+          "options": [
+            "Reduce blade depth and/or force",
+            "Increase the speed",
+            "Use a new mat",
+            "Switch to a thicker vinyl"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Too much blade is the usual culprit, and it damages the machine's cutting strip over time."
+        },
+        {
+          "id": "q-vc-08",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "mJ28gAvHMc0",
+          "verifyAgainstVideo": true,
+          "prompt": "What does 'Print and Cut' with registration marks let you do?",
+          "options": [
+            "Print a design on an inkjet printer and have the Cameo cut precisely around it",
+            "Cut two copies simultaneously",
+            "Print the cut settings to a file",
+            "Cut and score in a single pass"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Ties the vinyl cutter to The Box's laminators and custom print products."
+        },
+        {
+          "id": "q-vc-09",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "shop-policy",
+          "answerPending": true,
+          "prompt": "Does The Box supply vinyl, or do members bring their own? What does it cost?",
+          "options": [
+            "[FILL IN]",
+            "[FILL IN]",
+            "[FILL IN]",
+            "[FILL IN]"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "[FILL IN - the membership pitch lists the vinyl cutter as included with no hourly charge, but consumables are a separate question.]"
+        },
+        {
+          "id": "q-vc-10",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "shop-policy",
+          "answerPending": true,
+          "prompt": "What do you do with the cutting mat and blade when you finish?",
+          "options": [
+            "[FILL IN]",
+            "[FILL IN]",
+            "[FILL IN]",
+            "[FILL IN]"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "[FILL IN. Mats are consumable and get ruined by being left sticky-side up or with vinyl scraps on them.]"
+        }
+      ]
+    },
+    {
+      "moduleId": "mod-sewing",
+      "moduleTitle": "Sewing Machine (Singer)",
+      "equipmentStatus": "CONFIRMED - Singer sewing machine",
+      "questions": [
+        {
+          "id": "q-sw-01",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "BtX2zcAPWWo",
+          "verifyAgainstVideo": true,
+          "prompt": "What is the bobbin?",
+          "options": [
+            "The lower spool that supplies the underside thread of a stitch",
+            "The spool holder on top of the machine",
+            "The wheel that advances the fabric",
+            "The dial that sets stitch length"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "A stitch is two threads: needle thread from above, bobbin thread from below."
+        },
+        {
+          "id": "q-sw-02",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "fzlT-SOqxZY",
+          "verifyAgainstVideo": true,
+          "prompt": "Where must the presser foot be when you thread the machine?",
+          "options": [
+            "Raised - this releases the tension discs so the thread seats properly",
+            "Lowered, to hold the thread in place",
+            "Removed entirely",
+            "It makes no difference"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "The most common cause of a machine that 'won't sew right' after threading, and almost nobody explains why."
+        },
+        {
+          "id": "q-sw-03",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "fzlT-SOqxZY",
+          "verifyAgainstVideo": true,
+          "prompt": "Your stitches are looping and messy on the underside of the fabric. What is the most likely cause?",
+          "options": [
+            "The upper thread is not seated in the tension discs - rethread with the presser foot up",
+            "The bobbin is wound too tightly",
+            "The needle is too small",
+            "The fabric is too thick"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Almost always an upper-threading problem, even though the symptom appears underneath."
+        },
+        {
+          "id": "q-sw-04",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "BtX2zcAPWWo",
+          "verifyAgainstVideo": true,
+          "prompt": "How should you guide fabric through the machine?",
+          "options": [
+            "Let the feed dogs pull it, guiding lightly - never pull or push the fabric",
+            "Pull it firmly from behind to keep it straight",
+            "Push it steadily from the front",
+            "Hold it still and let the needle walk"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Pulling bends and snaps needles, which then fly. The one genuinely safety-relevant habit at a sewing machine."
+        },
+        {
+          "id": "q-sw-05",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "BtX2zcAPWWo",
+          "verifyAgainstVideo": true,
+          "prompt": "What is backstitching and when do you use it?",
+          "options": [
+            "Sewing a few stitches in reverse at the start and end of a seam to lock it",
+            "Sewing the seam a second time for strength",
+            "Sewing from the back side of the fabric",
+            "A decorative stitch pattern"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Without it, seams pull out."
+        },
+        {
+          "id": "q-sw-06",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "BtX2zcAPWWo",
+          "verifyAgainstVideo": true,
+          "prompt": "Which way should the handwheel be turned when you turn it by hand?",
+          "options": [
+            "Toward you",
+            "Away from you",
+            "Either direction",
+            "Only while the machine is running"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Turning it backwards can unthread the machine or jam the timing."
+        },
+        {
+          "id": "q-sw-07",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "BtX2zcAPWWo",
+          "verifyAgainstVideo": true,
+          "prompt": "You are about to sew heavy denim after finishing a project in quilting cotton. What should change?",
+          "options": [
+            "The needle - heavier fabric needs a heavier needle",
+            "Nothing",
+            "The bobbin thread colour only",
+            "The machine's power setting"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Wrong needle for the fabric is the second most common cause of skipped stitches and broken needles."
+        },
+        {
+          "id": "q-sw-08",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "fzlT-SOqxZY",
+          "verifyAgainstVideo": true,
+          "prompt": "Before you start sewing, where should both thread tails be?",
+          "options": [
+            "Pulled to the back, under the presser foot",
+            "Left loose at the front",
+            "Wrapped around the handwheel",
+            "Cut flush at the needle"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Loose tails at the front get pulled down into the bobbin case and cause a nest."
+        },
+        {
+          "id": "q-sw-09",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "shop-policy",
+          "answerPending": true,
+          "prompt": "The needle breaks while you are sewing. What do you do?",
+          "options": [
+            "[FILL IN - The Box's procedure. Most spaces: stop, find every fragment, tell staff, do not replace the needle yourself unless trained]",
+            "[FILL IN]",
+            "[FILL IN]",
+            "[FILL IN]"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "[FILL IN]"
+        },
+        {
+          "id": "q-sw-10",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "shop-policy",
+          "answerPending": true,
+          "prompt": "Does The Box supply thread, needles and bobbins, or do members bring their own?",
+          "options": [
+            "[FILL IN]",
+            "[FILL IN]",
+            "[FILL IN]",
+            "[FILL IN]"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "[FILL IN - relevant to the bowl cozy and stocking classes too.]"
+        }
+      ]
+    },
+    {
+      "moduleId": "mod-cnc-plasma",
+      "moduleTitle": "CNC Plasma Table (Avid Pro6060)",
+      "equipmentStatus": "CONFIRMED. Certified members cut with no staff present, but must stay with the machine. Solo yes, unattended no.",
+      "questions": [
+        {
+          "id": "q-pl-01",
+          "type": "multi",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "Okyko4X6Rxw",
+          "verifyAgainstVideo": true,
+          "prompt": "Plasma cutting produces which hazards? (Select all that apply.)",
+          "options": [
+            "Metal fume that must be ventilated or extracted",
+            "Intense UV and IR radiation that burns eyes and skin",
+            "Sparks and molten metal spatter",
+            "High voltage at the torch"
+          ],
+          "correct": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "explanation": "This machine is categorically more dangerous than anything else at The Box and the cert should reflect that."
+        },
+        {
+          "id": "q-pl-02",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "Okyko4X6Rxw",
+          "verifyAgainstVideo": true,
+          "prompt": "What is 'arc eye' (photokeratitis)?",
+          "options": [
+            "A painful burn of the cornea from UV exposure, often not felt until hours later",
+            "Eye strain from watching the torch",
+            "Temporary blindness from the flash",
+            "Irritation from metal fume"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "The delay is what makes it dangerous - people think they got away with it and do it again."
+        },
+        {
+          "id": "q-pl-03",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "Okyko4X6Rxw",
+          "verifyAgainstVideo": true,
+          "prompt": "Who needs eye protection when the plasma table is cutting?",
+          "options": [
+            "Everyone in line of sight, not only the operator",
+            "Only the operator",
+            "Only people within six feet",
+            "Nobody, if the table has a water bed"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "This drives a shop-layout decision, not just a PPE decision: where can bystanders stand while the table runs?"
+        },
+        {
+          "id": "q-pl-04",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "Okyko4X6Rxw",
+          "verifyAgainstVideo": true,
+          "prompt": "Which materials must never be cut on a plasma table?",
+          "options": [
+            "Galvanized or zinc-coated metal without dedicated extraction, and anything coated or painted with unknown finishes",
+            "Mild steel over 1/4 inch",
+            "Aluminium of any kind",
+            "Stainless steel"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Zinc fume causes metal fume fever. Confirm The Box's own material list and rewrite this to match it."
+        },
+        {
+          "id": "q-pl-05",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "Y0YDV1djHK4",
+          "verifyAgainstVideo": true,
+          "prompt": "Before starting a cut, what must be verified about the workpiece?",
+          "options": [
+            "It is clamped or held flat and the ground clamp has solid contact with it",
+            "It is centred on the table",
+            "It is at room temperature",
+            "It is free of mill scale"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "A lifting workpiece collides with the torch; a bad ground makes the arc unreliable and unsafe."
+        },
+        {
+          "id": "q-pl-06",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "Y0YDV1djHK4",
+          "verifyAgainstVideo": true,
+          "prompt": "Where must your hands never be during a cut?",
+          "options": [
+            "Anywhere on the table or in the machine's travel envelope",
+            "Only directly under the torch",
+            "Only on the gantry rails",
+            "Hands may rest on the table edge"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "A CNC gantry does not know your hand is there and will not stop."
+        },
+        {
+          "id": "q-pl-07",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "STBwZN3Ajv8",
+          "verifyAgainstVideo": true,
+          "prompt": "What is the correct order of the plasma workflow?",
+          "options": [
+            "Design → toolpath in VCarve → post to G-code → load in Mach4 → set origin → cut",
+            "Design → load in Mach4 → cut → toolpath",
+            "Toolpath → design → cut",
+            "Design → cut → post-process"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Members who understand the chain stop asking staff why the file 'won't open in Mach4'."
+        },
+        {
+          "id": "q-pl-08",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "STBwZN3Ajv8",
+          "verifyAgainstVideo": true,
+          "prompt": "Where is the emergency stop, and when do you use it?",
+          "options": [
+            "Within reach before you start any job - use it for any unexpected motion, collision or fire",
+            "Only for a machine fault",
+            "Only if someone is injured",
+            "It should not be used; use the software stop instead"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Replace with the E-stop's actual location at The Box. Every member should touch it once during the checkoff so their hand knows where it is - especially since they will be cutting alone."
+        },
+        {
+          "id": "q-pl-09",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "xKTpAoKjWUE",
+          "verifyAgainstVideo": true,
+          "prompt": "In VCarve, what is a toolpath?",
+          "options": [
+            "The instructions describing how the machine moves and cuts to produce your design",
+            "The physical path the material takes through the machine",
+            "The folder where files are saved",
+            "The route the design takes from computer to machine"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "The design is not the job. The toolpath is the job."
+        },
+        {
+          "id": "q-pl-10",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "shop-policy",
+          "prompt": "You are certified on the plasma table and you are the only person in the shop. Which is true?",
+          "options": [
+            "You may cut, but you must stay with the machine for the whole cut",
+            "You may not cut without staff present",
+            "You may cut and step away once the job is running",
+            "You may cut only if another certified member is present"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Confirmed policy at The Box: solo operation is allowed, unattended operation is not. Because nobody else is in the room, everything else in this module is not advisory - it is the whole safety system."
+        }
+      ]
+    },
+    {
+      "moduleId": "mod-embroidery-machine",
+      "moduleTitle": "Embroidery Machine",
+      "equipmentStatus": "Assumed Brother-class single-needle — confirm model.",
+      "questions": [
+        {
+          "id": "q-em-01",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "-gY539zp0Ws",
+          "verifyAgainstVideo": true,
+          "prompt": "While the embroidery machine is stitching, what should you do with the fabric?",
+          "options": [
+            "Let the hoop move the fabric — do not pull or push it",
+            "Pull gently ahead of the needle to keep tension",
+            "Hold the fabric taut with both hands beside the hoop",
+            "Push from behind to speed dense designs"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Pulling while stitching bends and breaks needles."
+        },
+        {
+          "id": "q-em-02",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "-gY539zp0Ws",
+          "verifyAgainstVideo": true,
+          "prompt": "A needle breaks mid-design. What is the first priority?",
+          "options": [
+            "Stop, find every fragment, and tell staff before replacing the needle",
+            "Install a new needle immediately and resume",
+            "Raise the speed and finish the design",
+            "Cut the design out of the hoop and start over"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Loose needle fragments damage the machine and cut fingers. Shop policy: staff before restart if unsure."
+        },
+        {
+          "id": "q-em-03",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "-gY539zp0Ws",
+          "verifyAgainstVideo": true,
+          "prompt": "Where does a pre-wound bobbin typically go on a Brother embroidery machine?",
+          "options": [
+            "In the bobbin case under the needle plate, oriented per the machine's diagram",
+            "On the top spool pin next to the upper thread",
+            "Inside the hoop under the fabric",
+            "It is optional for embroidery"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Bobbin orientation is model-specific — follow the diagram on the machine."
+        },
+        {
+          "id": "q-em-04",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "-gY539zp0Ws",
+          "verifyAgainstVideo": true,
+          "prompt": "How do members usually load custom designs onto a Brother PE-class machine?",
+          "options": [
+            "USB drive with a supported embroidery file format",
+            "Email the design to the machine",
+            "Print the design on paper and scan it",
+            "Only built-in designs are allowed"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Confirm The Box's accepted formats (often PES) at the station."
+        },
+        {
+          "id": "q-em-05",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "472kqi7uRs4",
+          "verifyAgainstVideo": true,
+          "prompt": "Which stabilizer should you reach for first on a stretchy t-shirt?",
+          "options": [
+            "Cutaway",
+            "Tearaway only",
+            "No stabilizer",
+            "Water-soluble only, with nothing behind the fabric"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Cutaway stays with the garment and supports stretch fabrics through washing."
+        },
+        {
+          "id": "q-em-06",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "472kqi7uRs4",
+          "verifyAgainstVideo": true,
+          "prompt": "Tearaway stabilizer is generally best for:",
+          "options": [
+            "Stable woven fabrics where you want to remove the backing after stitching",
+            "Every knit garment",
+            "Replacing the bobbin thread",
+            "Lubricating the needle"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Tearaway on stretch knits is a common cause of puckering."
+        },
+        {
+          "id": "q-em-07",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "shop-policy",
+          "prompt": "When hooping, how tight should the fabric be?",
+          "options": [
+            "Taut like a drum without stretching the grain of the fabric",
+            "Loose so the hoop does not leave marks",
+            "Stretched hard in every direction after the screw is tight",
+            "Only the stabilizer needs to be tight"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Over-stretching in the hoop causes puckering when you unhoop."
+        },
+        {
+          "id": "q-em-08",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "shop-policy",
+          "prompt": "Why must excess fabric be kept clear of the embroidery arm?",
+          "options": [
+            "Loose fabric can be caught and sewn into the arm or design",
+            "It blocks the touchscreen",
+            "It cools the motor",
+            "It does not matter"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Caught fabric ruins the project and can damage the machine."
+        },
+        {
+          "id": "q-em-09",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "shop-policy",
+          "answerPending": false,
+          "prompt": "Does The Box supply stabilizer, bobbins, and embroidery thread?",
+          "options": [
+            "Best practice: shop stocks basics for checkoff and classes; members bring specialty thread — confirm posted consumable policy",
+            "Everything is free unlimited",
+            "Members must bring a whole machine",
+            "Only needles are supplied"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Provisional answer — edit when consumable policy is posted."
+        },
+        {
+          "id": "q-em-10",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "shop-policy",
+          "prompt": "You passed this quiz. May you embroider unsupervised tomorrow?",
+          "options": [
+            "Not yet — you still need a staff hands-on checkoff for machine access",
+            "Yes, the quiz unlocks the badge",
+            "Yes, if another member watches",
+            "Yes, after one practice at home"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Knowledge pass is not machine access."
+        }
+      ]
+    },
+    {
+      "moduleId": "mod-sublimation",
+      "moduleTitle": "Sublimation",
+      "equipmentStatus": "Assumed Sawgrass-class printer + heat press.",
+      "questions": [
+        {
+          "id": "q-su-01",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "tJGG1lbp83k",
+          "verifyAgainstVideo": true,
+          "prompt": "Before printing a design for a shirt, what must usually happen to the artwork?",
+          "options": [
+            "It must be mirrored so it reads correctly after pressing",
+            "It must be converted to greyscale",
+            "It must be printed twice",
+            "Nothing — mirror only applies to vinyl"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Forgetting to mirror is the classic first failure."
+        },
+        {
+          "id": "q-su-02",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "tJGG1lbp83k",
+          "verifyAgainstVideo": true,
+          "prompt": "Which garment takes sublimation dye best?",
+          "options": [
+            "Light-coloured high-polyester (ideally 100% polyester) fabric",
+            "100% cotton dark hoodie",
+            "Wool coat",
+            "Any fabric if you press longer"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Dye bonds to polyester; cotton and dark garments are the wrong blank."
+        },
+        {
+          "id": "q-su-03",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "Nu5P-Yx-nX8",
+          "verifyAgainstVideo": true,
+          "prompt": "Why stay with the heat press while it is closed on a job?",
+          "options": [
+            "The platen is hot enough to burn, and a press left alone is a fire and injury risk",
+            "The printer needs the network from the press",
+            "Sublimation only works if you watch it",
+            "You do not — heat presses may run overnight"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Treat the press like other heat equipment: attended for the cycle."
+        },
+        {
+          "id": "q-su-04",
+          "type": "single",
+          "safetyCritical": true,
+          "source": "video",
+          "sourceVideoId": "7NxQRsUjR7M",
+          "verifyAgainstVideo": true,
+          "prompt": "What usually causes ghosting (a blurry double image)?",
+          "options": [
+            "The transfer shifted when the press opened or closed",
+            "The printer was offline",
+            "The shirt was 100% polyester",
+            "The design was mirrored"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Tape the transfer; do not bump the paper while hot."
+        },
+        {
+          "id": "q-su-05",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "7NxQRsUjR7M",
+          "verifyAgainstVideo": true,
+          "prompt": "Faded or dull colours after pressing most often mean:",
+          "options": [
+            "Time, temperature, pressure, or substrate was wrong for a full dye transfer",
+            "The design used too much white",
+            "The press was attended",
+            "The paper was mirrored correctly"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Use The Box's posted chart, not a random YouTube temperature."
+        },
+        {
+          "id": "q-su-06",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "m4k5xJ2rfqM",
+          "verifyAgainstVideo": true,
+          "prompt": "What is Sawgrass Print Manager (or Print Utility) for?",
+          "options": [
+            "Applying the right colour profile, quality, and often mirroring for sublimation output",
+            "Controlling the heat press temperature only",
+            "Digitizing embroidery designs",
+            "Billing machine time"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Print through the shop utility, not a generic driver guess."
+        },
+        {
+          "id": "q-su-07",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "video",
+          "sourceVideoId": "Nu5P-Yx-nX8",
+          "verifyAgainstVideo": true,
+          "prompt": "Why put butcher paper inside a shirt and over the transfer?",
+          "options": [
+            "To stop ink blow-through from staining the back of the shirt or the press platen",
+            "To cool the platen faster",
+            "To make cotton accept dye",
+            "It is only decorative"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Protect the press and the garment."
+        },
+        {
+          "id": "q-su-08",
+          "type": "multi",
+          "safetyCritical": true,
+          "source": "shop-policy",
+          "prompt": "Before closing the heat press, which are required? (Select all that apply.)",
+          "options": [
+            "Transfer secured so it cannot shift",
+            "Protective paper / covering on the platen side",
+            "Knowing the posted time and temperature for that blank",
+            "Leaving the area once the timer starts"
+          ],
+          "correct": [
+            0,
+            1,
+            2
+          ],
+          "explanation": "The last option is wrong — stay with the press."
+        },
+        {
+          "id": "q-su-09",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "shop-policy",
+          "answerPending": false,
+          "prompt": "Who may change the heat press temperature setpoints on The Box's press?",
+          "options": [
+            "Best practice: use the posted chart; only staff change machine defaults — members select the listed setting for their blank",
+            "Anyone may reprogram defaults for the day",
+            "Only the previous user",
+            "Temperature does not matter for sublimation"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Provisional — edit to match posted shop policy."
+        },
+        {
+          "id": "q-su-10",
+          "type": "single",
+          "safetyCritical": false,
+          "source": "shop-policy",
+          "prompt": "You passed this quiz. Which machines may you use?",
+          "options": [
+            "None yet — knowledge pass still requires a hands-on checkoff",
+            "Printer and press immediately",
+            "Only the printer",
+            "Any textile machine in the building"
+          ],
+          "correct": [
+            0
+          ],
+          "explanation": "Same rule as every other machine module."
+        }
+      ]
+    }
+  ]
+}

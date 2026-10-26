@@ -15,6 +15,7 @@ import type {
   LearningModule,
   Lesson,
   LessonProgress,
+  LessonVideo,
   Machine,
   MachineArea,
   MachineFloorStatus,
@@ -25,6 +26,7 @@ import type {
   OrgSettings,
   PolicyAcknowledgement,
   PromoSlide,
+  PublishBlocker,
   Question,
   QuizAttempt,
   Reservation,
@@ -33,10 +35,20 @@ import type {
   UsageSession,
   User,
   UserCertification,
+  VideoWatch,
   VolunteerInterest,
   VolunteerInterestStatus,
   VolunteerRole,
   WaiverSignature,
+  ClassInterestBoard,
+  ClassInterestSignup,
+  ClassInterestStatus,
+  Person,
+  PersonKind,
+  Bounty,
+  BountyStatus,
+  CreditLedgerEntry,
+  CreditWallet,
 } from "./types";
 
 // Re-export view/DTO types used by the provider interface
@@ -130,16 +142,37 @@ export interface LearningModuleView extends LearningModule {
   completedLessonCount: number;
   attemptCount: number;
   knowledgePassed: boolean;
+  primaryVideosWatched: boolean;
+  /** Member-facing progress chip. */
+  memberStatus:
+    | "not_started"
+    | "in_progress"
+    | "quiz_ready"
+    | "knowledge_passed_needs_checkoff"
+    | "certified";
+  publishReadiness?: ModulePublishReadiness;
 }
 
 export interface LearningModuleDetail extends LearningModuleView {
-  lessons: (Lesson & { completed: boolean; html: string })[];
+  lessons: (Lesson & {
+    completed: boolean;
+    html: string;
+    videos: (LessonVideo & { watched: boolean })[];
+  })[];
+  primaryVideosWatched: boolean;
+  attemptsRemaining: number;
 }
 
 export interface QuizPayload {
   attemptToken: string;
   moduleId: string;
-  questions: { id: string; prompt: string; choices: string[] }[];
+  questions: {
+    id: string;
+    prompt: string;
+    choices: string[];
+    /** True when more than one correctIndexes entry (multi-select). */
+    multi?: boolean;
+  }[];
   passThresholdPercent: number;
   attemptNumber: number;
   attemptLimit: number;
@@ -150,15 +183,51 @@ export interface SubmitQuizInput {
   userId: string;
   moduleId: string;
   questionIds: string[];
-  answers: (number | null)[];
+  answers: (number | number[] | null)[];
 }
 
 export interface QuizAttemptResult {
   attempt: QuizAttempt;
   passed: boolean;
+  scorePct: number;
   scorePercent: number;
+  thresholdMet: boolean;
+  safetyCriticalMissed: Question[];
+  attemptsRemaining: number;
   knowledgePassed: boolean;
 }
+
+export interface ModulePublishReadiness {
+  canPublish: boolean;
+  answerPendingCount: number;
+  unreviewedPrimaryVideoCount: number;
+  equipmentUnconfirmed: boolean;
+  gapLessonCount: number;
+  answerPendingQuestionIds: string[];
+  unreviewedPrimaryVideoIds: string[];
+  gapLessonIds: string[];
+}
+
+/** Member awaiting hands-on checkoff after passing the knowledge quiz. */
+export interface PendingCheckoff {
+  userId: string;
+  userDisplayName: string;
+  userEmail: string;
+  certificationId: string;
+  certificationName: string;
+  knowledgePassedAt: ISODateTime;
+  machineIds: string[];
+  machineNames: string[];
+  /** Active tool champions for those machines. */
+  championUserIds: string[];
+  championDisplayNames: string[];
+  /** Viewer may record the checkoff (staff/admin or champion of a related machine). */
+  canCheckoff: boolean;
+}
+
+export type PublishModuleResult =
+  | { ok: true; module: LearningModule }
+  | { ok: false; reasons: PublishBlocker[]; readiness: ModulePublishReadiness };
 
 export interface VolunteerInterestInput {
   name: string;
@@ -252,6 +321,16 @@ export interface QuestionInput extends Partial<Question> {
   correctIndex: number;
 }
 
+export interface VideoInput extends Partial<LessonVideo> {
+  lessonId: string;
+  title: string;
+  youtubeId: string;
+  url: string;
+  channel: string;
+  role: LessonVideo["role"];
+  order: number;
+}
+
 export interface MachineInput extends Partial<Machine> {
   name: string;
   area: Machine["area"];
@@ -268,6 +347,55 @@ export interface VolunteerInterestAdminUpdate {
   status?: VolunteerInterestStatus;
   notes?: string;
   reviewedById?: string;
+}
+
+export interface BountyRequestInput {
+  title: string;
+  description: string;
+  requesterName: string;
+  requesterEmail: string;
+  businessName?: string | null;
+  userId?: string | null;
+}
+
+export interface BountyView extends Bounty {
+  claimedByDisplayName?: string | null;
+}
+
+export interface ClassInterestBoardInput {
+  title: string;
+  summary: string;
+  category?: ClassCategory;
+  threshold?: number;
+  proposedByUserId?: string | null;
+  contactName: string;
+  contactEmail: string;
+  instructorHintUserId?: string | null;
+  forcePending?: boolean;
+}
+
+export interface ClassInterestSignupInput {
+  boardId: string;
+  userId?: string | null;
+  email: string;
+  displayName: string;
+}
+
+export interface ClassInterestBoardAdminUpdate {
+  status?: ClassInterestStatus;
+  threshold?: number;
+  closesAt?: ISODateTime | null;
+  staffNotes?: string | null;
+  instructorHintUserId?: string | null;
+  reviewedById?: string | null;
+}
+
+export interface ClassInterestBoardView extends ClassInterestBoard {
+  interestCount: number;
+  viewerSignedUp: boolean;
+  daysRemaining: number | null;
+  proposedByDisplayName?: string | null;
+  instructorHintDisplayName?: string | null;
 }
 
 export interface DisplayHoursToday {
@@ -303,6 +431,7 @@ export interface DisplayMachineStatus {
   since?: ISODateTime;
   displayName?: string;
   reservedAt?: ISODateTime;
+  attendedOperationRequired?: boolean;
 }
 
 export interface DisplayUpcomingItem {
@@ -331,6 +460,15 @@ export interface DisplayOnlineCert {
   moduleSlug: string;
 }
 
+/** Glanceable bounty row for the lobby TV — no emails or claim actions. */
+export interface DisplayBounty {
+  id: string;
+  title: string;
+  businessName?: string | null;
+  status: Extract<BountyStatus, "open" | "claimed">;
+  claimedByDisplayName?: string;
+}
+
 export interface DisplayMembershipTier {
   joinUrl: string;
   products: Pick<
@@ -349,6 +487,7 @@ export interface DisplayFeed {
   upcoming: DisplayUpcomingItem[];
   checkoffs: DisplayCheckoff[];
   onlineCerts: DisplayOnlineCert[];
+  bounties: DisplayBounty[];
   promos: PromoSlide[];
   membership: DisplayMembershipTier;
   config: DisplayConfig;
@@ -409,11 +548,14 @@ export interface DataProvider {
 
   getUsage(userId: string, range?: DateRange): Promise<UsageSession[]>;
   getUsageTotals(userId: string, month: string): Promise<UsageTotal[]>;
+  getCreditWallet(userId: string): Promise<CreditWallet>;
 
   listClasses(filters?: ClassFilters): Promise<ClassSessionView[]>;
   getClass(id: string): Promise<ClassSessionView | null>;
   book(classSessionId: string, userId: string): Promise<Booking>;
   cancel(bookingId: string, userId: string): Promise<Booking>;
+  /** Debit the full class price when the wallet covers it. Never a Zeffy split. */
+  payBookingWithCredits(bookingId: string, userId: string): Promise<Booking>;
 
   listReservations(filters: ReservationFilters): Promise<Reservation[]>;
   reserve(input: ReserveInput): Promise<Reservation>;
@@ -428,19 +570,66 @@ export interface DataProvider {
   listModules(): Promise<LearningModuleView[]>;
   getModule(slug: string): Promise<LearningModuleDetail | null>;
   markLessonComplete(lessonId: string, userId: string): Promise<LessonProgress>;
+  markVideoWatched(videoId: string, userId: string): Promise<VideoWatch>;
+  getQuestionBank(moduleId: string): Promise<Question[]>;
   startQuiz(moduleId: string, userId: string): Promise<QuizPayload>;
   submitQuiz(input: SubmitQuizInput): Promise<QuizAttemptResult>;
+  getModulePublishReadiness(moduleId: string): Promise<ModulePublishReadiness>;
+  /**
+   * Members with knowledge_passed on non–knowledge-only certs.
+   * Pass viewerId to mark canCheckoff and optionally filter to a champion’s machines.
+   */
+  listPendingCheckoffs(viewerId: string): Promise<PendingCheckoff[]>;
+  /**
+   * Staff/admin always; active tool champions may check off certs required by
+   * their championed machines.
+   */
+  recordCheckoff(input: CheckoffInput): Promise<UserCertification>;
 
   listPolicies(): Promise<ContentPage[]>;
   getContentBySlug(slug: string): Promise<ContentPage | null>;
+  listPeople(kind?: PersonKind): Promise<Person[]>;
   listVolunteerRoles(): Promise<VolunteerRole[]>;
   submitVolunteerInterest(
     input: VolunteerInterestInput,
   ): Promise<VolunteerInterest>;
+  listBounties(filters?: {
+    status?: BountyStatus | BountyStatus[];
+  }): Promise<BountyView[]>;
+  getBounty(id: string): Promise<BountyView | null>;
+  submitBountyRequest(input: BountyRequestInput): Promise<Bounty>;
+  claimBounty(id: string, userId: string): Promise<Bounty>;
+  completeBounty(id: string, userId: string): Promise<Bounty>;
   getSettings(): Promise<OrgSettings>;
   listMembershipProducts(): Promise<MembershipProduct[]>;
   getScholarshipFundSummary(): Promise<ScholarshipFundSummary>;
   listBookingsForUser(userId: string): Promise<Booking[]>;
+
+  listInterestBoards(filters?: {
+    status?: ClassInterestStatus | ClassInterestStatus[];
+    proposedByUserId?: string;
+    /** Public catalog: open + ready (after expiry sweep). */
+    publicOnly?: boolean;
+  }): Promise<ClassInterestBoardView[]>;
+  getInterestBoard(
+    id: string,
+    viewerUserId?: string | null,
+  ): Promise<ClassInterestBoardView | null>;
+  proposeInterestBoard(
+    input: ClassInterestBoardInput,
+  ): Promise<ClassInterestBoard>;
+  joinInterestBoard(
+    input: ClassInterestSignupInput,
+  ): Promise<ClassInterestSignup>;
+  leaveInterestBoard(
+    boardId: string,
+    opts: { userId?: string | null; email?: string | null },
+  ): Promise<void>;
+  listInterestSignups(boardId: string): Promise<ClassInterestSignup[]>;
+  resuggestInterestBoard(
+    boardId: string,
+    actorUserId: string,
+  ): Promise<ClassInterestBoard>;
 
   adminListMembers(query?: string): Promise<User[]>;
   adminUpdateMemberStatus(
@@ -448,6 +637,37 @@ export interface DataProvider {
     status: MembershipStatus,
     actorId: string,
   ): Promise<User>;
+  adminSetMemberTeacher(
+    id: string,
+    isTeacher: boolean,
+    actorId: string,
+  ): Promise<User>;
+  adminGrantCredits(input: {
+    userId: string;
+    amountCents: number;
+    actorId: string;
+    note?: string;
+    sourcePaymentId?: string | null;
+  }): Promise<CreditLedgerEntry>;
+  adminApproveInterestBoard(
+    id: string,
+    actorId: string,
+    opts?: { threshold?: number; closesAt?: ISODateTime },
+  ): Promise<ClassInterestBoard>;
+  adminRejectInterestBoard(
+    id: string,
+    actorId: string,
+    notes?: string,
+  ): Promise<ClassInterestBoard>;
+  adminUpdateInterestBoard(
+    id: string,
+    data: ClassInterestBoardAdminUpdate,
+  ): Promise<ClassInterestBoard>;
+  adminLinkInterestBoardToClass(
+    boardId: string,
+    classSessionId: string,
+    actorId: string,
+  ): Promise<ClassInterestBoard>;
   /** All badges (linked and unlinked) for admin linking UI. */
   adminListBadges(): Promise<Badge[]>;
   adminLinkBadge(
@@ -462,6 +682,30 @@ export interface DataProvider {
   adminUpsertClass(data: ClassSessionInput): Promise<ClassSession>;
   adminListRoster(classSessionId: string): Promise<BookingRosterRow[]>;
   adminMarkBookingPaid(bookingId: string, actorId: string): Promise<Booking>;
+  /** Mark paid + attach Zeffy payment id (webhook/sync). */
+  applyZeffyPaymentToBooking(input: {
+    bookingId: string;
+    paymentId: string;
+    paidAt: string;
+  }): Promise<Booking>;
+  /** Create a booked seat from a completed Zeffy ticket payment. */
+  createBookingFromZeffyPayment(input: {
+    classSessionId: string;
+    userId: string;
+    paymentId: string;
+    paidAt: string;
+  }): Promise<Booking>;
+  findBookingByZeffyPaymentId(paymentId: string): Promise<Booking | null>;
+  /** Full ticket apply path (preferred entry for webhook/sync). */
+  applyZeffyTicketPayment(
+    payment: import("@/lib/zeffy/types").ZeffyPayment,
+    paidAtIso?: string,
+  ): Promise<import("@/lib/zeffy/types").ZeffyApplyResult>;
+  applyZeffyMembershipPayment(
+    payment: import("@/lib/zeffy/types").ZeffyPayment,
+    paidAtIso?: string,
+    options?: { createIfMissing?: boolean },
+  ): Promise<import("@/lib/zeffy/types").ZeffyMembershipApplyResult>;
   adminMarkAttendance(
     bookingId: string,
     status: Extract<BookingStatus, "attended" | "no_show">,
@@ -498,12 +742,24 @@ export interface DataProvider {
   adminUpsertModule(data: ModuleInput): Promise<LearningModule>;
   adminUpsertLesson(data: LessonInput): Promise<Lesson>;
   adminUpsertQuestion(data: QuestionInput): Promise<Question>;
+  adminDeleteQuestion(id: string): Promise<void>;
   /** Quiz bank for a module (includes inactive). */
   adminListQuestions(moduleId: string): Promise<Question[]>;
+  adminUpsertVideo(data: VideoInput): Promise<LessonVideo>;
+  adminDeleteVideo(id: string): Promise<void>;
+  adminSetVideoReviewed(
+    videoId: string,
+    reviewed: boolean,
+  ): Promise<LessonVideo>;
+  adminListVideos(moduleId: string): Promise<LessonVideo[]>;
+  /**
+   * Enforces publish guard in the data layer.
+   * `published: false` always unpublishes; `published: true` may refuse.
+   */
   adminPublishModule(
     id: string,
     published: boolean,
-  ): Promise<LearningModule>;
+  ): Promise<PublishModuleResult>;
   adminUpsertMachine(data: MachineInput): Promise<Machine>;
   adminListUsage(
     range: DateRange,

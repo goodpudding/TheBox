@@ -20,6 +20,10 @@ test.describe("Lobby display", () => {
     expect(feed.config).toBeTruthy();
     expect(Array.isArray(feed.machines)).toBe(true);
     expect(Array.isArray(feed.promos)).toBe(true);
+    expect(Array.isArray(feed.bounties)).toBe(true);
+    expect(feed.bounties.some((b: { status: string }) => b.status === "open")).toBe(
+      true,
+    );
   });
 
   test("expired promos are not included in the feed", async ({ request }) => {
@@ -57,6 +61,7 @@ test.describe("Lobby display", () => {
     while (Date.now() < deadline) {
       for (const title of [
         "Today at The Box",
+        "Bounty board",
         "Machine status",
         "Coming up",
         "Get certified",

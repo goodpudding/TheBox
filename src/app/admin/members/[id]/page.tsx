@@ -16,12 +16,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatDateTime } from "@/lib/format";
-import { formatTier } from "@/lib/utils";
+import { formatMoneyExact, formatTier } from "@/lib/utils";
+import { ledgerKindLabel } from "@/lib/credits";
 import type {
   AuditEvent,
   Badge,
   Booking,
   ClassSessionView,
+  CreditWallet,
   Machine,
   MembershipStatus,
   Reservation,
@@ -77,6 +79,10 @@ export default function AdminMemberDetailPage() {
   const [machines, setMachines] = useState<Machine[]>([]);
   const [usage, setUsage] = useState<UsageSession[]>([]);
   const [audit, setAudit] = useState<AuditEvent[]>([]);
+  const [wallet, setWallet] = useState<CreditWallet | null>(null);
+  const [grantAmount, setGrantAmount] = useState("50");
+  const [grantNote, setGrantNote] = useState("");
+  const [grantPaymentId, setGrantPaymentId] = useState("");
 
   const [status, setStatus] = useState<MembershipStatus>("pending");
   const [linkBadgeId, setLinkBadgeId] = useState("");
@@ -84,6 +90,10 @@ export default function AdminMemberDetailPage() {
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editingCertId, setEditingCertId] = useState<string | null>(null);
+  const [revokeReasons, setRevokeReasons] = useState<Record<string, string>>(
+    {},
+  );
 
   useEffect(() => {
     if (!id) return;
@@ -102,6 +112,7 @@ export default function AdminMemberDetailPage() {
           machineRows,
           usageRows,
           auditRows,
+          creditWallet,
         ] = await Promise.all([
           provider.getMember(id),
           provider.listBadges(id),
@@ -114,6 +125,7 @@ export default function AdminMemberDetailPage() {
           provider.listMachines(),
           provider.getUsage(id),
           provider.adminListAuditEvents(id),
+          provider.getCreditWallet(id),
         ]);
         if (cancelled) return;
         setMember(m);
@@ -136,6 +148,7 @@ export default function AdminMemberDetailPage() {
             .slice(0, 10),
         );
         setAudit(auditRows);
+        setWallet(creditWallet);
       } catch (err) {
         if (!cancelled) {
           setMember(null);
@@ -209,6 +222,124 @@ export default function AdminMemberDetailPage() {
       setMessage(`Status set to ${next}.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update status");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function onGrantCredits(e: FormEvent) {
+    e.preventDefault();
+    if (!member || !currentUser) return;
+    const dollars = Number.parseFloat(grantAmount);
+    if (!Number.isFinite(dollars) || dollars === 0) {
+      setError("Enter a non-zero dollar amount (negative is an adjustment).");
+      return;
+    }
+    setPending(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await provider.adminGrantCredits({
+        userId: member.id,
+        amountCents: Math.round(dollars * 100),
+        actorId: currentUser.id,
+        note: grantNote.trim() || undefined,
+        sourcePaymentId: grantPaymentId.trim() || null,
+      });
+      setGrantNote("");
+      setGrantPaymentId("");
+      bump();
+      setMessage(
+        grantPaymentId.trim()
+          ? "Zeffy payment applied as credit."
+          : "Credit ledger updated.",
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not grant credits");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function onToggleTeacher() {
+    if (!member || !currentUser) return;
+    setPending(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const updated = await provider.adminSetMemberTeacher(
+        member.id,
+        !member.isTeacher,
+        currentUser.id,
+      );
+      setMember(updated);
+      bump();
+      setMessage(
+        updated.isTeacher
+          ? "Marked as teacher — can publish interest boards."
+          : "Teacher flag removed.",
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not update teacher flag",
+      );
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function onCheckoffCert(certificationId: string) {
+    if (!member || !currentUser) return;
+    setPending(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await provider.adminRecordCheckoff({
+        userId: member.id,
+        certificationId,
+        actorId: currentUser.id,
+      });
+      setEditingCertId(null);
+      bump();
+      setMessage("Checkoff recorded — member is certified.");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not record checkoff",
+      );
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function onRevokeCert(certificationId: string) {
+    if (!member || !currentUser) return;
+    const reason = (revokeReasons[certificationId] ?? "").trim();
+    if (!reason) {
+      setError("A revoke reason is required.");
+      return;
+    }
+    setPending(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await provider.adminRevokeCertification({
+        userId: member.id,
+        certificationId,
+        actorId: currentUser.id,
+        reason,
+      });
+      setRevokeReasons((prev) => {
+        const next = { ...prev };
+        delete next[certificationId];
+        return next;
+      });
+      setEditingCertId(null);
+      bump();
+      setMessage("Certification revoked.");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not revoke certification",
+      );
     } finally {
       setPending(false);
     }
@@ -314,8 +445,8 @@ export default function AdminMemberDetailPage() {
         <StatusPill tone={member.shopAccess ? "ok" : "muted"}>
           {member.shopAccess ? "Shop access" : "No shop access"}
         </StatusPill>
-        <StatusPill tone={member.newsletterOptIn ? "ok" : "muted"}>
-          {member.newsletterOptIn ? "Newsletter" : "No newsletter"}
+        <StatusPill tone={member.isTeacher ? "ok" : "muted"}>
+          {member.isTeacher ? "Teacher" : "Not a teacher"}
         </StatusPill>
       </div>
 
@@ -348,6 +479,93 @@ export default function AdminMemberDetailPage() {
             ))}
           </select>
         </div>
+        <div className="mt-6">
+          <p className="text-sm text-secondary">
+            Teacher is a modifier (orthogonal to membership role). Teachers can
+            publish class interest boards even without an active member tier.
+          </p>
+          <Button
+            type="button"
+            className="mt-3"
+            variant="outline"
+            disabled={pending || !currentUser}
+            onClick={() => void onToggleTeacher()}
+          >
+            {member.isTeacher ? "Remove teacher flag" : "Mark as teacher"}
+          </Button>
+        </div>
+      </section>
+
+      <section className="mt-12 max-w-2xl">
+        <p className="eyebrow">Machine credits</p>
+        <p className="mt-2 text-sm text-secondary leading-relaxed">
+          In-app ledger only. Zeffy never holds this balance. Negative is
+          allowed (they finished a job). Next Plus $50 grant pays debt first.
+          Amount can be negative to adjust.
+        </p>
+        <p className="mt-4 font-display text-2xl font-semibold text-brown">
+          {wallet ? formatMoneyExact(wallet.balanceCents) : "—"}
+        </p>
+        <form onSubmit={(e) => void onGrantCredits(e)} className="mt-4 space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="grant-amount">Amount (USD)</Label>
+              <Input
+                id="grant-amount"
+                value={grantAmount}
+                onChange={(e) => setGrantAmount(e.target.value)}
+                placeholder="50"
+                inputMode="decimal"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="grant-payment">Zeffy payment id (optional)</Label>
+              <Input
+                id="grant-payment"
+                value={grantPaymentId}
+                onChange={(e) => setGrantPaymentId(e.target.value)}
+                placeholder="pay-…"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="grant-note">Note</Label>
+            <Input
+              id="grant-note"
+              value={grantNote}
+              onChange={(e) => setGrantNote(e.target.value)}
+              placeholder="Payback at desk, or Membership Plus grant"
+            />
+          </div>
+          <Button type="submit" disabled={pending || !currentUser}>
+            Grant / adjust
+          </Button>
+        </form>
+        {wallet && wallet.entries.length > 0 ? (
+          <ul className="mt-6 divide-y divide-border border-y border-border">
+            {wallet.entries.map((e) => (
+              <li
+                key={e.id}
+                className="flex flex-wrap items-baseline justify-between gap-2 py-3"
+              >
+                <div>
+                  <p className="font-display font-medium text-brown">
+                    {e.note?.trim() || ledgerKindLabel(e.kind)}
+                  </p>
+                  <p className="text-sm text-secondary">
+                    {formatDateTime(e.occurredAt)} · {e.kind.replace(/_/g, " ")}
+                  </p>
+                </div>
+                <span className="font-display text-sm font-semibold text-brown">
+                  {e.amountCents > 0 ? "+" : ""}
+                  {formatMoneyExact(e.amountCents)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-4 text-secondary">No ledger lines.</p>
+        )}
       </section>
 
       <section className="mt-12 max-w-xl">
@@ -544,30 +762,152 @@ export default function AdminMemberDetailPage() {
       </HistorySection>
 
       <HistorySection title="Certifications">
+        <p className="mb-3 text-sm text-secondary">
+          Click a certification to record a hands-on checkoff or revoke access.
+          Catalog edits live under{" "}
+          <Link
+            href="/admin/certifications"
+            className="text-primary-text hover:underline"
+          >
+            Admin → Certifications
+          </Link>
+          .
+        </p>
         <ul className="divide-y divide-border border-y border-border">
-          {certs.map((c) => (
-            <li
-              key={c.certificationId}
-              className="flex flex-wrap items-start justify-between gap-2 py-3"
-            >
-              <div>
-                <p className="font-display font-medium text-brown">
-                  {c.certification.name}
-                </p>
-                <p className="text-sm text-secondary">
-                  {c.checkedOffAt
-                    ? `Checked off ${formatDateTime(c.checkedOffAt)}`
-                    : c.knowledgePassedAt
-                      ? `Knowledge ${formatDateTime(c.knowledgePassedAt)}`
-                      : "Not started"}
-                  {c.expiresAt ? ` · Expires ${formatDateTime(c.expiresAt)}` : ""}
-                </p>
-              </div>
-              <StatusPill tone={certTone(c.status)}>
-                {c.status.replace(/_/g, " ")}
-              </StatusPill>
-            </li>
-          ))}
+          {certs.map((c) => {
+            const editing = editingCertId === c.certificationId;
+            const canRevoke =
+              c.status === "certified" ||
+              c.status === "knowledge_passed" ||
+              c.status === "expired";
+            const canCheckoff = c.status !== "certified";
+            return (
+              <li key={c.certificationId} className="py-3">
+                <button
+                  type="button"
+                  className="flex w-full flex-wrap items-start justify-between gap-2 text-left"
+                  onClick={() =>
+                    setEditingCertId(editing ? null : c.certificationId)
+                  }
+                >
+                  <div>
+                    <p className="font-display font-medium text-brown">
+                      {c.certification.name}
+                      <span className="ml-2 font-display text-xs font-normal text-primary-text">
+                        {editing ? "Close" : "Edit"}
+                      </span>
+                    </p>
+                    <p className="text-sm text-secondary">
+                      {c.checkedOffAt
+                        ? `Checked off ${formatDateTime(c.checkedOffAt)}`
+                        : c.knowledgePassedAt
+                          ? `Knowledge ${formatDateTime(c.knowledgePassedAt)}`
+                          : "Not started"}
+                      {c.expiresAt
+                        ? ` · Expires ${formatDateTime(c.expiresAt)}`
+                        : ""}
+                      {c.certification.knowledgeOnly
+                        ? " · knowledge-only"
+                        : ""}
+                    </p>
+                    {c.status === "revoked" && c.revokeReason ? (
+                      <p className="mt-1 text-sm text-accent">
+                        Revoked: {c.revokeReason}
+                      </p>
+                    ) : null}
+                  </div>
+                  <StatusPill tone={certTone(c.status)}>
+                    {c.status.replace(/_/g, " ")}
+                  </StatusPill>
+                </button>
+
+                {editing ? (
+                  <div
+                    className="mt-4 max-w-xl space-y-4 rounded-2xl border border-border bg-surface/60 p-4"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {(canCheckoff || c.status === "certified") && (
+                      <div className="space-y-2">
+                        <p className="font-display text-sm font-semibold text-brown">
+                          {c.status === "certified"
+                            ? "Renew / re-checkoff"
+                            : c.certification.knowledgeOnly
+                              ? "Mark certified"
+                              : "Record hands-on checkoff"}
+                        </p>
+                        <p className="text-sm text-secondary">
+                          Sets status to certified
+                          {c.certification.expiryMonths
+                            ? ` and expires in ~${c.certification.expiryMonths} months`
+                            : " with no expiry"}
+                          . Does not replace a quiz for knowledge tracking, but
+                          grants machine access for this cert.
+                        </p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={pending || !currentUser}
+                          onClick={() =>
+                            void onCheckoffCert(c.certificationId)
+                          }
+                        >
+                          {c.status === "certified"
+                            ? "Renew checkoff"
+                            : "Record checkoff"}
+                        </Button>
+                      </div>
+                    )}
+
+                    {canRevoke ? (
+                      <div className="space-y-2 border-t border-border pt-4">
+                        <p className="font-display text-sm font-semibold text-brown">
+                          Revoke
+                        </p>
+                        <Label htmlFor={`revoke-${c.certificationId}`}>
+                          Reason
+                        </Label>
+                        <Input
+                          id={`revoke-${c.certificationId}`}
+                          value={
+                            revokeReasons[c.certificationId] ?? ""
+                          }
+                          onChange={(e) =>
+                            setRevokeReasons((prev) => ({
+                              ...prev,
+                              [c.certificationId]: e.target.value,
+                            }))
+                          }
+                          placeholder="Why this cert is being revoked"
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          disabled={
+                            pending ||
+                            !currentUser ||
+                            !(revokeReasons[c.certificationId] ?? "").trim()
+                          }
+                          onClick={() =>
+                            void onRevokeCert(c.certificationId)
+                          }
+                        >
+                          Revoke certification
+                        </Button>
+                      </div>
+                    ) : null}
+
+                    {c.status === "not_started" ? (
+                      <p className="text-sm text-secondary">
+                        Member has no quiz pass or checkoff yet. Record a
+                        checkoff to certify them after a hands-on session.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
       </HistorySection>
 

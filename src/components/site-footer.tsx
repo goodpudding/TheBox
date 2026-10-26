@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { SocialLinks } from "@/components/project-highlights";
@@ -37,6 +39,18 @@ export function SiteFooter() {
           </Link>
           <Link href="/made" className="hover:text-primary transition-colors">
             Made here
+          </Link>
+          <Link href="/bounties" className="hover:text-primary transition-colors">
+            Bounties
+          </Link>
+          <Link
+            href="/history"
+            className="hover:text-primary transition-colors"
+          >
+            History
+          </Link>
+          <Link href="/staff" className="hover:text-primary transition-colors">
+            Staff
           </Link>
           <Link href="/join" className="hover:text-primary transition-colors">
             Join

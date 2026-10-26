@@ -58,3 +58,10 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+
+# ESP32 reader local secrets
+firmware/**/secrets.h
+
+# Tauri workstation shell
+apps/workstation-shell/src-tauri/target
+apps/workstation-shell/src-tauri/gen

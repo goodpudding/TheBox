@@ -1,4 +1,5 @@
 import type { MockFixtureBundle } from "./types";
+import { billingFor, inferCreditGrantCents } from "../credits";
 
 import users from "../../../data/mock/users.json";
 import badges from "../../../data/mock/badges.json";
@@ -12,18 +13,25 @@ import usageSessions from "../../../data/mock/usage-sessions.json";
 import accessLogs from "../../../data/mock/access-logs.json";
 import classSessions from "../../../data/mock/class-sessions.json";
 import bookings from "../../../data/mock/bookings.json";
+import classInterestBoards from "../../../data/mock/class-interest-boards.json";
+import classInterestSignups from "../../../data/mock/class-interest-signups.json";
 import learningModules from "../../../data/mock/learning-modules.json";
 import lessons from "../../../data/mock/lessons.json";
+import lessonVideos from "../../../data/mock/lesson-videos.json";
 import questions from "../../../data/mock/questions.json";
 import lessonProgress from "../../../data/mock/lesson-progress.json";
+import videoWatches from "../../../data/mock/video-watches.json";
 import quizAttempts from "../../../data/mock/quiz-attempts.json";
 import volunteerRoles from "../../../data/mock/volunteer-roles.json";
 import volunteerInterests from "../../../data/mock/volunteer-interests.json";
+import people from "../../../data/mock/people.json";
+import bounties from "../../../data/mock/bounties.json";
 import contentPages from "../../../data/mock/content-pages.json";
 import waiverSignatures from "../../../data/mock/waiver-signatures.json";
 import policyAcknowledgements from "../../../data/mock/policy-acknowledgements.json";
 import auditEvents from "../../../data/mock/audit-events.json";
 import membershipProducts from "../../../data/mock/membership-products.json";
+import creditLedger from "../../../data/mock/credit-ledger.json";
 import settings from "../../../data/mock/settings.json";
 import promoSlides from "../../../data/mock/promos.json";
 import displayConfig from "../../../data/mock/display-config.json";
@@ -65,7 +73,7 @@ function withDisplayLiveOverlays(
     {
       id: "us-live-heatpress",
       userId: "u-jordan",
-      machineId: "m-heat-press",
+      machineId: "m-vinyl-cutter",
       badgeId: "badge-jordan",
       startedAt: isoOffset(-10 * 60_000),
       endedAt: null,
@@ -178,20 +186,37 @@ function withDisplayLiveOverlays(
 /** Load the static mock fixture bundle (module-level imports; do not mutate). */
 export function loadFixtures(): MockFixtureBundle {
   const base: MockFixtureBundle = {
-    users: (users as Array<Record<string, unknown>>).map((u) => ({
+    users: (users as MockFixtureBundle["users"]).map((u) => ({
       ...u,
-      newsletterOptIn: Boolean(u.newsletterOptIn),
-    })) as MockFixtureBundle["users"],
+      isTeacher: Boolean(u.isTeacher),
+      shopAccess: u.shopAccess ?? true,
+    })),
     badges: badges as MockFixtureBundle["badges"],
     certifications: certifications as MockFixtureBundle["certifications"],
     userCertifications:
       userCertifications as MockFixtureBundle["userCertifications"],
-    machines: (machines as Array<Record<string, unknown>>).map((m) => ({
-      ...m,
-      reservationRequired: m.reservationRequired ?? false,
-      locationLabel: m.locationLabel ?? "",
-      gettingStartedVideoUrl: m.gettingStartedVideoUrl ?? null,
-    })) as MockFixtureBundle["machines"],
+    machines: (machines as Array<Record<string, unknown>>).map((m) => {
+      const area = String(m.area) as MockFixtureBundle["machines"][number]["area"];
+      const id = String(m.id);
+      const name = String(m.name);
+      const billed = billingFor({
+        id,
+        name,
+        area,
+        hourlyRateCents:
+          m.hourlyRateCents == null ? null : Number(m.hourlyRateCents),
+      });
+      return {
+        ...m,
+        reservationRequired: m.reservationRequired ?? false,
+        attendedOperationRequired: m.attendedOperationRequired ?? false,
+        locationLabel: m.locationLabel ?? "",
+        gettingStartedVideoUrl: m.gettingStartedVideoUrl ?? null,
+        maxReservationHours:
+          m.maxReservationHours == null ? null : Number(m.maxReservationHours),
+        hourlyRateCents: billed.hourlyRateCents,
+      };
+    }) as MockFixtureBundle["machines"],
     reservations: reservations as MockFixtureBundle["reservations"],
     maintenanceBlocks:
       maintenanceBlocks as MockFixtureBundle["maintenanceBlocks"],
@@ -201,23 +226,76 @@ export function loadFixtures(): MockFixtureBundle {
     accessLogs: accessLogs as MockFixtureBundle["accessLogs"],
     classSessions: classSessions as MockFixtureBundle["classSessions"],
     bookings: bookings as MockFixtureBundle["bookings"],
-    learningModules: learningModules as MockFixtureBundle["learningModules"],
-    lessons: lessons as MockFixtureBundle["lessons"],
-    questions: questions as MockFixtureBundle["questions"],
+    classInterestBoards: (
+      classInterestBoards as MockFixtureBundle["classInterestBoards"]
+    ).map((b) => ({
+      ...b,
+      threshold: b.threshold ?? 8,
+    })),
+    classInterestSignups:
+      classInterestSignups as MockFixtureBundle["classInterestSignups"],
+    learningModules: (
+      learningModules as Array<Record<string, unknown>>
+    ).map((m) => ({
+      ...m,
+      equipmentStatus: m.equipmentStatus ?? "confirmed",
+    })) as MockFixtureBundle["learningModules"],
+    lessons: (lessons as Array<Record<string, unknown>>).map((l) => ({
+      ...l,
+      gap: l.gap ?? false,
+    })) as MockFixtureBundle["lessons"],
+    lessonVideos: lessonVideos as MockFixtureBundle["lessonVideos"],
+    questions: (questions as Array<Record<string, unknown>>).map((q) => {
+      const correctIndex = (q.correctIndex as number) ?? 0;
+      const correctIndexes =
+        (q.correctIndexes as number[] | undefined) ?? [correctIndex];
+      return {
+        ...q,
+        correctIndex,
+        correctIndexes,
+        safetyCritical: q.safetyCritical ?? false,
+        source: q.source ?? "video",
+        sourceVideoId: q.sourceVideoId ?? null,
+        verifyAgainstVideo: q.verifyAgainstVideo ?? true,
+        answerPending: q.answerPending ?? false,
+      };
+    }) as MockFixtureBundle["questions"],
     lessonProgress: lessonProgress as MockFixtureBundle["lessonProgress"],
+    videoWatches: videoWatches as MockFixtureBundle["videoWatches"],
     quizAttempts: quizAttempts as MockFixtureBundle["quizAttempts"],
     volunteerRoles: volunteerRoles as MockFixtureBundle["volunteerRoles"],
     volunteerInterests:
       volunteerInterests as MockFixtureBundle["volunteerInterests"],
+    people: people as MockFixtureBundle["people"],
+    bounties: bounties as MockFixtureBundle["bounties"],
     contentPages: contentPages as MockFixtureBundle["contentPages"],
     waiverSignatures:
       waiverSignatures as MockFixtureBundle["waiverSignatures"],
     policyAcknowledgements:
       policyAcknowledgements as MockFixtureBundle["policyAcknowledgements"],
     auditEvents: auditEvents as MockFixtureBundle["auditEvents"],
-    membershipProducts:
-      membershipProducts as MockFixtureBundle["membershipProducts"],
-    settings: settings as MockFixtureBundle["settings"],
+    membershipProducts: (
+      membershipProducts as MockFixtureBundle["membershipProducts"]
+    ).map((p) => ({
+      ...p,
+      creditGrantCents:
+        typeof p.creditGrantCents === "number"
+          ? p.creditGrantCents
+          : inferCreditGrantCents({
+              name: p.name,
+              summary: p.summary,
+              priceCents: p.priceCents,
+              tier: p.tier,
+            }),
+    })),
+    creditLedgerEntries:
+      creditLedger as MockFixtureBundle["creditLedgerEntries"],
+    settings: {
+      ...(settings as MockFixtureBundle["settings"]),
+      requireSafetyCriticalAll:
+        (settings as { requireSafetyCriticalAll?: boolean })
+          .requireSafetyCriticalAll ?? true,
+    },
     promoSlides: promoSlides as MockFixtureBundle["promoSlides"],
     displayConfig: displayConfig as MockFixtureBundle["displayConfig"],
   };

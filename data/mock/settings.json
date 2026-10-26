@@ -10,6 +10,7 @@
   "quizPassThresholdPercent": 80,
   "quizAttemptLimit": 3,
   "quizQuestionCount": 10,
+  "requireSafetyCriticalAll": true,
   "classCancellationCutoffHours": 24,
   "paymentHoldHours": 48,
   "reservationHorizonDays": 14,

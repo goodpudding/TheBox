@@ -120,12 +120,54 @@ test.describe("The Box Portal critical paths (mock)", () => {
     });
   });
 
-  test("learn module page loads for Maya", async ({ page }) => {
+  test("learn index shows empty state for members while modules are draft", async ({
+    page,
+  }) => {
     await page.goto("/join");
     await switchUser(page, "Maya Chen");
     await page.goto("/learn");
-    await expect(page.getByText(/Shop Orientation|3D Printing/i).first()).toBeVisible({
+    await expect(
+      page.getByText(/No published modules yet/i),
+    ).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("admin learn lists draft modules with readiness", async ({ page }) => {
+    await page.goto("/join");
+    await switchUser(page, "Avery Admin");
+    await page.goto("/admin/learn");
+    await expect(page.getByText("Shop Orientation")).toBeVisible({
       timeout: 15_000,
+    });
+    await expect(page.getByText(/Draft/i).first()).toBeVisible();
+  });
+
+  test("guest can submit a bounty and a member can claim it", async ({
+    page,
+  }) => {
+    await page.goto("/bounties");
+    await expect(page.getByRole("heading", { name: /Bounty board/i })).toBeVisible();
+    await page.getByLabel("What do you want made?").fill("Window decal for a bakery");
+    await page
+      .getByLabel("Details")
+      .fill("Storefront name in two colors, about three feet wide.");
+    await page.getByLabel("Your name").fill("Riley Baker");
+    await page.getByLabel("Email").fill("riley@bakery.example");
+    await page.getByRole("button", { name: "Submit request" }).click();
+    await expect(
+      page.getByText(/your request is on the board/i),
+    ).toBeVisible({ timeout: 10_000 });
+
+    await switchUser(page, "Jordan Lee");
+    await page.goto("/bounties");
+    await expect(
+      page.getByRole("heading", { name: "Window decal for a bakery" }),
+    ).toBeVisible({ timeout: 15_000 });
+    const row = page.locator("li").filter({
+      has: page.getByRole("heading", { name: "Window decal for a bakery" }),
+    });
+    await row.getByRole("button", { name: "Claim this" }).click();
+    await expect(page.getByText(/Claimed · Jordan Lee/i).first()).toBeVisible({
+      timeout: 10_000,
     });
   });
 

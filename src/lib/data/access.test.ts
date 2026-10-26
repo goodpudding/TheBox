@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { evaluateMachineAccess } from "./access";
+import {
+  canScheduleMaintenance,
+  evaluateMachineAccess,
+  maintenanceMachineScope,
+} from "./access";
 import type {
   Badge,
   Machine,
@@ -18,7 +22,7 @@ const baseUser: User = {
   status: "active",
   tier: "maker",
   shopAccess: true,
-  newsletterOptIn: false,
+  isTeacher: false,
   profileComplete: true,
   createdAt: "2026-01-01T00:00:00-07:00",
   updatedAt: "2026-01-01T00:00:00-07:00",
@@ -42,8 +46,10 @@ const machine: Machine = {
   active: true,
   reservationRecommended: true,
   reservationRequired: false,
+  attendedOperationRequired: true,
   locationLabel: "Laser room · Station 1",
   gettingStartedVideoUrl: null,
+  maxReservationHours: 2,
   sortOrder: 1,
   createdAt: "2026-01-01T00:00:00-07:00",
   updatedAt: "2026-01-01T00:00:00-07:00",
@@ -148,6 +154,31 @@ describe("evaluateMachineAccess", () => {
     });
   });
 
+  it("allows workstation launch without a badge when skipBadge is set", () => {
+    const result = evaluateMachineAccess({
+      user: baseUser,
+      badge: null,
+      machine,
+      userCertifications: [...certified],
+      waiverSignatures: [waiver],
+      currentWaiverVersion: "2026.1",
+      skipBadge: true,
+    });
+    expect(result).toEqual({ allow: true, reason: "ok" });
+  });
+
+  it("still requires a badge when skipBadge is omitted", () => {
+    const result = evaluateMachineAccess({
+      user: baseUser,
+      badge: null,
+      machine,
+      userCertifications: [...certified],
+      waiverSignatures: [waiver],
+      currentWaiverVersion: "2026.1",
+    });
+    expect(result.reason).toBe("unknown_badge");
+  });
+
   it("allows when reservationRequired and overlapping reservation present", () => {
     const result = evaluateMachineAccess({
       user: baseUser,
@@ -159,5 +190,33 @@ describe("evaluateMachineAccess", () => {
       hasOverlappingReservation: true,
     });
     expect(result).toEqual({ allow: true, reason: "ok" });
+  });
+});
+
+describe("canScheduleMaintenance", () => {
+  it("allows staff and shop stewards only", () => {
+    expect(canScheduleMaintenance(baseUser)).toBe(false);
+    expect(
+      canScheduleMaintenance({ ...baseUser, role: "staff" }),
+    ).toBe(true);
+    expect(
+      canScheduleMaintenance({ ...baseUser, role: "admin" }),
+    ).toBe(true);
+    expect(
+      canScheduleMaintenance({ ...baseUser, tier: "shop_steward" }),
+    ).toBe(true);
+    expect(
+      canScheduleMaintenance({ ...baseUser, status: "pending", role: "staff" }),
+    ).toBe(false);
+  });
+
+  it("scopes all machines for allowed users and none otherwise", () => {
+    expect(maintenanceMachineScope(baseUser)).toEqual([]);
+    expect(
+      maintenanceMachineScope({ ...baseUser, tier: "shop_steward" }),
+    ).toBe("all");
+    expect(maintenanceMachineScope({ ...baseUser, role: "staff" })).toBe(
+      "all",
+    );
   });
 });

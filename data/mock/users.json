@@ -16,7 +16,8 @@
     "createdAt": "2025-01-10T09:00:00-07:00",
     "updatedAt": "2026-09-04T12:00:00-07:00",
     "billingInterval": "monthly",
-    "shopAccess": true
+    "shopAccess": true,
+    "isTeacher": true
   },
   {
     "id": "u-staff",
@@ -35,7 +36,8 @@
     "createdAt": "2025-02-01T10:00:00-07:00",
     "updatedAt": "2026-09-04T12:00:00-07:00",
     "billingInterval": "monthly",
-    "shopAccess": true
+    "shopAccess": true,
+    "isTeacher": true
   },
   {
     "id": "u-maya",
@@ -54,7 +56,8 @@
     "createdAt": "2025-03-15T11:00:00-07:00",
     "updatedAt": "2026-09-04T12:00:00-07:00",
     "billingInterval": "monthly",
-    "shopAccess": true
+    "shopAccess": true,
+    "isTeacher": true
   },
   {
     "id": "u-jordan",
@@ -74,7 +77,8 @@
     "updatedAt": "2026-09-04T12:00:00-07:00",
     "billingInterval": "annual",
     "shopAccess": true,
-    "_notes": "Patron — $20/mo equivalent funds scholarship seats"
+    "_notes": "Patron — $20/mo equivalent funds scholarship seats",
+    "isTeacher": false
   },
   {
     "id": "u-sam",
@@ -94,7 +98,8 @@
     "updatedAt": "2026-09-04T12:00:00-07:00",
     "billingInterval": "monthly",
     "shopAccess": true,
-    "_notes": "Community rate seat (replaces former student tier)"
+    "_notes": "Community rate seat (replaces former student tier)",
+    "isTeacher": false
   },
   {
     "id": "u-riley",
@@ -115,7 +120,8 @@
     "billingInterval": "daily",
     "shopAccess": true,
     "dayPassCreditExpiresAt": "2026-10-04T23:59:59-07:00",
-    "_notes": "Day pass with join credit window open 30 days"
+    "_notes": "Day pass with join credit window open 30 days",
+    "isTeacher": false
   },
   {
     "id": "u-nova",
@@ -134,7 +140,8 @@
     "createdAt": "2025-07-01T10:00:00-07:00",
     "updatedAt": "2026-09-04T12:00:00-07:00",
     "billingInterval": "monthly",
-    "shopAccess": true
+    "shopAccess": true,
+    "isTeacher": false
   },
   {
     "id": "u-kai",
@@ -154,7 +161,8 @@
     "updatedAt": "2026-09-04T12:00:00-07:00",
     "billingInterval": "monthly",
     "shopAccess": false,
-    "_notes": "Friend of The Box — supporter, no shop access"
+    "_notes": "Friend of The Box — supporter, no shop access",
+    "isTeacher": false
   },
   {
     "id": "u-alex",
@@ -174,7 +182,8 @@
     "createdAt": "2025-03-01T10:00:00-07:00",
     "updatedAt": "2026-08-15T09:00:00-07:00",
     "billingInterval": "monthly",
-    "shopAccess": true
+    "shopAccess": true,
+    "isTeacher": false
   },
   {
     "id": "u-casey",
@@ -194,7 +203,8 @@
     "createdAt": "2025-04-20T10:00:00-07:00",
     "updatedAt": "2026-08-28T16:00:00-07:00",
     "billingInterval": "monthly",
-    "shopAccess": true
+    "shopAccess": true,
+    "isTeacher": false
   },
   {
     "id": "u-taylor",
@@ -214,7 +224,8 @@
     "createdAt": "2025-02-10T10:00:00-07:00",
     "updatedAt": "2026-09-04T12:00:00-07:00",
     "billingInterval": "monthly",
-    "shopAccess": true
+    "shopAccess": true,
+    "isTeacher": false
   },
   {
     "id": "u-morgan",
@@ -234,7 +245,8 @@
     "createdAt": "2026-07-01T10:00:00-07:00",
     "updatedAt": "2026-09-04T12:00:00-07:00",
     "billingInterval": "monthly",
-    "shopAccess": true
+    "shopAccess": true,
+    "isTeacher": false
   },
   {
     "id": "u-jamie",
@@ -254,7 +266,8 @@
     "createdAt": "2025-01-20T10:00:00-07:00",
     "updatedAt": "2026-09-04T12:00:00-07:00",
     "billingInterval": "annual",
-    "shopAccess": true
+    "shopAccess": true,
+    "isTeacher": false
   },
   {
     "id": "u-drew",
@@ -274,7 +287,8 @@
     "createdAt": "2025-09-01T10:00:00-07:00",
     "updatedAt": "2026-09-04T12:00:00-07:00",
     "billingInterval": "monthly",
-    "shopAccess": true
+    "shopAccess": true,
+    "isTeacher": false
   },
   {
     "id": "u-quinn",
@@ -294,7 +308,8 @@
     "createdAt": "2025-08-01T10:00:00-07:00",
     "updatedAt": "2026-09-04T12:00:00-07:00",
     "billingInterval": "monthly",
-    "shopAccess": true
+    "shopAccess": true,
+    "isTeacher": false
   },
   {
     "id": "u-avery",
@@ -310,7 +325,8 @@
     "createdAt": "2026-09-03T15:00:00-07:00",
     "updatedAt": "2026-09-03T15:00:00-07:00",
     "billingInterval": null,
-    "shopAccess": false
+    "shopAccess": false,
+    "isTeacher": false
   },
   {
     "id": "u-harper",
@@ -331,7 +347,8 @@
     "profileComplete": true,
     "_notes": "Scholarship seat — six months funded by Patron pool",
     "createdAt": "2026-09-01T10:00:00-07:00",
-    "updatedAt": "2026-09-04T12:00:00-07:00"
+    "updatedAt": "2026-09-04T12:00:00-07:00",
+    "isTeacher": false
   },
   {
     "id": "u-skye",
@@ -352,7 +369,8 @@
     "profileComplete": true,
     "_notes": "Household add-on on Nova Park’s Maker plan",
     "createdAt": "2025-08-01T10:00:00-07:00",
-    "updatedAt": "2026-09-04T12:00:00-07:00"
+    "updatedAt": "2026-09-04T12:00:00-07:00",
+    "isTeacher": false
   },
   {
     "id": "u-reed",
@@ -372,6 +390,7 @@
     "profileComplete": true,
     "_notes": "Shop Steward — 4 hrs/week for free Maker membership",
     "createdAt": "2025-10-01T10:00:00-07:00",
-    "updatedAt": "2026-09-04T12:00:00-07:00"
+    "updatedAt": "2026-09-04T12:00:00-07:00",
+    "isTeacher": false
   }
 ]
