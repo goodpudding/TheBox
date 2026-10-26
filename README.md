@@ -28,7 +28,7 @@ npx cloudflared tunnel --url http://localhost:3000
 
 ## Production: Cloudflare Workers + D1
 
-Live at `https://discoverburienmakerspace.com` (the Worker's default `thebox.james-trey-young.workers.dev` address also works but is not the canonical one — sessions are per hostname, so always link to the root domain). Deploys from `main` through Cloudflare Workers Builds (Workers & Pages → thebox → Settings → Build):
+Live at `https://discoverburienmakerspace.com` (the Worker's default `thebox.james-trey-young.workers.dev` address also works but is not the canonical one — sessions are per hostname, so always link to the root domain). Deploys from `main` through Cloudflare Workers Builds (Workers & Pages → thebox → Settings → Build). A pull request gets its own preview deployment.
 
 - Build command: `npx opennextjs-cloudflare build`
 - Deploy command: `bash scripts/cf-deploy.sh` — applies `migrations/*.sql` to the `thebox-db` D1 database, optionally seeds, then deploys the OpenNext bundle.

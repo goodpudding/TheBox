@@ -52,15 +52,10 @@ yarn-error.log*
 # local inventory photo storage (dev)
 .data/
 
-
-# vercel
-.vercel
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 
-.vercel
 
 # ESP32 reader local secrets
 firmware/**/secrets.h
