@@ -359,6 +359,8 @@ export interface AccessLog extends Timestamps {
   requestedAt: ISODateTime;
 }
 
+export type ClassSource = "zeffy" | "csv" | "admin";
+
 export interface ClassSession extends Timestamps {
   id: string;
   title: string;
@@ -373,6 +375,14 @@ export interface ClassSession extends Timestamps {
   zeffyUrl?: string | null;
   /** Zeffy campaign UUID — links calendar Register + payment webhooks. */
   zeffyCampaignId?: string | null;
+  zeffyOccurrenceId?: string | null;
+  source?: ClassSource;
+  googleEventId?: string | null;
+  googleCalendarId?: string | null;
+  syncedAt?: ISODateTime | null;
+  cancelledAt?: ISODateTime | null;
+  /** Field names a staff edit owns. Zeffy sync skips these. */
+  staffEditedFields?: string[] | null;
   prerequisiteCertificationIds: string[];
   location: string;
   cancellationCutoffHours: number | null;
@@ -705,6 +715,8 @@ export interface OrgSettings {
   scholarshipSeatsAwarded: number;
   /** Show Phase 3 tiers on Join as coming soon. */
   showPhase3Tiers: boolean;
+  defaultInstructorId?: string | null;
+  defaultClassCapacity?: number;
   updatedAt: ISODateTime;
 }
 

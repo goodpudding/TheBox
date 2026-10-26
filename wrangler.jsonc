@@ -1,6 +1,6 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"main": ".open-next/worker.js",
+	"main": "src/worker.ts",
 	// Must match the Worker name in the Cloudflare dashboard (Workers & Pages → thebox).
 	"name": "thebox",
 	"compatibility_date": "2026-10-19",
@@ -67,5 +67,8 @@
 	"keep_vars": true,
 	"observability": {
 		"enabled": true
+	},
+	"triggers": {
+		"crons": ["0 * * * *"]
 	}
 }

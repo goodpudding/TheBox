@@ -79,6 +79,7 @@ export interface ZeffyCampaign {
   title: string;
   description: string;
   url: string | null;
+  location?: string | null;
   is_archived: boolean;
   start_date: number | null;
   end_date: number | null;
