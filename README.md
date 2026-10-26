@@ -81,7 +81,13 @@ npm run db:seed
 - Seed: `npm run db:seed` loads `data/mock/*.json`
 - Provider: `createPrismaDataProvider()` when `DATA_PROVIDER=prisma` (see `src/lib/data/factory.ts`)
 
-The interactive UI continues to use `MockDataProvider` in the browser. Prisma is ready for server routes, Auth, seed, and sync. `/workstation` and `/api/me` talk to Prisma directly (incremental upserts — no full-table wipe).
+| Mode | What to set | What the browser uses |
+| --- | --- | --- |
+| Local dev | leave both unset | In-memory fixtures and the Dev toolbar |
+| Vercel demo | `NEXT_PUBLIC_DEMO_MODE=true` | Fixtures, even in a production build |
+| Production | runtime `DATA_PROVIDER=prisma` and build `NEXT_PUBLIC_DATA_MODE=live` | Auth.js session and D1, through `POST /api/data` |
+
+`/workstation` and `/api/me` talk to Prisma directly (incremental upserts — no full-table wipe). The lobby display keeps using `/api/display/feed`.
 
 ## Workstation (shared Windows PCs)
 
