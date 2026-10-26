@@ -19,12 +19,40 @@
 	"images": {
 		"binding": "IMAGES"
 	},
+	// Prisma talks to this through @prisma/adapter-d1 (src/lib/db.ts).
+	// Schema lives in migrations/; the deploy command applies them with
+	// `wrangler d1 migrations apply thebox-db --remote`.
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "thebox-db",
+			"database_id": "897ead2c-9451-4d4d-8b45-9d2f05708823",
+			"migrations_dir": "migrations"
+		}
+	],
+	// Plain-text runtime config. Secrets (AUTH_SECRET, AUTH_RESEND_KEY,
+	// ZEFFY_API_KEY, ZEFFY_WEBHOOK_SECRET, DISPLAY_TOKEN, READER_SHARED_SECRET)
+	// are set in the dashboard under Settings → Variables and Secrets.
+	"vars": {
+		"AUTH_URL": "https://portal.discoverburienmakerspace.com",
+		"NEXT_PUBLIC_SITE_URL": "https://portal.discoverburienmakerspace.com",
+		"AUTH_EMAIL_FROM": "Discover Burien Makerspace <portal@discoverburienmakerspace.com>",
+		"PAYMENT_URL": "https://www.zeffy.com/en-US/ticketing/burien-makers-spaces-memberships"
+	},
 	// Branch preview builds (wrangler preview). Service bindings aren't supported
 	// in previews, so the self-reference is left out here.
 	"previews": {
 		"images": {
 			"binding": "IMAGES"
-		}
+		},
+		"d1_databases": [
+			{
+				"binding": "DB",
+				"database_name": "thebox-db",
+				"database_id": "897ead2c-9451-4d4d-8b45-9d2f05708823",
+				"migrations_dir": "migrations"
+			}
+		]
 	},
 	// Keep variables set in the dashboard (Settings → Variables and Secrets) across deploys.
 	// Secrets are always kept; this also keeps plain-text vars.

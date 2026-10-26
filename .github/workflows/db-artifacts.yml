@@ -1,0 +1,39 @@
+# Generates the D1 migration SQL from prisma/schema.prisma, plus a seed dump
+# built from data/mock, and attaches both as workflow artifacts.
+# Run it from the Actions tab (or `gh workflow run db-artifacts.yml`) after a
+# schema change, download, and commit the migration under migrations/.
+name: db-artifacts
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - prisma/schema.prisma
+      - prisma/seed.ts
+      - data/mock/**
+      - .github/workflows/db-artifacts.yml
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Migration SQL (empty → schema)
+        run: npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > schema.sql
+      - name: Seed dump from data/mock
+        env:
+          DATABASE_URL: file:./seed.db
+        run: |
+          npx prisma db push --skip-generate
+          npx tsx prisma/seed.ts
+          sqlite3 prisma/seed.db ".dump" | grep -v -E '^(BEGIN TRANSACTION|COMMIT|PRAGMA)' > seed-data.sql
+          wc -c schema.sql seed-data.sql
+      - uses: actions/upload-artifact@v4
+        with:
+          name: db-artifacts
+          path: |
+            schema.sql
+            seed-data.sql
