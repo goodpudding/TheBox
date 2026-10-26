@@ -1,12 +1,20 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { AdminShell } from "@/components/admin-shell";
+import { MachineQr } from "@/components/machine-qr";
 import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { OrgSettings } from "@/lib/data";
+
+function publicUrl(path: string): string {
+  const base =
+    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
+    (typeof window !== "undefined" ? window.location.origin : "");
+  return `${base}${path}`;
+}
 
 export default function AdminSettingsPage() {
   const { provider, revision, bump } = useData();
@@ -14,6 +22,7 @@ export default function AdminSettingsPage() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const registrationUrl = useMemo(() => publicUrl("/register"), []);
 
   useEffect(() => {
     void (async () => {
@@ -100,6 +109,32 @@ export default function AdminSettingsPage() {
           {message}
         </p>
       ) : null}
+
+      <section className="mb-12 max-w-3xl rounded-3xl border border-border bg-surface/70 p-6">
+        <p className="eyebrow">Walk-in registration</p>
+        <h2 className="mt-2 font-display text-2xl font-semibold text-brown">
+          QR code for account + waiver
+        </h2>
+        <p className="mt-3 max-w-2xl text-secondary leading-relaxed">
+          Post this near the entrance so visitors can scan it when they arrive,
+          create their account record, sign the current waiver, and choose
+          whether they want the newsletter.
+        </p>
+        <p className="mt-4 break-all font-mono text-sm text-secondary">
+          {registrationUrl}
+        </p>
+        <div className="mt-5 flex flex-wrap items-end gap-5">
+          <MachineQr
+            url={registrationUrl}
+            label="The Box walk-in registration"
+          />
+          <Button asChild variant="secondary" size="sm">
+            <a href={registrationUrl} target="_blank" rel="noreferrer">
+              Open registration page
+            </a>
+          </Button>
+        </div>
+      </section>
 
       <form
         key={settings.updatedAt}
