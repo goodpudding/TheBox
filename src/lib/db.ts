@@ -14,7 +14,27 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
  * available inside a request, not at module load.
  */
 
+<<<<<<< HEAD
 type D1Binding = ConstructorParameters<typeof PrismaD1>[0];
+=======
+function createPrisma() {
+  return new PrismaClient({
+    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+  });
+}
+
+/** Drop a HMR-stale client that was constructed before a schema generate. */
+if (
+  process.env.NODE_ENV !== "production" &&
+  globalForPrisma.prisma &&
+  !("equipmentJob" in globalForPrisma.prisma)
+) {
+  void globalForPrisma.prisma.$disconnect();
+  globalForPrisma.prisma = undefined;
+}
+
+export const prisma = globalForPrisma.prisma ?? createPrisma();
+>>>>>>> 98ea5f6 (Fix PIN login crash from a stale Prisma client)
 
 const log: ("error" | "warn")[] =
   process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"];

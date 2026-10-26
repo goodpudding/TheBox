@@ -863,7 +863,7 @@ model EquipmentJob {
   filamentGrams        Float?
   sheets               Int?
   runtimeSeconds       Int?
-  /** null = not billed yet (3D $/g TBD). 0 = free. */
+  /** Cents charged for this sent job. 0 = free / Unlimited. */
   billedCents          Int?
   note                 String?
   startedAt            DateTime

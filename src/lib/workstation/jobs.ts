@@ -89,11 +89,20 @@ export async function recordEquipmentJob(input: {
     }
   }
 
+  const table = jobsTable();
+  if (!table) {
+    const error = new Error(
+      "Print jobs are not available until the database schema is generated.",
+    );
+    (error as Error & { status: number }).status = 503;
+    throw error;
+  }
+
   const now = new Date();
   const note = input.note ?? quote.note;
   const billedCents = quote.billedCents;
 
-  const job = await prisma.equipmentJob.create({
+  const job = await table.create({
     data: {
       id: newId("job"),
       userId: input.userId,
@@ -147,7 +156,15 @@ export async function refundEquipmentJob(input: {
   jobId: string;
   actorId: string;
 }): Promise<RecordedEquipmentJob> {
-  const job = await prisma.equipmentJob.findUnique({
+  const table = jobsTable();
+  if (!table) {
+    const error = new Error(
+      "Print jobs are not available until the database schema is generated.",
+    );
+    (error as Error & { status: number }).status = 503;
+    throw error;
+  }
+  const job = await table.findUnique({
     where: { id: input.jobId },
     include: { machine: true, creditLedgerEntries: true },
   });
@@ -186,7 +203,7 @@ export async function refundEquipmentJob(input: {
       },
     });
   }
-  const updated = await prisma.equipmentJob.update({
+  const updated = await table.update({
     where: { id: job.id },
     data: { status: "refunded" },
   });
@@ -207,11 +224,21 @@ export async function refundEquipmentJob(input: {
   };
 }
 
+function jobsTable() {
+  return (
+    prisma as typeof prisma & {
+      equipmentJob?: typeof prisma.equipmentJob;
+    }
+  ).equipmentJob;
+}
+
 export async function listUserJobs(
   userId: string,
   take = 12,
 ): Promise<RecordedEquipmentJob[]> {
-  const rows = await prisma.equipmentJob.findMany({
+  const table = jobsTable();
+  if (!table) return [];
+  const rows = await table.findMany({
     where: { userId, deletedAt: null },
     include: { machine: true },
     orderBy: { completedAt: "desc" },
