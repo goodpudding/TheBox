@@ -1,4 +1,4 @@
-import { randomBytes, randomInt } from "node:crypto";
+import { createHash, randomBytes, randomInt } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { evaluateMachineAccess } from "@/lib/data/access";
@@ -16,6 +16,13 @@ import {
   mapWaiverRow,
 } from "./mappers";
 import { hashKioskPin, isValidPinShape, verifyKioskPin } from "./pin";
+import {
+  clearPinAttempts,
+  isPinAttemptLocked,
+  PIN_LOCK_MESSAGE,
+  PIN_MISMATCH_MESSAGE,
+  recordFailedPinAttempt,
+} from "@/lib/workstation/pin-attempts";
 import {
   clearWorkstationCookie,
   generateSessionToken,
@@ -104,6 +111,17 @@ export async function isStaffRequest(request: Request): Promise<User | null> {
     }
   }
   return null;
+}
+
+/** Magic-link session, or the dev switch-user header outside production. */
+export async function memberActorId(request: Request): Promise<string | null> {
+  const session = await auth();
+  if (session?.user?.id) return session.user.id;
+  const demo =
+    process.env.NODE_ENV !== "production" ||
+    process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+  if (!demo) return null;
+  return request.headers.get("x-box-user-id");
 }
 
 async function overlappingReservation(
@@ -219,11 +237,40 @@ export async function authenticatePin(email: string, pin: string) {
     where: { email: normalized, deletedAt: null },
   });
   if (!userRow || !(await verifyKioskPin(pin, userRow.kioskPinHash))) {
-    const error = new Error("Email or PIN did not match");
+    const error = new Error(PIN_MISMATCH_MESSAGE);
     (error as Error & { status: number }).status = 401;
     throw error;
   }
   return userRow;
+}
+
+async function logPinFailure(input: {
+  workstationId: string;
+  email: string;
+  userId: string | null;
+}) {
+  const emailHash = createHash("sha256")
+    .update(input.email.trim().toLowerCase())
+    .digest("hex");
+  try {
+    await prisma.auditEvent.create({
+      data: {
+        id: newId("audit"),
+        action: "workstation.pin_failed",
+        actorId: null,
+        subjectUserId: input.userId,
+        entityType: "workstation",
+        entityId: input.workstationId,
+        metadata: JSON.stringify({
+          workstationId: input.workstationId,
+          emailHash,
+        }),
+        occurredAt: new Date(),
+      },
+    });
+  } catch (err) {
+    console.error("workstation pin failure log", err);
+  }
 }
 
 export async function loginWithPin(input: {
@@ -231,11 +278,44 @@ export async function loginWithPin(input: {
   email: string;
   pin: string;
 }) {
-  const userRow = await authenticatePin(input.email, input.pin);
-  return startWorkstationSession({
-    workstationId: input.workstationId,
+  const workstation = await lookupWorkstation(input.workstationId);
+  if (!workstation || !workstation.active) {
+    const error = new Error("Unknown or inactive workstation");
+    (error as Error & { status: number }).status = 404;
+    throw error;
+  }
+  const email = input.email.trim().toLowerCase();
+  if (isPinAttemptLocked(workstation.id, email)) {
+    const error = new Error(PIN_LOCK_MESSAGE);
+    (error as Error & { status: number }).status = 429;
+    throw error;
+  }
+  const userRow = await prisma.user.findFirst({
+    where: { email, deletedAt: null },
+  });
+  const matched =
+    isValidPinShape(input.pin) &&
+    Boolean(userRow && (await verifyKioskPin(input.pin, userRow.kioskPinHash)));
+  if (!matched || !userRow) {
+    recordFailedPinAttempt(workstation.id, email);
+    await logPinFailure({
+      workstationId: workstation.id,
+      email,
+      userId: userRow?.id ?? null,
+    });
+    const error = new Error(PIN_MISMATCH_MESSAGE);
+    (error as Error & { status: number }).status = 401;
+    throw error;
+  }
+  clearPinAttempts(workstation.id, email);
+  const started = await startWorkstationSession({
+    workstationId: workstation.id,
     userId: userRow.id,
   });
+  return {
+    ...started,
+    mustChangePin: userRow.kioskPinMustChange,
+  };
 }
 
 export async function logoutCurrent(request?: Request, endedBy: EndedBy = "logout") {

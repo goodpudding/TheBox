@@ -862,6 +862,16 @@ export interface DataProvider {
     status: MembershipStatus,
     actorId: string,
   ): Promise<User>;
+  /** Member chooses their shop PIN. Rejects bad and trivial PINs. Clears a reset flag. */
+  setMyKioskPin(userId: string, pin: string): Promise<User>;
+  /**
+   * Staff or admin issues a one-time temporary PIN. The plaintext is returned
+   * once and is not stored or written to the audit row.
+   */
+  adminResetMemberKioskPin(
+    memberId: string,
+    actorId: string,
+  ): Promise<{ user: User; temporaryPin: string }>;
   adminSetMemberTeacher(
     id: string,
     isTeacher: boolean,

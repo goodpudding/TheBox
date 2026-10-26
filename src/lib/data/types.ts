@@ -123,7 +123,9 @@ export type AuditAction =
   | "tool_champion_completed"
   | "wishlist_purchase_reported"
   | "wishlist_item_fulfilled"
-  | "wishlist_purchase_dismissed";
+  | "wishlist_purchase_dismissed"
+  | "member.pin_reset"
+  | "workstation.pin_failed";
 
 /** 2-month machine maintain + train commitment. */
 export type ToolChampionStatus =
@@ -175,6 +177,10 @@ export interface User extends Timestamps {
   emergencyContactPhone?: string;
   emergencyContactRelation?: string;
   profileComplete: boolean;
+  /** True once a shop PIN hash exists. The hash itself is never on this object. */
+  kioskPinSet?: boolean;
+  /** Staff issued a temporary PIN; the member must choose their own. */
+  kioskPinMustChange?: boolean;
   /** Fixture annotation only; ignored by runtime */
   _notes?: string;
 }

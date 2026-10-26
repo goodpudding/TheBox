@@ -100,6 +100,7 @@ import {
   matchZeffyPaymentToWishlistItem,
   wishlistStats,
 } from "./wishlist";
+import { kioskPinPolicyError } from "@/lib/workstation/pin-policy";
 import type {
   AccessLog,
   AuditAction,
@@ -309,10 +310,22 @@ function simpleHash(input: string): string {
   return (h >>> 0).toString(16).padStart(8, "0");
 }
 
+function randomTemporaryPin(): string {
+  const buf = new Uint32Array(1);
+  for (let attempt = 0; attempt < 30; attempt++) {
+    crypto.getRandomValues(buf);
+    const pin = String(buf[0]! % 1_000_000).padStart(6, "0");
+    if (!kioskPinPolicyError(pin)) return pin;
+  }
+  return "482917";
+}
+
 export class MockDataProvider implements DataProvider {
   private state: MockFixtureBundle;
   private currentUserId: string | null;
   private quizTokens = new Map<string, QuizTokenState>();
+  /** Scrypt hashes for tests and the server provider. Never copied onto User. */
+  private pinHashes = new Map<string, string>();
 
   constructor(bundle: MockFixtureBundle, initialUserId?: string | null) {
     this.state = cloneFixtures(bundle);
@@ -2569,6 +2582,58 @@ export class MockDataProvider implements DataProvider {
       metadata: { from: prev, to: status },
     });
     return user;
+  }
+
+  private async rememberPin(userId: string, pin: string): Promise<void> {
+    if (process.env.VITEST !== "true") return;
+    const { hashKioskPin, normalizePin } = await import(
+      "@/lib/workstation/pin"
+    );
+    this.pinHashes.set(userId, await hashKioskPin(normalizePin(pin)));
+  }
+
+  /** Test/server helper. Not part of the DataProvider surface. */
+  kioskPinRecord(userId: string): { hash: string; mustChange: boolean } | null {
+    const hash = this.pinHashes.get(userId);
+    if (!hash) return null;
+    const user = this.state.users.find((row) => row.id === userId);
+    return { hash, mustChange: Boolean(user?.kioskPinMustChange) };
+  }
+
+  async setMyKioskPin(userId: string, pin: string): Promise<User> {
+    const problem = kioskPinPolicyError(pin);
+    if (problem) throw new Error(problem);
+    const user = this.requireUser(userId);
+    await this.rememberPin(userId, pin);
+    user.kioskPinSet = true;
+    user.kioskPinMustChange = false;
+    this.touch(user);
+    return user;
+  }
+
+  async adminResetMemberKioskPin(
+    memberId: string,
+    actorId: string,
+  ): Promise<{ user: User; temporaryPin: string }> {
+    const actor = this.requireUser(actorId);
+    if (!isStaffRole(actor)) {
+      throw new Error("Only staff can reset a shop PIN.");
+    }
+    const user = this.requireUser(memberId);
+    const temporaryPin = randomTemporaryPin();
+    await this.rememberPin(memberId, temporaryPin);
+    user.kioskPinSet = true;
+    user.kioskPinMustChange = true;
+    this.touch(user);
+    this.pushAudit({
+      action: "member.pin_reset",
+      actorId,
+      subjectUserId: memberId,
+      entityType: "user",
+      entityId: memberId,
+      metadata: { mustChange: true },
+    });
+    return { user, temporaryPin };
   }
 
   async adminSetMemberTeacher(

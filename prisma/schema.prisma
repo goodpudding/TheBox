@@ -76,6 +76,8 @@ model User {
   notes                    String?
   /** Shop-floor PIN (scrypt). Never store plaintext. */
   kioskPinHash             String?
+  /** True after a staff reset until the member chooses their own PIN. */
+  kioskPinMustChange       Boolean   @default(false)
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
   deletedAt                DateTime?
