@@ -1,13 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
 import { useData } from "@/components/providers";
+import { isLiveDataMode } from "@/lib/data/mode";
 
 export function StaffGate({ children }: { children: ReactNode }) {
-  const { currentUser } = useData();
+  const { currentUser, sessionResolved } = useData();
+  const live = isLiveDataMode();
+  const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!live || !sessionResolved || currentUser) return;
+    router.replace(`/login?callbackUrl=${encodeURIComponent(pathname)}`);
+  }, [live, sessionResolved, currentUser, pathname, router]);
+
+  if (!sessionResolved || (live && !currentUser)) {
+    return (
+      <PageShell>
+        <p className="text-secondary">Loading…</p>
+      </PageShell>
+    );
+  }
 
   if (!currentUser) {
     return (

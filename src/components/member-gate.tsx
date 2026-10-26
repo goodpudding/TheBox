@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
 import { useData } from "@/components/providers";
+import { isLiveDataMode } from "@/lib/data/mode";
 import type { OnboardingState } from "@/lib/data";
 
 const ONBOARDING_PREFIX = "/onboarding";
@@ -22,16 +23,22 @@ export function MemberGate({
   /** When false, allow incomplete onboarding (for onboarding pages themselves). */
   requireOnboardingComplete?: boolean;
 }) {
-  const { provider, currentUser, revision } = useData();
+  const { provider, currentUser, revision, sessionResolved } = useData();
   const router = useRouter();
   const pathname = usePathname();
+  const live = isLiveDataMode();
   const [ready, setReady] = useState(false);
   const [onboarding, setOnboarding] = useState<OnboardingState | null>(null);
 
   useEffect(() => {
+    if (!sessionResolved) return;
     let cancelled = false;
     void (async () => {
       if (!currentUser) {
+        if (live) {
+          const next = `/login?callbackUrl=${encodeURIComponent(pathname)}`;
+          router.replace(next);
+        }
         if (!cancelled) {
           setOnboarding(null);
           setReady(true);
@@ -78,7 +85,17 @@ export function MemberGate({
     requireOnboardingComplete,
     pathname,
     router,
+    sessionResolved,
+    live,
   ]);
+
+  if (!sessionResolved || (live && !currentUser)) {
+    return (
+      <PageShell>
+        <p className="text-secondary">Loading…</p>
+      </PageShell>
+    );
+  }
 
   if (!ready) {
     return (

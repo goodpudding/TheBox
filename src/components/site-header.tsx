@@ -7,6 +7,7 @@ import { signOut } from "next-auth/react";
 import { ChevronDown, Menu, X } from "lucide-react";
 import { BrandMark } from "@/components/brand-logo";
 import { useData } from "@/components/providers";
+import { isLiveDataMode } from "@/lib/data/mode";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/lib/data";
 
@@ -79,7 +80,7 @@ function memberNavClass(active: boolean, mobile = false) {
 export function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const { currentUser, switchUser, provider, revision } = useData();
+  const { currentUser, switchUser, clearCurrentUser, provider, revision } = useData();
   const [open, setOpen] = useState(false);
   const [youOpen, setYouOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -142,7 +143,11 @@ export function SiteHeader() {
   async function onSignOut() {
     setSigningOut(true);
     try {
-      await switchUser(null);
+      if (isLiveDataMode()) {
+        clearCurrentUser();
+      } else {
+        await switchUser(null);
+      }
       await signOut({ redirect: false });
       setYouOpen(false);
       setOpen(false);
