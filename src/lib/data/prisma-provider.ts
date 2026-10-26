@@ -966,9 +966,10 @@ export async function persistBundleToPrisma(
   }
   bundle = toWrite;
 
-  await prisma.$transaction(
-    async (tx: Prisma.TransactionClient) => {
-    const db = prismaTx(tx);
+  // D1 rejects interactive prisma.$transaction(async () => ...).
+  // These upserts run one after another on the root client.
+  const tx = prisma as unknown as Prisma.TransactionClient;
+  const db = prismaTx(tx);
 
     // Parents first — users without household links
     await upsertManyIfAny(
@@ -1724,9 +1725,6 @@ export async function persistBundleToPrisma(
         deletedAt: asDate(e.deletedAt),
       })),
     );
-    },
-    { timeout: 60_000 },
-  );
 }
 
 function shouldPersistAfter(methodName: string): boolean {
@@ -1742,6 +1740,7 @@ function shouldPersistAfter(methodName: string): boolean {
 
 const BUNDLE_TTL_MS = 5_000;
 let bundleCache: { at: number; bundle: MockFixtureBundle } | null = null;
+let bundleInflight: Promise<MockFixtureBundle> | null = null;
 let lastBundleLoad: "bundle" | "cache" = "bundle";
 
 export function takeBundleLoad(): "bundle" | "cache" {
@@ -1810,19 +1809,32 @@ function createPersistingProxy(mock: MockDataProvider): DataProvider {
  * The loaded bundle is reused for 5 seconds. Writes drop the cache.
  * TODO(perf): replace this full-bundle load with per-method Prisma queries.
  */
+async function loadSharedBundle(): Promise<MockFixtureBundle> {
+  const now = Date.now();
+  if (bundleCache && now - bundleCache.at < BUNDLE_TTL_MS) {
+    lastBundleLoad = "cache";
+    return bundleCache.bundle;
+  }
+  if (!bundleInflight) {
+    lastBundleLoad = "bundle";
+    bundleInflight = loadBundleFromPrisma()
+      .then((bundle) => {
+        bundleCache = { at: Date.now(), bundle };
+        return bundle;
+      })
+      .finally(() => {
+        bundleInflight = null;
+      });
+  } else {
+    lastBundleLoad = "cache";
+  }
+  return bundleInflight;
+}
+
 export async function createPrismaDataProvider(
   initialUserId?: string | null,
 ): Promise<DataProvider> {
-  const now = Date.now();
-  let bundle: MockFixtureBundle;
-  if (bundleCache && now - bundleCache.at < BUNDLE_TTL_MS) {
-    bundle = bundleCache.bundle;
-    lastBundleLoad = "cache";
-  } else {
-    bundle = await loadBundleFromPrisma();
-    bundleCache = { at: now, bundle };
-    lastBundleLoad = "bundle";
-  }
+  const bundle = await loadSharedBundle();
   const mock = new MockDataProvider(bundle, initialUserId);
   return createPersistingProxy(mock);
 }

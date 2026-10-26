@@ -21,6 +21,8 @@ import { isLiveDataMode } from "@/lib/data/mode";
 type DataContextValue = {
   provider: DataProvider;
   currentUser: User | null;
+  /** Set when the signed-in user record could not be loaded. */
+  userError: string | null;
   /** False while live mode is still resolving the Auth.js session. */
   sessionResolved: boolean;
   refreshUser: () => Promise<void>;
@@ -41,6 +43,7 @@ function DataProviders({ children }: { children: ReactNode }) {
   const { data: session, status } = useSession();
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [userError, setUserError] = useState<string | null>(null);
   const [sessionResolved, setSessionResolved] = useState(!live);
   const [revision, setRevision] = useState(0);
   const bump = useCallback(() => setRevision((n) => n + 1), []);
@@ -54,14 +57,17 @@ function DataProviders({ children }: { children: ReactNode }) {
     if (live && status === "loading") return;
     if (live && status !== "authenticated") {
       setCurrentUser(null);
+      setUserError(null);
       setSessionResolved(true);
       return;
     }
     try {
       const user = await provider.getCurrentUser();
       setCurrentUser(user);
-    } catch {
+      setUserError(null);
+    } catch (err) {
       setCurrentUser(null);
+      setUserError(err instanceof Error ? err.message : "Could not load your account");
     } finally {
       setSessionResolved(true);
     }
@@ -101,6 +107,7 @@ function DataProviders({ children }: { children: ReactNode }) {
     () => ({
       provider,
       currentUser,
+      userError,
       sessionResolved,
       refreshUser,
       switchUser,
@@ -111,6 +118,7 @@ function DataProviders({ children }: { children: ReactNode }) {
     [
       provider,
       currentUser,
+      userError,
       sessionResolved,
       refreshUser,
       switchUser,

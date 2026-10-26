@@ -2,7 +2,19 @@ import type { DataProvider } from "./provider";
 
 export const SIGNED_OUT_EVENT = "thebox:signed-out";
 
+/** One data request at a time. Parallel full-database loads were coming back 503. */
+let rpcTail: Promise<unknown> = Promise.resolve();
+
 async function rpc(method: string, args: unknown[]): Promise<unknown> {
+  const run = rpcTail.then(() => postRpc(method, args), () => postRpc(method, args));
+  rpcTail = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+async function postRpc(method: string, args: unknown[]): Promise<unknown> {
   const res = await fetch("/api/data", {
     method: "POST",
     credentials: "same-origin",

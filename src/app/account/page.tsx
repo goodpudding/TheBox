@@ -37,17 +37,21 @@ function AccountBody() {
   useEffect(() => {
     if (!currentUser) return;
     void (async () => {
-      setSettings(await provider.getSettings());
-      setWaivers(await provider.listWaiverHistory(currentUser.id));
-      setWallet(await provider.getCreditWallet(currentUser.id));
-      setPinSet(Boolean(currentUser.kioskPinSet));
-      const pinRes = await fetch("/api/account/kiosk-pin", {
-        headers: { "x-box-user-id": currentUser.id },
-        cache: "no-store",
-      });
-      if (pinRes.ok) {
-        const body = (await pinRes.json()) as { pinSet?: boolean };
-        if (body.pinSet) setPinSet(true);
+      try {
+        setSettings(await provider.getSettings());
+        setWaivers(await provider.listWaiverHistory(currentUser.id));
+        setWallet(await provider.getCreditWallet(currentUser.id));
+        setPinSet(Boolean(currentUser.kioskPinSet));
+        const pinRes = await fetch("/api/account/kiosk-pin", {
+          headers: { "x-box-user-id": currentUser.id },
+          cache: "no-store",
+        });
+        if (pinRes.ok) {
+          const body = (await pinRes.json()) as { pinSet?: boolean };
+          if (body.pinSet) setPinSet(true);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not load your account");
       }
     })();
   }, [currentUser, provider, revision]);
