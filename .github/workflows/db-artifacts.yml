@@ -23,6 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -59,7 +61,15 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add migrations prisma/seed-data.sql
+          git add migrations
+          # The seed dump contains salted hashes and timestamps, so it differs on
+          # every run. Only commit it when its inputs changed (or on manual runs).
+          changed=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || true)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || echo "$changed" | grep -qE '^(prisma/seed\.ts|data/mock/)'; then
+            git add prisma/seed-data.sql
+          else
+            git checkout -- prisma/seed-data.sql
+          fi
           git diff --cached --quiet && echo "nothing to commit" && exit 0
           git commit -m "chore(db): regenerate D1 migration and seed dump [skip ci]"
           git push
