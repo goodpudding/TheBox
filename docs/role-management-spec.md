@@ -1,6 +1,6 @@
 # Role management (staff / admin)
 
-Brief for Cursor. Small, self-contained; one branch, one PR. Verify in `next dev` (mock mode) and, if `DATA_PROVIDER=prisma` locally, against the SQLite dev DB.
+Brief for Cursor. **Do `docs/live-data-bridge-spec.md` first**; this builds on the live provider. Small, self-contained; one branch, one PR. Verify in `next dev` (mock mode) and, if `DATA_PROVIDER=prisma` locally, against the SQLite dev DB.
 
 ## Why
 

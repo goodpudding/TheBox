@@ -1,6 +1,6 @@
 # Workstation PIN: let members set and staff reset it
 
-Brief for Cursor. Follow-on to `docs/role-management-spec.md`; separate branch and PR. Verify in `next dev` with the mock provider and the `/workstation?device=BOX-PC-1` page.
+Brief for Cursor. Follow-on to `docs/live-data-bridge-spec.md` and `docs/role-management-spec.md`; separate branch and PR. Verify in `next dev` with the mock provider and the `/workstation?device=BOX-PC-1` page.
 
 ## Why
 
