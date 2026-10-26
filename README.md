@@ -11,38 +11,6 @@ Member-facing web app and back office for **The Box**, the community makerspace 
 **Phase 2:** onboarding, dashboard, account, certifications, usage  
 **Phase 1:** shell, fixtures, public pages  
 
-## Demo preview (shareable, not “live”)
-
-Host a **demo** on Vercel with mock data — useful for showing staff/board without launching the real site.
-
-1. Create a free [Vercel](https://vercel.com) account (GitHub login is fine).
-2. From this folder:
-
-```bash
-npx vercel login
-npx vercel --yes
-```
-
-3. In the Vercel project → **Settings → Environment Variables**, set:
-
-| Name | Value |
-|---|---|
-| `NEXT_PUBLIC_DEMO_MODE` | `true` |
-| `AUTH_SECRET` | any long random string |
-| `AUTH_URL` | your `*.vercel.app` URL |
-| `NEXT_PUBLIC_SITE_URL` | same URL |
-| `DATA_PROVIDER` | `mock` |
-
-4. Redeploy: `npx vercel --prod --yes` (or push if the project is linked to git).
-
-You’ll get a URL like `https://the-box-portal-….vercel.app`. It’s public to anyone with the link, but clearly marked **Demo**, not indexed for search, and not on a Discover Burien domain. Optional: turn on Vercel **Deployment Protection** (password) if you want the link locked.
-
-Local quick share while your laptop is on (temporary):
-
-```bash
-npx cloudflared tunnel --url http://localhost:3000
-```
-
 ## Local development (mock UI — default)
 
 ```bash
@@ -50,7 +18,13 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Use **Dev · Switch user** at the bottom.
+Open [http://localhost:3000](http://localhost:3000). Use **Dev · Switch user** at the bottom. That toolbar and the fixture data are for local work only. They are not part of the live site.
+
+Local quick share while your laptop is on (temporary):
+
+```bash
+npx cloudflared tunnel --url http://localhost:3000
+```
 
 ## Production: Cloudflare Workers + D1
 
@@ -83,9 +57,8 @@ npm run db:seed
 
 | Mode | What to set | What the browser uses |
 | --- | --- | --- |
-| Local dev | leave both unset | In-memory fixtures and the Dev toolbar |
-| Vercel demo | `NEXT_PUBLIC_DEMO_MODE=true` | Fixtures, even in a production build |
-| Production | runtime `DATA_PROVIDER=prisma` and build `NEXT_PUBLIC_DATA_MODE=live` | Auth.js session and D1, through `POST /api/data` |
+| Local `next dev` | leave both unset | Fixtures and the Dev toolbar, for building only |
+| Live site | production build on Cloudflare. Optional: `DATA_PROVIDER=prisma` and `NEXT_PUBLIC_DATA_MODE=live` | Auth.js session and D1. A production build does this by default. |
 
 `/workstation` and `/api/me` talk to Prisma directly (incremental upserts — no full-table wipe). The lobby display keeps using `/api/display/feed`.
 
@@ -131,7 +104,7 @@ npm run sync:google -- --content # Docs only
 npm run sync:google -- --media   # Flyers/Photos only (no database needed)
 ```
 
-Without `GOOGLE_SERVICE_ACCOUNT_JSON` + `GOOGLE_DRIVE_FOLDER_ID`, the script prints the setup steps and exits 0 (safe for CI and Vercel builds). Nothing in the app blocks on Google being configured — mock content in `data/mock/content` keeps working.
+Without `GOOGLE_SERVICE_ACCOUNT_JSON` + `GOOGLE_DRIVE_FOLDER_ID`, the script prints the setup steps and exits 0 (safe for CI). Nothing in the app blocks on Google being configured — local fixture copy in `data/mock/content` keeps `next dev` working.
 
 ### Drive folder layout (staff-facing)
 
@@ -168,7 +141,7 @@ The Box Website/
 3. **IAM & Admin → Service accounts → Create**, then **Keys → Add key → JSON** and download it.
 4. In Drive, share **The Box Website** with the service-account email (`…@….iam.gserviceaccount.com`) as **Viewer**.
 5. Copy the folder id from its URL (`drive.google.com/drive/folders/FOLDER_ID`).
-6. Set env (local `.env`, and Vercel → Settings → Environment Variables):
+6. Set env (local `.env`, and Cloudflare → Settings → Variables and Secrets):
 
 | Name | Value |
 |---|---|
@@ -193,7 +166,7 @@ Zeffy stays the checkout; this portal mirrors payments onto class bookings and m
 
 1. Zeffy → **Settings → Integrations** → create an **API key** and optionally a **webhook**
 2. Webhook URL: `https://YOUR_DOMAIN/api/zeffy/webhook` (subscribe to `payment.completed`)
-3. Set on Vercel / `.env.local` (never commit the values):
+3. Set on Cloudflare (Variables and Secrets) or `.env.local` (never commit the values):
    - `ZEFFY_API_KEY`
    - `ZEFFY_WEBHOOK_SECRET` (signing secret from the webhook settings)
    - optional `ZEFFY_API_BASE` (default `https://api.zeffy.com/api/v1`)

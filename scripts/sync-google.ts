@@ -18,7 +18,7 @@
  *   npm run sync:google -- --content     Docs only
  *   npm run sync:google -- --media       Flyers/Photos only (no database needed)
  *
- * Without credentials, prints the setup steps and exits 0 (safe for CI/Vercel).
+ * Without credentials, prints the setup steps and exits 0 (safe for CI).
  * Classes still come from the Schedule sheet CSV import (scripts/import-winter-schedule.mjs);
  * Zeffy stays the payment/ticket system (scripts/sync-zeffy.ts).
  */
@@ -58,7 +58,7 @@ B. Google Cloud (one-time)
    4. In Drive, share "The Box Website" with the service-account email as Viewer
    5. Copy ids from URLs: drive.google.com/drive/folders/FOLDER_ID
 
-C. Env (local .env or Vercel → Settings → Environment Variables)
+C. Env (local .env, or Cloudflare → Settings → Variables and Secrets)
    GOOGLE_SERVICE_ACCOUNT_JSON=<the whole key JSON on one line, or a path to the .json file>
    GOOGLE_DRIVE_FOLDER_ID=<FOLDER_ID>
    GOOGLE_CONTENT_INDEX_SHEET_ID=<optional>
