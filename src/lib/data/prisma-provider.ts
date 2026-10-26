@@ -966,9 +966,10 @@ export async function persistBundleToPrisma(
   }
   bundle = toWrite;
 
-  await prisma.$transaction(
-    async (tx: Prisma.TransactionClient) => {
-    const db = prismaTx(tx);
+  // D1 rejects interactive prisma.$transaction(async () => ...).
+  // These upserts run one after another on the root client.
+  const tx = prisma as unknown as Prisma.TransactionClient;
+  const db = prismaTx(tx);
 
     // Parents first — users without household links
     await upsertManyIfAny(
@@ -1724,9 +1725,6 @@ export async function persistBundleToPrisma(
         deletedAt: asDate(e.deletedAt),
       })),
     );
-    },
-    { timeout: 60_000 },
-  );
 }
 
 function shouldPersistAfter(methodName: string): boolean {
