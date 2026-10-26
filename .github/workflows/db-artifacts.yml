@@ -5,6 +5,12 @@
 name: db-artifacts
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - prisma/schema.prisma
+      - prisma/seed.ts
+      - data/mock/**
+      - .github/workflows/db-artifacts.yml
 jobs:
   build:
     runs-on: ubuntu-latest
