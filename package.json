@@ -20,7 +20,11 @@
     "fixtures:learning": "node scripts/generate-learning-fixtures.mjs",
     "fixtures:learning:extend": "node scripts/patch-learning-resin-embroidery-sub.mjs && node scripts/generate-learning-fixtures.mjs",
     "docker:mail": "docker compose up mailpit",
-    "demo:deploy": "vercel --yes --prod"
+    "demo:deploy": "vercel --yes --prod",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -45,7 +49,7 @@
     "date-fns": "^4.4.0",
     "lucide-react": "^1.40.0",
     "marked": "^18.0.11",
-    "next": "16.3.4",
+    "next": "^16.4.3",
     "next-auth": "^5.0.0-beta.32",
     "nodemailer": "^8.0.11",
     "preact": "^10.29.8",
@@ -58,6 +62,7 @@
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.20.13",
     "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
@@ -67,11 +72,12 @@
     "@types/react-dom": "^19",
     "@types/sanitize-html": "^2.16.1",
     "eslint": "^9",
-    "eslint-config-next": "16.3.4",
+    "eslint-config-next": "^16.4.3",
     "prisma": "^6.19.3",
     "tailwindcss": "^4",
     "tsx": "^4.23.13",
     "typescript": "^5",
-    "vitest": "^3.2.7"
+    "vitest": "^3.2.7",
+    "wrangler": "^4.152.0"
   }
 }

@@ -65,3 +65,9 @@ firmware/**/secrets.h
 # Tauri workstation shell
 apps/workstation-shell/src-tauri/target
 apps/workstation-shell/src-tauri/gen
+
+# Cloudflare / OpenNext
+.open-next
+.wrangler
+.dev.vars*
+!.dev.vars.example

@@ -1,0 +1,28 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"main": ".open-next/worker.js",
+	// Must match the Worker name in the Cloudflare dashboard (Workers & Pages → thebox).
+	"name": "thebox",
+	"compatibility_date": "2026-10-19",
+	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
+	"services": [
+		{
+			// Self-reference binding; the service name must match "name" above.
+			"binding": "WORKER_SELF_REFERENCE",
+			"service": "thebox"
+		}
+	],
+	"images": {
+		"binding": "IMAGES"
+	},
+	// Keep variables set in the dashboard (Settings → Variables and Secrets) across deploys.
+	// Secrets are always kept; this also keeps plain-text vars.
+	"keep_vars": true,
+	"observability": {
+		"enabled": true
+	}
+}
