@@ -31,9 +31,16 @@ function resolveD1(): D1Binding | null {
 
 let cached: { client: PrismaClient; d1: D1Binding | null } | undefined;
 
+/** PrismaClient always types `equipmentJob`; a pre-generate HMR client may not have it. */
+function isStaleClient(client: PrismaClient): boolean {
+  return !("equipmentJob" in (client as unknown as Record<string, unknown>));
+}
+
 function getClient(): PrismaClient {
   const d1 = resolveD1();
-  if (cached && cached.d1 === d1) return cached.client;
+  if (cached && cached.d1 === d1 && !isStaleClient(cached.client)) {
+    return cached.client;
+  }
   const client = d1
     ? new PrismaClient({ adapter: new PrismaD1(d1), log })
     : new PrismaClient({ log });

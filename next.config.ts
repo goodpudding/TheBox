@@ -7,5 +7,8 @@ const nextConfig: NextConfig = {
 
 export default nextConfig;
 
-// Lets `next dev` see Cloudflare bindings when running locally.
-initOpenNextCloudflareForDev();
+// Local `next dev` only. Workers Builds and Vercel run `next build` with
+// NODE_ENV=production — do not spin up a Miniflare proxy there.
+if (process.env.NODE_ENV !== "production") {
+  initOpenNextCloudflareForDev();
+}

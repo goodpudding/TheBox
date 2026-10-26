@@ -21,6 +21,7 @@
     "fixtures:learning:extend": "node scripts/patch-learning-resin-embroidery-sub.mjs && node scripts/generate-learning-fixtures.mjs",
     "docker:mail": "docker compose up mailpit",
     "demo:deploy": "vercel --yes --prod",
+    "postinstall": "node scripts/workers-ci-build.mjs",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "wrangler d1 migrations apply thebox-db --remote && opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",

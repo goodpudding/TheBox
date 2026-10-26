@@ -24,8 +24,8 @@ export async function POST(request: NextRequest) {
     await logoutCurrent(request, endedBy);
     return NextResponse.json({
       ok: true,
-      billed: true,
-      note: "Workstation session ended. Prints and spooler jobs were not cancelled.",
+      billed: false,
+      note: "Signed out. Sitting at this desk was not billed. Prints and spooler jobs were not cancelled.",
     });
   } catch (err) {
     return jsonError(err);
