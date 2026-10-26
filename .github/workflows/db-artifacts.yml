@@ -1,7 +1,12 @@
-# Generates the D1 migration SQL from prisma/schema.prisma, plus a seed dump
-# built from data/mock, and attaches both as workflow artifacts.
-# Run it from the Actions tab (or `gh workflow run db-artifacts.yml`) after a
-# schema change, download, and commit the migration under migrations/.
+# Keeps migrations/ in sync with prisma/schema.prisma for Cloudflare D1, and
+# refreshes prisma/seed-data.sql (a SQL dump of the data/mock fixtures).
+#
+# How it works: rebuild a scratch SQLite DB from the existing migrations/*.sql,
+# diff it against the Prisma schema, and commit the diff as the next
+# migrations/NNNN_<name>.sql. The deploy command then applies it with
+# `wrangler d1 migrations apply thebox-db --remote`.
+#
+# Runs on pushes that touch the schema/seed, or by hand from the Actions tab.
 name: db-artifacts
 on:
   workflow_dispatch:
@@ -11,6 +16,8 @@ on:
       - prisma/seed.ts
       - data/mock/**
       - .github/workflows/db-artifacts.yml
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -21,19 +28,38 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Migration SQL (empty → schema)
-        run: npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > schema.sql
+      - name: Next migration (existing migrations → schema)
+        run: |
+          set -e
+          mkdir -p migrations
+          rm -f prev.db
+          for f in $(ls migrations/*.sql 2>/dev/null | sort); do sqlite3 prev.db < "$f"; done
+          [ -f prev.db ] || sqlite3 prev.db "SELECT 1;"
+          npx prisma migrate diff --from-url "file:./prev.db" --to-schema-datamodel prisma/schema.prisma --script > next.sql
+          if grep -qE '^(CREATE|ALTER|DROP|INSERT|PRAGMA|UPDATE)' next.sql; then
+            n=$(printf '%04d' $(( $(ls migrations/*.sql 2>/dev/null | wc -l) + 1 )))
+            name=$([ "$n" = "0001" ] && echo init || echo schema_$(date -u +%Y%m%d%H%M))
+            mv next.sql "migrations/${n}_${name}.sql"
+            echo "wrote migrations/${n}_${name}.sql"
+          else
+            echo "schema unchanged; no migration written"
+          fi
+          rm -f next.sql prev.db
       - name: Seed dump from data/mock
         env:
           DATABASE_URL: file:./seed.db
         run: |
+          set -e
           npx prisma db push --skip-generate
           npx tsx prisma/seed.ts
-          sqlite3 prisma/seed.db ".dump" | grep -v -E '^(BEGIN TRANSACTION|COMMIT|PRAGMA)' > seed-data.sql
-          wc -c schema.sql seed-data.sql
-      - uses: actions/upload-artifact@v4
-        with:
-          name: db-artifacts
-          path: |
-            schema.sql
-            seed-data.sql
+          sqlite3 prisma/seed.db ".dump" | grep -E '^INSERT' | grep -v '"_prisma_migrations"' > prisma/seed-data.sql
+          rm -f prisma/seed.db
+          wc -c prisma/seed-data.sql
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add migrations prisma/seed-data.sql
+          git diff --cached --quiet && echo "nothing to commit" && exit 0
+          git commit -m "chore(db): regenerate D1 migration and seed dump [skip ci]"
+          git push
