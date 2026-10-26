@@ -194,7 +194,7 @@ function pinArgs(
   args: unknown[],
   userId: string,
 ): unknown[] {
-  const rule = RPC_RULES[method];
+  const rule = RPC_RULES[method] as Rule;
   if (rule.arg < 0) return args;
   const next = args.slice();
   if (rule.field) {
