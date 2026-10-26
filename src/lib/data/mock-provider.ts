@@ -1409,6 +1409,7 @@ export class MockDataProvider implements DataProvider {
     return this.state.classSessions
       .filter((c) => c.published)
       .filter((c) => filters?.includeCancelled || !c.cancelledAt)
+      .filter((c) => filters?.includeImported || c.source !== "csv")
       .filter((c) => !filters?.category || c.category === filters.category)
       .filter(
         (c) =>

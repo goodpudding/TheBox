@@ -107,6 +107,8 @@ export interface ClassFilters {
   upcomingOnly?: boolean;
   /** Admin lists include sessions Zeffy or staff have cancelled. */
   includeCancelled?: boolean;
+  /** Admin lists include the retired sheet import. The public page does not. */
+  includeImported?: boolean;
 }
 
 export interface ClassSessionView extends ClassSession {
