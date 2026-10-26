@@ -43,6 +43,25 @@ Live at `https://discoverburienmakerspace.com` (the Worker's default `thebox.jam
 
 **Sign-in email.** Workers have no SMTP, so production uses the Resend provider when `AUTH_RESEND_KEY` is set (`src/auth.ts`); locally it still uses Nodemailer/Mailpit.
 
+## Classes & calendar
+
+Zeffy is where a class is created. An hourly Worker cron (`src/worker.ts`) pulls event campaigns into `ClassSession` and pushes them to Google Calendar. Paid events go to the classes calendar. Free events, and classes created in the portal, go to the community calendar. Sheet-imported rows (`source = csv`) are not pushed.
+
+1. Create a Google Cloud service account, enable the Calendar API, and store the JSON key as the secret `GOOGLE_SERVICE_ACCOUNT_JSON`.
+2. In the discovermakers Google Calendar, share **box classes** and **community classes** with the service-account email as **Make changes to events**. Copy each calendar id into `GOOGLE_CALENDAR_CLASSES_ID` and `GOOGLE_CALENDAR_COMMUNITY_ID`.
+3. Delete the hand-entered Nov/Dec events on those calendars (or retire the calendars and create fresh ones). The sync never edits an event that it did not create.
+4. Recreate the Nov/Dec classes in Zeffy (ticketed when paid, free RSVP for make nights). In the portal, set **Default class instructor** under Admin → Settings, then use **Sync from Zeffy now** on Admin → Classes. Confirm the calendar.
+5. After that deploy, mark the old sheet rows once:
+
+```bash
+npx wrangler d1 execute thebox-db --remote --file=scripts/one-off/mark-csv-class-sessions.sql
+```
+
+Then use **Archive CSV-imported sessions** so the public classes page only shows Zeffy classes.
+6. Embed the Google Calendar on the Discover Burien Squarespace “Makerspace Classes” page.
+
+`SYNC_SECRET` lets a caller `POST /api/sync/zeffy` without a staff session. The cron calls the sync directly and does not need it.
+
 ## Prisma (SQLite)
 
 ```bash

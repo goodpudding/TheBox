@@ -19,7 +19,10 @@ type D1Binding = ConstructorParameters<typeof PrismaD1>[0];
 const log: ("error" | "warn")[] =
   process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"];
 
+let scheduledD1: D1Binding | null = null;
+
 function resolveD1(): D1Binding | null {
+  if (scheduledD1) return scheduledD1;
   try {
     const { env } = getCloudflareContext();
     const db = (env as { DB?: D1Binding }).DB;
@@ -30,6 +33,12 @@ function resolveD1(): D1Binding | null {
 }
 
 let cached: { client: PrismaClient; d1: D1Binding | null } | undefined;
+
+/** Cron handlers have no request context. Pass the Worker env binding in. */
+export function useScheduledD1(db: D1Binding | null): void {
+  scheduledD1 = db;
+  cached = undefined;
+}
 
 /**
  * Dev only: after `prisma generate` under HMR the cached client can predate the

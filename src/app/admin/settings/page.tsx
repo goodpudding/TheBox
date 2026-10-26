@@ -36,6 +36,8 @@ export default function AdminSettingsPage() {
           form.get("scholarshipDonationUrl") ?? "",
         ),
         contactEmail: String(form.get("contactEmail") ?? ""),
+        defaultInstructorId: String(form.get("defaultInstructorId") ?? "") || null,
+        defaultClassCapacity: Number(form.get("defaultClassCapacity") ?? 8),
         quizPassThresholdPercent: Number(
           form.get("quizPassThresholdPercent") ?? 0,
         ),
@@ -125,6 +127,17 @@ export default function AdminSettingsPage() {
           id="scholarshipDonationUrl"
           label="Scholarship donation URL"
           defaultValue={settings.scholarshipDonationUrl}
+        />
+        <Field
+          id="defaultInstructorId"
+          label="Default class instructor user id"
+          defaultValue={settings.defaultInstructorId ?? ""}
+        />
+        <Field
+          id="defaultClassCapacity"
+          label="Default class capacity"
+          type="number"
+          defaultValue={String(settings.defaultClassCapacity ?? 8)}
         />
         <Field
           id="contactEmail"

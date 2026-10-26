@@ -320,6 +320,42 @@ function randomTemporaryPin(): string {
   return "482917";
 }
 
+const STAFF_OWNED_CLASS_FIELDS = [
+  "title",
+  "slug",
+  "descriptionSlug",
+  "category",
+  "instructorId",
+  "startsAt",
+  "endsAt",
+  "capacity",
+  "priceCents",
+  "zeffyUrl",
+  "location",
+  "cancellationCutoffHours",
+  "published",
+  "prerequisiteCertificationIds",
+] as const;
+
+/** Fields a staff save changed, so a later Zeffy pull leaves them alone. */
+export function mergeStaffEdits(
+  existing: ClassSession,
+  data: Partial<ClassSession>,
+): string[] {
+  const owned = new Set(existing.staffEditedFields ?? []);
+  for (const key of STAFF_OWNED_CLASS_FIELDS) {
+    if (data[key] === undefined) continue;
+    const next = data[key];
+    const prev = existing[key];
+    const same =
+      Array.isArray(next) && Array.isArray(prev)
+        ? JSON.stringify(next) === JSON.stringify(prev)
+        : next === prev;
+    if (!same) owned.add(key);
+  }
+  return [...owned];
+}
+
 export class MockDataProvider implements DataProvider {
   private state: MockFixtureBundle;
   private currentUserId: string | null;
@@ -1372,6 +1408,7 @@ export class MockDataProvider implements DataProvider {
     const uid = this.currentUserId;
     return this.state.classSessions
       .filter((c) => c.published)
+      .filter((c) => filters?.includeCancelled || !c.cancelledAt)
       .filter((c) => !filters?.category || c.category === filters.category)
       .filter(
         (c) =>
@@ -2947,7 +2984,11 @@ export class MockDataProvider implements DataProvider {
     if (data.id) {
       const existing = this.state.classSessions.find((c) => c.id === data.id);
       if (existing) {
-        Object.assign(existing, data, { updatedAt: now });
+        const staffEditedFields = mergeStaffEdits(existing, data);
+        Object.assign(existing, data, {
+          staffEditedFields,
+          updatedAt: now,
+        });
         return existing;
       }
     }
@@ -2966,6 +3007,13 @@ export class MockDataProvider implements DataProvider {
       priceCents: data.priceCents ?? 0,
       zeffyUrl: data.zeffyUrl ?? null,
       zeffyCampaignId: data.zeffyCampaignId ?? null,
+      zeffyOccurrenceId: data.zeffyOccurrenceId ?? null,
+      source: data.source ?? "admin",
+      googleEventId: data.googleEventId ?? null,
+      googleCalendarId: data.googleCalendarId ?? null,
+      syncedAt: data.syncedAt ?? null,
+      cancelledAt: data.cancelledAt ?? null,
+      staffEditedFields: data.staffEditedFields ?? null,
       prerequisiteCertificationIds: data.prerequisiteCertificationIds ?? [],
       location: data.location ?? "The Box",
       cancellationCutoffHours: data.cancellationCutoffHours ?? null,

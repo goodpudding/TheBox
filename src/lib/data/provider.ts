@@ -105,6 +105,8 @@ export interface UserCertificationView extends UserCertification {
 export interface ClassFilters {
   category?: string;
   upcomingOnly?: boolean;
+  /** Admin lists include sessions Zeffy or staff have cancelled. */
+  includeCancelled?: boolean;
 }
 
 export interface ClassSessionView extends ClassSession {

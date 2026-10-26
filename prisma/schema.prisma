@@ -99,6 +99,7 @@ model User {
   usageSessions          UsageSession[]
   accessLogs             AccessLog[]
   classesInstructed      ClassSession[]
+  defaultClassSettings   OrgSettings[]           @relation("DefaultClassInstructor")
   bookings               Booking[]
   bookingsMarkedPaid     Booking[]               @relation("BookingPaidBy")
   lessonProgress         LessonProgress[]
@@ -319,6 +320,16 @@ model ClassSession {
   priceCents                    Int       @default(0)
   zeffyUrl                      String?
   zeffyCampaignId               String?
+  /** Occurrence within the campaign. "default" when Zeffy has a single date. */
+  zeffyOccurrenceId             String?
+  /** zeffy | csv | admin. CSV rows are the retired sheet import. */
+  source                        String    @default("admin")
+  googleEventId                 String?
+  googleCalendarId              String?
+  syncedAt                      DateTime?
+  cancelledAt                   DateTime?
+  /** JSON array of field names staff changed; Zeffy sync will not overwrite them. */
+  staffEditedFields             String?
   prerequisiteCertificationIds  String // JSON array
   location                      String
   cancellationCutoffHours       Int?
@@ -329,6 +340,7 @@ model ClassSession {
   instructor                    User      @relation(fields: [instructorId], references: [id])
   bookings                      Booking[]
 
+  @@unique([zeffyCampaignId, zeffyOccurrenceId])
   @@index([zeffyCampaignId])
 }
 
@@ -707,6 +719,11 @@ model OrgSettings {
   scholarshipFundBalanceCents     Int      @default(0)
   scholarshipSeatsAwarded         Int      @default(0)
   showPhase3Tiers                 Boolean  @default(true)
+  /** Used when Zeffy does not name an instructor. */
+  defaultInstructorId             String?
+  defaultInstructor               User?    @relation("DefaultClassInstructor", fields: [defaultInstructorId], references: [id])
+  /** Seats when a Zeffy event has no rate seat counts. */
+  defaultClassCapacity            Int      @default(8)
   updatedAt                       DateTime @updatedAt
 }
 

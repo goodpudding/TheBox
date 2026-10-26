@@ -18,15 +18,27 @@ const CATEGORY_LABEL: Record<ClassCategory, string> = {
 };
 
 export default function AdminClassesPage() {
-  const { provider, revision } = useData();
+  const { provider, revision, bump } = useData();
   const [classes, setClasses] = useState<ClassSessionView[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncNote, setSyncNote] = useState<string | null>(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+
+  useEffect(() => {
+    void fetch("/api/sync/zeffy", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body: { lastSyncedAt?: string | null } | null) => {
+        setLastSyncedAt(body?.lastSyncedAt ?? null);
+      })
+      .catch(() => setLastSyncedAt(null));
+  }, [revision]);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
-        const rows = await provider.listClasses();
+        const rows = await provider.listClasses({ includeCancelled: true });
         if (!cancelled) {
           setClasses(rows);
           setError(null);
@@ -43,6 +55,51 @@ export default function AdminClassesPage() {
     };
   }, [provider, revision]);
 
+  async function syncNow() {
+    setSyncing(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/sync/zeffy", { method: "POST" });
+      const body = (await res.json()) as {
+        error?: string;
+        created?: number;
+        updated?: number;
+        cancelled?: number;
+        lastSyncedAt?: string | null;
+      };
+      if (!res.ok) throw new Error(body.error || "Sync failed");
+      setSyncNote(
+        `Created ${body.created ?? 0}, updated ${body.updated ?? 0}, cancelled ${body.cancelled ?? 0}.`,
+      );
+      setLastSyncedAt(body.lastSyncedAt ?? null);
+      bump();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sync failed");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  async function archiveCsv() {
+    setSyncing(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/sync/zeffy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archiveCsv: true }),
+      });
+      const body = (await res.json()) as { error?: string; archived?: number };
+      if (!res.ok) throw new Error(body.error || "Could not archive");
+      setSyncNote(`Archived ${body.archived ?? 0} CSV-imported sessions.`);
+      bump();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not archive");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   const now = Date.now();
 
   return (
@@ -54,7 +111,21 @@ export default function AdminClassesPage() {
         <Button asChild>
           <Link href="/admin/classes/new">New class</Link>
         </Button>
+        <Button type="button" variant="outline" disabled={syncing} onClick={() => void syncNow()}>
+          {syncing ? "Working…" : "Sync from Zeffy now"}
+        </Button>
+        <Button type="button" variant="outline" disabled={syncing} onClick={() => void archiveCsv()}>
+          Archive CSV-imported sessions
+        </Button>
       </div>
+      {lastSyncedAt ? (
+        <p className="mt-3 text-sm text-secondary">
+          Last sync {formatDateTime(lastSyncedAt)}
+        </p>
+      ) : null}
+      {syncNote ? (
+        <p className="mt-3 text-sm text-brown">{syncNote}</p>
+      ) : null}
 
       {error ? (
         <p className="mt-6 text-sm text-brown" role="alert">
@@ -97,7 +168,7 @@ export default function AdminClassesPage() {
                       {CATEGORY_LABEL[session.category]}
                     </StatusPill>
                     <StatusPill tone={past ? "muted" : "ok"}>
-                      {past ? "Past" : "Upcoming"}
+                      {session.cancelledAt ? "Cancelled" : past ? "Past" : "Upcoming"}
                     </StatusPill>
                   </div>
                 </div>

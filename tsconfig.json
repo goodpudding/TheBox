@@ -41,6 +41,7 @@
     "node_modules",
     "e2e",
     "scripts",
+    "src/worker.ts",
     "vitest.config.ts",
     "**/*.test.ts",
     "apps/workstation-shell/**"

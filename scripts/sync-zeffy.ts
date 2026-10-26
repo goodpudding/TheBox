@@ -51,7 +51,7 @@ This is read-only. It never takes charges or talks to payouts.
    DATABASE_URL=...
 4. Memberships: publish the membership campaign in Zeffy (status active)
    with at least one rate. Draft campaigns and campaigns with no rates are skipped.
-5. Classes: Admin → Classes: paste each event's Campaign ID into "Zeffy campaign ID"
+5. Classes: Zeffy events are pulled by Admin → Classes → Sync from Zeffy now (or the hourly cron).
 6. Re-run: npm run sync:zeffy
    Dry-run (print mapping, no writes): npm run sync:zeffy -- --dry-run
 

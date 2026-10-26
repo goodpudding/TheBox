@@ -145,6 +145,8 @@ function mapOrgSettings(row: {
   scholarshipFundBalanceCents: number;
   scholarshipSeatsAwarded: number;
   showPhase3Tiers: boolean;
+  defaultInstructorId?: string | null;
+  defaultClassCapacity?: number | null;
   updatedAt: Date;
 }): OrgSettings {
   return {
@@ -172,6 +174,8 @@ function mapOrgSettings(row: {
     scholarshipFundBalanceCents: row.scholarshipFundBalanceCents,
     scholarshipSeatsAwarded: row.scholarshipSeatsAwarded,
     showPhase3Tiers: row.showPhase3Tiers,
+    defaultInstructorId: row.defaultInstructorId ?? null,
+    defaultClassCapacity: row.defaultClassCapacity ?? 8,
     updatedAt: toIsoRequired(row.updatedAt),
   };
 }
@@ -501,6 +505,13 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
         priceCents: c.priceCents,
         zeffyUrl: c.zeffyUrl,
         zeffyCampaignId: c.zeffyCampaignId,
+        zeffyOccurrenceId: c.zeffyOccurrenceId,
+        source: (c.source as ClassSession["source"]) ?? "admin",
+        googleEventId: c.googleEventId,
+        googleCalendarId: c.googleCalendarId,
+        syncedAt: toIso(c.syncedAt),
+        cancelledAt: toIso(c.cancelledAt),
+        staffEditedFields: parseJsonArray(c.staffEditedFields),
         prerequisiteCertificationIds: parseJsonArray(
           c.prerequisiteCertificationIds,
         ),
@@ -1108,6 +1119,8 @@ export async function persistBundleToPrisma(
           bundle.settings.scholarshipFundBalanceCents,
         scholarshipSeatsAwarded: bundle.settings.scholarshipSeatsAwarded,
         showPhase3Tiers: bundle.settings.showPhase3Tiers,
+        defaultInstructorId: bundle.settings.defaultInstructorId ?? null,
+        defaultClassCapacity: bundle.settings.defaultClassCapacity ?? 8,
         updatedAt: asDate(bundle.settings.updatedAt) ?? new Date(),
       } as any,
       update: {
@@ -1140,6 +1153,8 @@ export async function persistBundleToPrisma(
           bundle.settings.scholarshipFundBalanceCents,
         scholarshipSeatsAwarded: bundle.settings.scholarshipSeatsAwarded,
         showPhase3Tiers: bundle.settings.showPhase3Tiers,
+        defaultInstructorId: bundle.settings.defaultInstructorId ?? null,
+        defaultClassCapacity: bundle.settings.defaultClassCapacity ?? 8,
         updatedAt: asDate(bundle.settings.updatedAt) ?? new Date(),
       } as any,
     });
@@ -1226,6 +1241,15 @@ export async function persistBundleToPrisma(
         priceCents: c.priceCents,
         zeffyUrl: c.zeffyUrl ?? null,
         zeffyCampaignId: c.zeffyCampaignId ?? null,
+        zeffyOccurrenceId: c.zeffyOccurrenceId ?? null,
+        source: c.source ?? "admin",
+        googleEventId: c.googleEventId ?? null,
+        googleCalendarId: c.googleCalendarId ?? null,
+        syncedAt: asDate(c.syncedAt),
+        cancelledAt: asDate(c.cancelledAt),
+        staffEditedFields: c.staffEditedFields
+          ? JSON.stringify(c.staffEditedFields)
+          : null,
         prerequisiteCertificationIds: jsonArr(c.prerequisiteCertificationIds),
         location: c.location,
         cancellationCutoffHours: c.cancellationCutoffHours,
