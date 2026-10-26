@@ -18,7 +18,7 @@ export default function LoginPage() {
     setPending(true);
     setError(null);
     try {
-      const res = await signIn("nodemailer", {
+      const res = await signIn("email", {
         email,
         redirect: false,
         callbackUrl: "/",

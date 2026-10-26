@@ -13,12 +13,15 @@ const from =
  * - Production (Cloudflare Workers): Resend over HTTPS. Set AUTH_RESEND_KEY.
  * - Local dev: SMTP via Nodemailer (Mailpit at 127.0.0.1:1025 by default).
  * Workers have no raw TCP sockets, so SMTP cannot run there.
+ * Both are registered under the id "email" so the login page can call
+ * signIn("email") regardless of which transport is active.
  */
 function emailProvider(): Provider {
   if (process.env.AUTH_RESEND_KEY) {
-    return Resend({ apiKey: process.env.AUTH_RESEND_KEY, from });
+    return Resend({ id: "email", apiKey: process.env.AUTH_RESEND_KEY, from });
   }
   return Nodemailer({
+    id: "email",
     server: process.env.AUTH_EMAIL_SERVER ?? "smtp://127.0.0.1:1025",
     from,
   });
