@@ -46,7 +46,7 @@ export default function LoginPage() {
       <PageHero
         eyebrow="Sign in"
         title="Magic link"
-        description="Enter the email on your membership. We’ll send a one-time sign-in link. In local mock mode you can also use the Dev · Switch user bar."
+        description="Enter the email on your membership. We’ll send a one-time sign-in link."
       />
 
       {sent ? (

@@ -195,7 +195,7 @@ export default function DevReaderPage() {
     <AdminShell
       eyebrow="Dev tools"
       title="Badge reader"
-      description="Simulate machine authorize / endAccess with fixture badges."
+      description="Check whether a badge can start a machine, and end an open session."
     >
       {error ? (
         <p className="mb-4 rounded-2xl border border-accent/40 bg-accent/15 px-4 py-3 text-brown">

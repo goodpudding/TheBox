@@ -2,7 +2,7 @@
  * Workers Builds PR jobs default to `npx wrangler preview` after npm ci.
  * That needs `.open-next/worker.js`. The dashboard build command is optional and
  * is not in this repo, so when WORKERS_CI=1, generate Prisma and run OpenNext
- * during postinstall. No-op on Vercel and local installs.
+ * during postinstall. No-op on local installs.
  */
 import { spawnSync } from "node:child_process";
 

@@ -4,8 +4,16 @@ import { createMockDataProvider } from "./mock-provider";
 export type DataProviderMode = "mock" | "prisma";
 
 export function getDataProviderMode(): DataProviderMode {
-  const mode = (process.env.DATA_PROVIDER ?? "mock").toLowerCase();
-  return mode === "prisma" ? "prisma" : "mock";
+  const mode = (process.env.DATA_PROVIDER ?? "").toLowerCase();
+  if (mode === "prisma") return "prisma";
+  if (mode === "mock") return "mock";
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.NEXT_PUBLIC_DEMO_MODE !== "true"
+  ) {
+    return "prisma";
+  }
+  return "mock";
 }
 
 let lastLoad: "bundle" | "cache" | "mock" = "mock";

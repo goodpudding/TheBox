@@ -113,14 +113,13 @@ export function MemberGate({
           Sign in to continue
         </h1>
         <p className="mt-4 max-w-lg text-secondary leading-relaxed">
-          In this mock phase, pick a member from the{" "}
-          <strong className="text-charcoal">Dev · Switch user</strong> bar at
-          the bottom of the screen. Try Avery Brooks for a fresh onboarding
-          walkthrough, or Jamie Ortiz to re-sign an outdated waiver.
+          Use the email on your membership. We’ll send a one-time sign-in link.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Button asChild>
-            <Link href="/join">Membership options</Link>
+            <Link href={`/login?callbackUrl=${encodeURIComponent(pathname)}`}>
+              Sign in
+            </Link>
           </Button>
         </div>
       </PageShell>

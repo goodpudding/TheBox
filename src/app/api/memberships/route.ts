@@ -32,7 +32,7 @@ export async function GET() {
       configured: false,
       products: [],
       paymentUrl: null,
-      note: "ZEFFY_API_KEY is not set. Showing fixture memberships.",
+      note: "ZEFFY_API_KEY is not set. Membership rates come from the portal catalog.",
     };
     return NextResponse.json(body);
   }
@@ -47,7 +47,7 @@ export async function GET() {
         paymentUrl: catalog.primaryUrl,
         skipped: catalog.skipped,
         note:
-          "Zeffy is connected but has no published membership rates yet. Showing fixture memberships.",
+          "Zeffy is connected but has no published membership rates yet. Membership rates come from the portal catalog.",
       };
       return NextResponse.json(body, {
         headers: { "Cache-Control": "private, max-age=60" },

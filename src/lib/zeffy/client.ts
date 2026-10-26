@@ -27,7 +27,7 @@ async function zeffyFetch<T>(
   const apiKey = getZeffyApiKey();
   if (!apiKey) {
     throw new ZeffyApiError(
-      "ZEFFY_API_KEY is not set. Set it in Cloudflare (Settings → Variables and Secrets) or .env.",
+      "ZEFFY_API_KEY is not set. Add it as a Cloudflare secret when you have Zeffy access.",
       0,
     );
   }

@@ -156,9 +156,6 @@ export const RPC_RULES = {
   adminSyncContent: { access: "staff", arg: -1 },
   adminUpdateSettings: { access: "staff", arg: -1 },
   adminListAuditEvents: { access: "staff", arg: -1 },
-  // Shop PIN (docs/workstation-pin-spec.md)
-  setMyKioskPin: { access: "user", arg: 0 },
-  adminResetMemberKioskPin: { access: "staff", arg: 1 },
   getDisplayFeed: { access: "public", arg: -1 },
   getMachineStatus: { access: "public", arg: -1 },
   listPromos: { access: "staff", arg: -1 },

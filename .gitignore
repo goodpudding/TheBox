@@ -52,8 +52,6 @@ yarn-error.log*
 # local inventory photo storage (dev)
 .data/
 
-
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts

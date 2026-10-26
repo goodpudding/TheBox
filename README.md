@@ -11,10 +11,6 @@ Member-facing web app and back office for **The Box**, the community makerspace 
 **Phase 2:** onboarding, dashboard, account, certifications, usage  
 **Phase 1:** shell, fixtures, public pages  
 
-## Demo preview
-
-Retired. The Vercel demo deployment is gone; production on Cloudflare (below) is the only deployment. For a shareable preview of a branch, open a PR — Workers Builds produces a preview URL.
-
 ## Local development (mock UI — default)
 
 ```bash
@@ -22,11 +18,17 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Use **Dev · Switch user** at the bottom.
+Open [http://localhost:3000](http://localhost:3000). Use **Dev · Switch user** at the bottom. That toolbar and the fixture data are for local work only. They are not part of the live site.
+
+Local quick share while your laptop is on (temporary):
+
+```bash
+npx cloudflared tunnel --url http://localhost:3000
+```
 
 ## Production: Cloudflare Workers + D1
 
-Live at `https://discoverburienmakerspace.com` (the Worker's default `thebox.james-trey-young.workers.dev` address also works but is not the canonical one — sessions are per hostname, so always link to the root domain). Deploys from `main` through Cloudflare Workers Builds (Workers & Pages → thebox → Settings → Build):
+Live at `https://discoverburienmakerspace.com` (the Worker's default `thebox.james-trey-young.workers.dev` address also works but is not the canonical one — sessions are per hostname, so always link to the root domain). Deploys from `main` through Cloudflare Workers Builds (Workers & Pages → thebox → Settings → Build). A pull request gets its own preview deployment.
 
 - Build command: `npx opennextjs-cloudflare build`
 - Deploy command: `bash scripts/cf-deploy.sh` — applies `migrations/*.sql` to the `thebox-db` D1 database, optionally seeds, then deploys the OpenNext bundle.
@@ -55,9 +57,8 @@ npm run db:seed
 
 | Mode | What to set | What the browser uses |
 | --- | --- | --- |
-| Local dev | leave both unset | In-memory fixtures and the Dev toolbar |
-| Demo build | `NEXT_PUBLIC_DEMO_MODE=true` | Fixtures, even in a production build |
-| Production | runtime `DATA_PROVIDER=prisma` and build `NEXT_PUBLIC_DATA_MODE=live` | Auth.js session and D1, through `POST /api/data` |
+| Local `next dev` | leave both unset | Fixtures and the Dev toolbar, for building only |
+| Live site | production build on Cloudflare. Optional: `DATA_PROVIDER=prisma` and `NEXT_PUBLIC_DATA_MODE=live` | Auth.js session and D1. A production build does this by default. |
 
 `/workstation` and `/api/me` talk to Prisma directly (incremental upserts — no full-table wipe). The lobby display keeps using `/api/display/feed`.
 
@@ -103,7 +104,7 @@ npm run sync:google -- --content # Docs only
 npm run sync:google -- --media   # Flyers/Photos only (no database needed)
 ```
 
-Without `GOOGLE_SERVICE_ACCOUNT_JSON` + `GOOGLE_DRIVE_FOLDER_ID`, the script prints the setup steps and exits 0 (safe for CI and Workers Builds). Nothing in the app blocks on Google being configured — mock content in `data/mock/content` keeps working.
+Without `GOOGLE_SERVICE_ACCOUNT_JSON` + `GOOGLE_DRIVE_FOLDER_ID`, the script prints the setup steps and exits 0 (safe for CI). Nothing in the app blocks on Google being configured — local fixture copy in `data/mock/content` keeps `next dev` working.
 
 ### Drive folder layout (staff-facing)
 
@@ -140,7 +141,7 @@ The Box Website/
 3. **IAM & Admin → Service accounts → Create**, then **Keys → Add key → JSON** and download it.
 4. In Drive, share **The Box Website** with the service-account email (`…@….iam.gserviceaccount.com`) as **Viewer**.
 5. Copy the folder id from its URL (`drive.google.com/drive/folders/FOLDER_ID`).
-6. Set env (local `.env`, and Cloudflare → thebox → Settings → Variables and Secrets):
+6. Set env (local `.env`, and Cloudflare → Settings → Variables and Secrets):
 
 | Name | Value |
 |---|---|
@@ -165,7 +166,7 @@ Zeffy stays the checkout; this portal mirrors payments onto class bookings and m
 
 1. Zeffy → **Settings → Integrations** → create an **API key** and optionally a **webhook**
 2. Webhook URL: `https://YOUR_DOMAIN/api/zeffy/webhook` (subscribe to `payment.completed`)
-3. Set in Cloudflare (Settings → Variables and Secrets) or `.env.local` (never commit the values):
+3. Set on Cloudflare (Variables and Secrets) or `.env.local` (never commit the values):
    - `ZEFFY_API_KEY`
    - `ZEFFY_WEBHOOK_SECRET` (signing secret from the webhook settings)
    - optional `ZEFFY_API_BASE` (default `https://api.zeffy.com/api/v1`)
