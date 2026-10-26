@@ -52,6 +52,23 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000). Use **Dev · Switch user** at the bottom.
 
+## Production: Cloudflare Workers + D1
+
+Live at `https://thebox.james-trey-young.workers.dev` (custom domain: `portal.discoverburienmakerspace.com`). Deploys from `main` through Cloudflare Workers Builds (Workers & Pages → thebox → Settings → Build):
+
+- Build command: `npx opennextjs-cloudflare build`
+- Deploy command: `bash scripts/cf-deploy.sh` — applies `migrations/*.sql` to the `thebox-db` D1 database, optionally seeds, then deploys the OpenNext bundle.
+- Config: `wrangler.jsonc` (Worker name, D1 binding `DB`, plain-text vars). Secrets live in the dashboard under Settings → Variables and Secrets: `AUTH_SECRET`, `AUTH_RESEND_KEY`, `ZEFFY_API_KEY`, `ZEFFY_WEBHOOK_SECRET`, `DISPLAY_TOKEN`, `READER_SHARED_SECRET`.
+
+**Database.** Prisma uses `@prisma/adapter-d1` on Workers (`src/lib/db.ts`); in Node scripts it falls back to `DATABASE_URL`. D1 runs `$transaction` as plain sequential queries. The schema is still `prisma/schema.prisma`; D1 gets it through `migrations/`:
+
+1. Edit `prisma/schema.prisma` and push. The `db-artifacts` GitHub workflow rebuilds a scratch DB from the existing migrations, diffs it against the schema, and commits the next `migrations/NNNN_*.sql` plus a refreshed `prisma/seed-data.sql` to your branch.
+2. Merge. The deploy applies the new migration before the Worker is published.
+
+**Seeding production once.** Add a build variable `SEED_D1=1` (Settings → Build → Variables), deploy, then remove it. `seed-data.sql` uses `INSERT OR IGNORE`, so it never overwrites edits made in the portal.
+
+**Sign-in email.** Workers have no SMTP, so production uses the Resend provider when `AUTH_RESEND_KEY` is set (`src/auth.ts`); locally it still uses Nodemailer/Mailpit.
+
 ## Prisma (SQLite)
 
 ```bash

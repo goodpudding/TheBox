@@ -52,7 +52,7 @@ jobs:
           set -e
           npx prisma db push --skip-generate
           npx tsx prisma/seed.ts
-          sqlite3 prisma/seed.db ".dump" | grep -E '^INSERT' | grep -v '"_prisma_migrations"' > prisma/seed-data.sql
+          sqlite3 prisma/seed.db ".dump" | grep -E '^INSERT' | grep -v '"_prisma_migrations"' | sed 's/^INSERT INTO/INSERT OR IGNORE INTO/' > prisma/seed-data.sql
           rm -f prisma/seed.db
           wc -c prisma/seed-data.sql
       - name: Commit

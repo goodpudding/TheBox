@@ -22,7 +22,7 @@
     "docker:mail": "docker compose up mailpit",
     "demo:deploy": "vercel --yes --prod",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy": "wrangler d1 migrations apply thebox-db --remote && opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "deploy": "opennextjs-cloudflare build && bash scripts/cf-deploy.sh",
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "db:migration:diff": "prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script",
