@@ -23,11 +23,16 @@ function createPrisma() {
   });
 }
 
+/** PrismaClient always types `equipmentJob`; a pre-generate HMR client may not have it. */
+function isStaleClient(client: PrismaClient): boolean {
+  return !("equipmentJob" in (client as unknown as Record<string, unknown>));
+}
+
 /** Drop a HMR-stale client that was constructed before a schema generate. */
 if (
   process.env.NODE_ENV !== "production" &&
   globalForPrisma.prisma &&
-  !("equipmentJob" in globalForPrisma.prisma)
+  isStaleClient(globalForPrisma.prisma)
 ) {
   void globalForPrisma.prisma.$disconnect();
   globalForPrisma.prisma = undefined;
