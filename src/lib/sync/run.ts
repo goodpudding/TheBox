@@ -1,7 +1,10 @@
 import { prisma } from "@/lib/db";
-import { listAllZeffyCampaigns } from "@/lib/zeffy/client";
+import { listAllZeffyCampaigns, getZeffyCampaign } from "@/lib/zeffy/client";
+import type { ZeffyCampaign } from "@/lib/zeffy/types";
 import type { ClassSource } from "@/lib/data/types";
 import {
+  campaignInWindow,
+  isClassCampaign,
   planClassSync,
   type ClassSyncRow,
 } from "@/lib/sync/zeffy-classes";
@@ -19,6 +22,7 @@ export interface ClassSyncCounts {
   created: number;
   updated: number;
   cancelled: number;
+  pulled: number;
   calendar: { created: number; updated: number; deleted: number; errors: string[] };
   lastSyncedAt: string | null;
 }
@@ -63,28 +67,49 @@ export async function syncClassesFromZeffy(now = new Date()): Promise<{
   created: number;
   updated: number;
   cancelled: number;
+  pulled: number;
 }> {
-  const campaigns = await listAllZeffyCampaigns();
+  const listed = await listAllZeffyCampaigns();
+  const campaigns = await enrichClassCampaigns(listed, now);
   if (campaigns[0]) {
     console.info(
       JSON.stringify({
         zeffyCampaignSample: {
           id: campaigns[0].id,
           type: campaigns[0].type,
+          category: campaigns[0].category,
           keys: Object.keys(campaigns[0]),
+          rateCount: campaigns[0].rates?.length ?? 0,
         },
       }),
     );
   }
   const settings = await prisma.orgSettings.findUnique({ where: { id: "default" } });
+  let instructorId = settings?.defaultInstructorId ?? null;
+  if (!instructorId) {
+    const admin = await prisma.user.findFirst({
+      where: { role: "admin", deletedAt: null },
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
+    });
+    instructorId = admin?.id ?? null;
+  }
+  if (!instructorId) {
+    throw new Error(
+      "No default class instructor. Set one under Admin → Settings, or sign in an admin, then sync again.",
+    );
+  }
   const existing = await loadExisting();
   const plan = planClassSync({
     campaigns,
     existing,
     now,
-    defaultInstructorId: settings?.defaultInstructorId ?? null,
+    defaultInstructorId: instructorId,
     defaultCapacity: settings?.defaultClassCapacity ?? 8,
   });
+  const pulled = campaigns.filter(
+    (campaign) => isClassCampaign(campaign) && campaignInWindow(campaign, now),
+  ).length;
   const syncedAt = now;
 
   for (const item of plan.upserts) {
@@ -147,7 +172,33 @@ export async function syncClassesFromZeffy(now = new Date()): Promise<{
     created: plan.created,
     updated: plan.updated,
     cancelled: plan.cancelled,
+    pulled,
   };
+}
+
+async function enrichClassCampaigns(
+  campaigns: ZeffyCampaign[],
+  now: Date,
+): Promise<ZeffyCampaign[]> {
+  const detailed: ZeffyCampaign[] = [];
+  for (const campaign of campaigns) {
+    if (
+      !isClassCampaign(campaign) ||
+      !campaignInWindow(campaign, now) ||
+      (campaign.rates && campaign.rates.length > 0)
+    ) {
+      detailed.push(campaign);
+      continue;
+    }
+    try {
+      detailed.push(await getZeffyCampaign(campaign.id));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "campaign fetch failed";
+      console.error(JSON.stringify({ zeffyCampaign: campaign.id, error: message }));
+      detailed.push(campaign);
+    }
+  }
+  return detailed;
 }
 
 async function pushGoogle(now: Date): Promise<ClassSyncCounts["calendar"]> {

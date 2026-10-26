@@ -38,7 +38,10 @@ export default function AdminClassesPage() {
     let cancelled = false;
     void (async () => {
       try {
-        const rows = await provider.listClasses({ includeCancelled: true });
+        const rows = await provider.listClasses({
+          includeCancelled: true,
+          includeImported: true,
+        });
         if (!cancelled) {
           setClasses(rows);
           setError(null);
@@ -65,11 +68,14 @@ export default function AdminClassesPage() {
         created?: number;
         updated?: number;
         cancelled?: number;
+        pulled?: number;
         lastSyncedAt?: string | null;
       };
       if (!res.ok) throw new Error(body.error || "Sync failed");
       setSyncNote(
-        `Created ${body.created ?? 0}, updated ${body.updated ?? 0}, cancelled ${body.cancelled ?? 0}.`,
+        (body.pulled ?? 0) === 0
+          ? "Zeffy returned no upcoming events. Publish the events in Zeffy, then sync again."
+          : `Zeffy events: ${body.pulled ?? 0}. Created ${body.created ?? 0}, updated ${body.updated ?? 0}, cancelled ${body.cancelled ?? 0}.`,
       );
       setLastSyncedAt(body.lastSyncedAt ?? null);
       bump();
