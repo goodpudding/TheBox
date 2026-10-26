@@ -72,6 +72,8 @@ model User {
   emergencyContactRelation String?
   profileComplete          Boolean   @default(false)
   notes                    String?
+  /** Shop-floor PIN (scrypt). Never store plaintext. */
+  kioskPinHash             String?
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
   deletedAt                DateTime?
@@ -108,6 +110,12 @@ model User {
   classInterestSignups   ClassInterestSignup[]
   bountiesRequested      Bounty[]               @relation("BountyRequester")
   bountiesClaimed        Bounty[]               @relation("BountyClaimedBy")
+  creditLedgerEntries    CreditLedgerEntry[]
+  creditGrantsGiven      CreditLedgerEntry[]     @relation("CreditActor")
+  workstationSessions    WorkstationSession[]
+  workstationLaunches    WorkstationLaunch[]
+  loginChallengesApproved WorkstationLoginChallenge[]
+  equipmentJobs          EquipmentJob[]
 }
 
 model Badge {
@@ -204,6 +212,8 @@ model Machine {
   /** Max single reservation length in hours; null = use org maxHoursPerDay. */
   maxReservationHours       Int?
   sortOrder                 Int       @default(0)
+  /** Optional override; null means use area default in app code. */
+  hourlyRateCents           Int?
   createdAt                 DateTime  @default(now())
   updatedAt                 DateTime  @updatedAt
   deletedAt                 DateTime?
@@ -211,6 +221,10 @@ model Machine {
   maintenanceBlocks         MaintenanceBlock[]
   usageSessions             UsageSession[]
   accessLogs                AccessLog[]
+  billedWorkstations        Workstation[]          @relation("WorkstationBilledMachine")
+  softwareMaps              MachineSoftwareMap[]
+  launches                  WorkstationLaunch[]
+  equipmentJobs             EquipmentJob[]
 }
 
 model Reservation {
@@ -262,6 +276,7 @@ model UsageSession {
   machine       Machine   @relation(fields: [machineId], references: [id])
   badge         Badge     @relation(fields: [badgeId], references: [id])
   reservation   Reservation? @relation(fields: [reservationId], references: [id])
+  creditLedgerEntries CreditLedgerEntry[]
 }
 
 model AccessLog {
@@ -326,8 +341,41 @@ model Booking {
   classSession          ClassSession @relation(fields: [classSessionId], references: [id])
   user                  User      @relation(fields: [userId], references: [id])
   paidMarkedBy          User?     @relation("BookingPaidBy", fields: [paidMarkedById], references: [id])
+  creditLedgerEntries   CreditLedgerEntry[]
 
   @@index([zeffyPaymentId])
+}
+
+/** Append-only in-app wallet. Zeffy never holds this balance. Signed cents. */
+model CreditLedgerEntry {
+  id              String    @id
+  userId          String
+  kind            String
+  amountCents     Int
+  sourcePaymentId      String?
+  usageSessionId       String?
+  workstationSessionId String? @unique
+  equipmentJobId       String?
+  bookingId            String?
+  actorId              String?
+  note            String?
+  occurredAt      DateTime
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  user                User                 @relation(fields: [userId], references: [id])
+  actor               User?                @relation("CreditActor", fields: [actorId], references: [id])
+  usageSession        UsageSession?        @relation(fields: [usageSessionId], references: [id])
+  workstationSession  WorkstationSession?  @relation(fields: [workstationSessionId], references: [id])
+  equipmentJob        EquipmentJob?        @relation(fields: [equipmentJobId], references: [id])
+  booking             Booking?             @relation(fields: [bookingId], references: [id])
+
+  @@index([userId])
+  @@index([sourcePaymentId])
+  @@index([usageSessionId])
+  @@index([equipmentJobId])
+  @@index([bookingId])
 }
 
 model ClassInterestBoard {
@@ -611,9 +659,17 @@ model MembershipProduct {
   sortOrder        Int       @default(0)
   isAddOn          Boolean   @default(false)
   cappedSeats      Int?
+  zeffyCampaignId  String?
+  zeffyRateId      String?
+  zeffyUrl         String?
+  /** Cents granted on each succeeded membership payment. Plus = 5000. */
+  creditGrantCents Int       @default(0)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   deletedAt        DateTime?
+
+  @@index([zeffyCampaignId])
+  @@index([zeffyRateId])
 }
 
 model OrgSettings {
@@ -684,4 +740,142 @@ model DisplayConfig {
   nameDisplayMode            String   @default("first")
   membershipEveryNRotations  Int      @default(3)
   updatedAt                  DateTime @updatedAt
+}
+
+// ── Shared Windows workstations (Tauri kiosk) ────────────────────────────────
+
+model Workstation {
+  id                 String    @id
+  name               String
+  deviceId           String    @unique
+  location           String    @default("")
+  active             Boolean   @default(true)
+  /** Primary machine at this desk (software/access). Login does not bill. */
+  billedMachineId    String
+  idleLockMinutes    Int       @default(10)
+  idleLogoutMinutes  Int       @default(30)
+  lastSeenAt         DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+
+  billedMachine Machine               @relation("WorkstationBilledMachine", fields: [billedMachineId], references: [id])
+  sessions      WorkstationSession[]
+  softwareMaps  MachineSoftwareMap[]
+  launches      WorkstationLaunch[]
+  challenges    WorkstationLoginChallenge[]
+  jobs          EquipmentJob[]
+}
+
+model WorkstationSession {
+  id              String    @id
+  workstationId   String
+  userId          String
+  tokenHash       String    @unique
+  billedMachineId String
+  startedAt       DateTime
+  endedAt         DateTime?
+  endedBy         String?
+  lastSeenAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  workstation  Workstation         @relation(fields: [workstationId], references: [id])
+  user         User                @relation(fields: [userId], references: [id])
+  creditLedger CreditLedgerEntry?
+  launches     WorkstationLaunch[]
+  jobs         EquipmentJob[]
+
+  @@index([workstationId, endedAt])
+  @@index([userId])
+}
+
+model WorkstationLaunch {
+  id            String    @id
+  workstationId String
+  sessionId     String
+  userId        String
+  machineId     String
+  softwareMapId String?
+  allowed       Boolean
+  reason        String
+  exeName       String
+  createdAt     DateTime  @default(now())
+
+  workstation Workstation         @relation(fields: [workstationId], references: [id])
+  session     WorkstationSession  @relation(fields: [sessionId], references: [id])
+  user        User                @relation(fields: [userId], references: [id])
+  machine     Machine             @relation(fields: [machineId], references: [id])
+  softwareMap MachineSoftwareMap? @relation(fields: [softwareMapId], references: [id])
+
+  @@index([sessionId])
+}
+
+model MachineSoftwareMap {
+  id            String    @id
+  machineId     String?
+  workstationId String?
+  displayName   String
+  exeName       String
+  exePath       String?
+  sortOrder     Int       @default(0)
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  machine     Machine?            @relation(fields: [machineId], references: [id])
+  workstation Workstation?        @relation(fields: [workstationId], references: [id])
+  launches    WorkstationLaunch[]
+}
+
+model WorkstationLoginChallenge {
+  id             String    @id
+  workstationId  String
+  userCode       String
+  expiresAt      DateTime
+  approvedUserId String?
+  consumedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  workstation  Workstation @relation(fields: [workstationId], references: [id])
+  approvedUser User?       @relation(fields: [approvedUserId], references: [id])
+
+  @@index([workstationId])
+}
+
+/**
+ * A machine job — the meter. Desk login is not a job.
+ * Charge when the job is sent (estimate), not for sitting at the PC.
+ */
+model EquipmentJob {
+  id                   String    @id
+  userId               String
+  machineId            String
+  workstationId        String?
+  workstationSessionId String?
+  usageSessionId       String?
+  source               String    @default("manual") // manual | mqtt | spooler | estimated
+  status               String    @default("completed") // open | completed | cancelled | refunded
+  filamentGrams        Float?
+  sheets               Int?
+  runtimeSeconds       Int?
+  /** null = not billed yet (3D $/g TBD). 0 = free. */
+  billedCents          Int?
+  note                 String?
+  startedAt            DateTime
+  completedAt          DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  deletedAt            DateTime?
+
+  user         User                 @relation(fields: [userId], references: [id])
+  machine      Machine              @relation(fields: [machineId], references: [id])
+  workstation  Workstation?         @relation(fields: [workstationId], references: [id])
+  session      WorkstationSession?  @relation(fields: [workstationSessionId], references: [id])
+  creditLedgerEntries CreditLedgerEntry[]
+
+  @@index([userId, completedAt])
+  @@index([machineId])
 }

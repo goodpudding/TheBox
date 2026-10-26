@@ -9,13 +9,15 @@ import { StatusPill } from "@/components/status-pill";
 import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
-import { formatMoney } from "@/lib/utils";
+import { formatMoney, formatMoneyExact } from "@/lib/utils";
+import { classCreditsShortfallMessage } from "@/lib/credits";
 import type {
   Certification,
   ClassCategory,
   ClassInterestBoardView,
   ClassSessionView,
   ContentPage,
+  CreditWallet,
 } from "@/lib/data";
 
 const CATEGORY_LABEL: Record<ClassCategory, string> = {
@@ -73,20 +75,25 @@ function ClassDetailBody() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [wallet, setWallet] = useState<CreditWallet | null>(null);
 
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
     void (async () => {
       try {
-        const [s, certList, boards] = await Promise.all([
+        const [s, certList, boards, creditWallet] = await Promise.all([
           provider.getClass(id),
           provider.listCertifications(),
           provider.listInterestBoards({ status: "scheduled" }),
+          currentUser
+            ? provider.getCreditWallet(currentUser.id)
+            : Promise.resolve(null),
         ]);
         if (cancelled) return;
         setSession(s);
         setCerts(certList);
+        setWallet(creditWallet);
         setInterestBoard(
           boards.find((b) => b.scheduledClassSessionId === id) ?? null,
         );
@@ -106,7 +113,7 @@ function ClassDetailBody() {
     return () => {
       cancelled = true;
     };
-  }, [id, provider, revision]);
+  }, [id, provider, revision, currentUser]);
 
   if (!currentUser) return null;
 
@@ -176,6 +183,22 @@ function ClassDetailBody() {
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Booking failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onPayWithCredits() {
+    if (!currentUser || !booking) return;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await provider.payBookingWithCredits(booking.id, currentUser.id);
+      bump();
+      setMessage("Paid with machine credits. You’re booked.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not pay with credits");
     } finally {
       setBusy(false);
     }
@@ -291,6 +314,34 @@ function ClassDetailBody() {
                     ? ` Hold expires ${formatDateTime(booking.paymentHoldExpiresAt)}.`
                     : ""}
                 </p>
+                {wallet ? (
+                  <p className="mt-3 text-sm text-charcoal">
+                    Machine credits:{" "}
+                    <span className="font-display font-semibold">
+                      {formatMoneyExact(wallet.balanceCents)}
+                    </span>
+                    . Credits can pay the full class price, or you pay Zeffy
+                    the full amount — no split.
+                  </p>
+                ) : null}
+                {wallet && wallet.balanceCents >= session.priceCents ? (
+                  <p className="mt-4">
+                    <Button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void onPayWithCredits()}
+                    >
+                      Pay with credits ({formatMoneyExact(session.priceCents)})
+                    </Button>
+                  </p>
+                ) : wallet ? (
+                  <p className="mt-3 text-sm text-brown leading-relaxed">
+                    {classCreditsShortfallMessage(
+                      wallet.balanceCents,
+                      session.priceCents,
+                    )}
+                  </p>
+                ) : null}
                 {session.zeffyUrl ? (
                   <p className="mt-4">
                     <Button asChild>

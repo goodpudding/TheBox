@@ -1,0 +1,43 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "The Box Workstation",
+  "version": "0.1.0",
+  "identifier": "org.discoverburien.thebox.workstation",
+  "build": {
+    "frontendDist": "https://localhost:3000/workstation",
+    "devUrl": "http://localhost:3000/workstation"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "The Box",
+        "fullscreen": true,
+        "decorations": false,
+        "resizable": true,
+        "width": 1280,
+        "height": 800
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi"],
+    "windows": {
+      "nsis": {
+        "installMode": "perMachine"
+      }
+    }
+  },
+  "plugins": {
+    "autostart": {
+      "windows": {
+        "args": []
+      }
+    }
+  }
+}

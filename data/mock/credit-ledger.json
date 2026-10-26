@@ -1,0 +1,44 @@
+[
+  {
+    "id": "cl-maya-plus-1",
+    "userId": "u-maya",
+    "kind": "membership_grant",
+    "amountCents": 5000,
+    "sourcePaymentId": "pay-fixture-plus-maya",
+    "usageSessionId": null,
+    "bookingId": null,
+    "actorId": null,
+    "note": "Membership Plus · $50 machine credit",
+    "occurredAt": "2026-09-01T10:00:00-07:00",
+    "createdAt": "2026-09-01T10:00:00-07:00",
+    "updatedAt": "2026-09-01T10:00:00-07:00"
+  },
+  {
+    "id": "cl-maya-resin-1",
+    "userId": "u-maya",
+    "kind": "machine",
+    "amountCents": -50,
+    "sourcePaymentId": null,
+    "usageSessionId": "us-014",
+    "bookingId": null,
+    "actorId": null,
+    "note": "Elegoo Saturn 2 (8K) · 30 min",
+    "occurredAt": "2026-03-13T14:30:00-07:00",
+    "createdAt": "2026-03-13T14:30:00-07:00",
+    "updatedAt": "2026-03-13T14:30:00-07:00"
+  },
+  {
+    "id": "cl-maya-vinyl-1",
+    "userId": "u-maya",
+    "kind": "machine",
+    "amountCents": -500,
+    "sourcePaymentId": null,
+    "usageSessionId": "us-041",
+    "bookingId": null,
+    "actorId": null,
+    "note": "Silhouette Cameo 4 · 1 sheet",
+    "occurredAt": "2026-04-05T11:45:00-07:00",
+    "createdAt": "2026-04-05T11:45:00-07:00",
+    "updatedAt": "2026-04-05T11:45:00-07:00"
+  }
+]

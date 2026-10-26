@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
 import { Alice, Outfit } from "next/font/google";
 import { AppProviders } from "@/components/providers";
-import { DemoBanner } from "@/components/demo-banner";
-import { SiteHeader } from "@/components/site-header";
-import { SiteFooter } from "@/components/site-footer";
-import { DevToolbar } from "@/components/dev-toolbar";
+import { AppChrome } from "@/components/app-chrome";
 import "./globals.css";
 
 const alice = Alice({
@@ -39,11 +36,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`${alice.variable} ${outfit.variable} h-full`}>
       <body className="min-h-full flex flex-col bg-page text-charcoal antialiased">
         <AppProviders>
-          <DemoBanner />
-          <SiteHeader />
-          <main className="flex-1 w-full">{children}</main>
-          <SiteFooter />
-          <DevToolbar />
+          <AppChrome>{children}</AppChrome>
         </AppProviders>
       </body>
     </html>

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerDataProvider } from "@/lib/data/factory";
 import { prisma } from "@/lib/db";
-import { applyZeffyPaymentViaProvider } from "@/lib/zeffy/provider-bridge";
+import { applyZeffyWebhookPayment } from "@/lib/zeffy/provider-bridge";
 import {
   getZeffyWebhookSecret,
   isZeffyWebhookConfigured,
@@ -115,24 +115,26 @@ export async function POST(request: NextRequest) {
   }
 
   const provider = await createServerDataProvider(null);
-  const result = await applyZeffyPaymentViaProvider(
+  const applied = await applyZeffyWebhookPayment(
     provider,
     payment,
     envelope.dispatchedAt,
   );
 
   const status =
-    result.status === "applied" || result.status === "duplicate"
-      ? result.status === "duplicate"
+    applied.result.status === "applied" || applied.result.status === "duplicate"
+      ? applied.result.status === "duplicate"
         ? "duplicate"
         : "applied"
       : "ignored";
-  const detail =
-    result.status === "ignored"
-      ? result.reason
-      : result.status === "applied"
-        ? result.bookingId
-        : result.bookingId;
+  let detail: string | undefined;
+  if (applied.result.status === "ignored") {
+    detail = applied.result.reason;
+  } else if (applied.kind === "ticket") {
+    detail = applied.result.bookingId;
+  } else {
+    detail = applied.result.userId;
+  }
 
   await recordEvent({
     id: envelope.id,
@@ -143,5 +145,5 @@ export async function POST(request: NextRequest) {
     payloadJson: rawBody,
   });
 
-  return NextResponse.json({ ok: true, result });
+  return NextResponse.json({ ok: true, kind: applied.kind, result: applied.result });
 }
