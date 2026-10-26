@@ -156,6 +156,9 @@ export const RPC_RULES = {
   adminSyncContent: { access: "staff", arg: -1 },
   adminUpdateSettings: { access: "staff", arg: -1 },
   adminListAuditEvents: { access: "staff", arg: -1 },
+  // Shop PIN (docs/workstation-pin-spec.md)
+  setMyKioskPin: { access: "user", arg: 0 },
+  adminResetMemberKioskPin: { access: "staff", arg: 1 },
   getDisplayFeed: { access: "public", arg: -1 },
   getMachineStatus: { access: "public", arg: -1 },
   listPromos: { access: "staff", arg: -1 },
@@ -194,7 +197,7 @@ export type RpcResponse = RpcSuccess | RpcFailure;
 function pinArgs(
   method: DataMethod,
   args: unknown[],
-  userId: string,
+  userId: string | null,
 ): unknown[] {
   const rule = RPC_RULES[method] as Rule;
   if (rule.arg < 0) return args;
@@ -253,10 +256,13 @@ export async function handleDataRpc(input: {
     }
   }
 
-  const pinned =
-    input.sessionUser && !staff
-      ? pinArgs(name, args, input.sessionUser.id)
-      : args;
+  // Staff may act on behalf of others. Everyone else — including anonymous
+  // callers on public methods — gets the acting-user argument replaced with
+  // their session id (or null), so a submission can't be attributed to
+  // someone else by editing the request.
+  const pinned = staff
+    ? args
+    : pinArgs(name, args, input.sessionUser?.id ?? null);
 
   const fn = input.provider[name] as (...a: unknown[]) => Promise<unknown>;
   try {

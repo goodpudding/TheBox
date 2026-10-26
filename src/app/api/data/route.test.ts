@@ -135,6 +135,22 @@ describe("/api/data", () => {
     expect(getUsage).toHaveBeenCalledWith("other-user");
   });
 
+  it("does not let an anonymous caller attribute a public submission to a member", async () => {
+    const joinInterestBoard = vi.fn(async () => ({}));
+    auth.mockResolvedValue(null);
+    createServerDataProvider.mockResolvedValue(
+      provider(null, { joinInterestBoard }),
+    );
+    const res = await post({
+      method: "joinInterestBoard",
+      args: [{ boardId: "board-1", userId: "victim-user", email: "x@example.com" }],
+    });
+    expect(res.status).toBe(200);
+    expect(joinInterestBoard).toHaveBeenCalledTimes(1);
+    const sent = joinInterestBoard.mock.calls[0][0] as { userId?: string | null };
+    expect(sent.userId).toBeNull();
+  });
+
   it("returns domain errors as ok:false", async () => {
     auth.mockResolvedValue(null);
     createServerDataProvider.mockResolvedValue(
