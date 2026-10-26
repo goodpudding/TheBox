@@ -99,6 +99,8 @@ export function SiteHeader() {
     let cancelled = false;
     void provider.getToolChampionProgress(currentUser.id).then((p) => {
       if (!cancelled) setCanMaintenance(p.canScheduleMaintenance);
+    }).catch(() => {
+      if (!cancelled) setCanMaintenance(false);
     });
     return () => {
       cancelled = true;
