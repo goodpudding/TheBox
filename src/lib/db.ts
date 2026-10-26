@@ -31,8 +31,13 @@ function resolveD1(): D1Binding | null {
 
 let cached: { client: PrismaClient; d1: D1Binding | null } | undefined;
 
-/** PrismaClient always types `equipmentJob`; a pre-generate HMR client may not have it. */
+/**
+ * Dev only: after `prisma generate` under HMR the cached client can predate the
+ * schema. The `in` check is false on the real proxied client in production, so
+ * it must not run there or every access would rebuild the client.
+ */
 function isStaleClient(client: PrismaClient): boolean {
+  if (process.env.NODE_ENV === "production") return false;
   return !("equipmentJob" in (client as unknown as Record<string, unknown>));
 }
 
