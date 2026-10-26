@@ -54,7 +54,7 @@ Open [http://localhost:3000](http://localhost:3000). Use **Dev · Switch user** 
 
 ## Production: Cloudflare Workers + D1
 
-Live at `https://thebox.james-trey-young.workers.dev` (custom domain: `portal.discoverburienmakerspace.com`). Deploys from `main` through Cloudflare Workers Builds (Workers & Pages → thebox → Settings → Build):
+Live at `https://discoverburienmakerspace.com` (the Worker's default `thebox.james-trey-young.workers.dev` address also works but is not the canonical one — sessions are per hostname, so always link to the root domain). Deploys from `main` through Cloudflare Workers Builds (Workers & Pages → thebox → Settings → Build):
 
 - Build command: `npx opennextjs-cloudflare build`
 - Deploy command: `bash scripts/cf-deploy.sh` — applies `migrations/*.sql` to the `thebox-db` D1 database, optionally seeds, then deploys the OpenNext bundle.
