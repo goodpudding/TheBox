@@ -1,8 +1,10 @@
 // Prisma schema for The Box Portal.
-// SQLite in dev, Postgres in prod via DATABASE_URL — no engine-specific features.
+// SQLite in dev (DATABASE_URL file), Cloudflare D1 in prod via the D1 driver adapter — no engine-specific features.
+// Schema changes: edit here, then regenerate migrations/ (see README → Database).
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
