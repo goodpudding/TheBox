@@ -8,6 +8,8 @@ import {
   inferCreditGrantCents,
   machineDebitCents,
   machineDebitNote,
+  workstationBillingMode,
+  workstationTimeDebitCents,
 } from "./credits";
 import { createMockDataProvider, MockDataProvider } from "@/lib/data/mock-provider";
 import { cloneFixtures, loadFixtures } from "@/lib/data/load-fixtures";
@@ -111,6 +113,97 @@ describe("credit math", () => {
     expect(
       machineDebitNote(plasma, "2026-09-01T10:00:00Z", "2026-09-01T10:15:00Z"),
     ).toBe("Avid CNC Plasma Pro6060 · setup · 15 min");
+  });
+
+  it("bills workstation occupancy as hourly time, never vinyl/sublimation sheets", () => {
+    const printer = {
+      id: "m-bambu-a1",
+      name: "Bambu Lab A1",
+      area: "3d_printing" as const,
+    };
+    const laser = {
+      id: "m-laser-co2",
+      name: "Epilog Fusion Pro 32 (80W)",
+      area: "laser" as const,
+    };
+    const cnc = {
+      id: "m-cnc-mill",
+      name: "Tormach CNC mill",
+      area: "woodshop" as const,
+    };
+    const plasma = {
+      id: "m-cnc-plasma",
+      name: "Avid CNC Plasma Pro6060",
+      area: "cnc_plasma" as const,
+    };
+    const wood = {
+      id: "m-table-saw",
+      name: "Table Saw",
+      area: "woodshop" as const,
+    };
+    const vinyl = {
+      id: "m-vinyl-cutter",
+      name: "Silhouette Cameo 4",
+      area: "textiles_vinyl" as const,
+    };
+    const sub = {
+      id: "m-sub-printer",
+      name: "Sawgrass Sublimation Printer",
+      area: "sublimation" as const,
+    };
+
+    expect(
+      workstationTimeDebitCents(
+        printer,
+        "2026-09-01T10:00:00Z",
+        "2026-09-01T11:00:00Z",
+      ),
+    ).toBe(100);
+    expect(
+      workstationTimeDebitCents(
+        laser,
+        "2026-09-01T10:00:00Z",
+        "2026-09-01T11:00:00Z",
+      ),
+    ).toBe(TREY_MACHINE_RATES.laserHourlyCents);
+    expect(
+      workstationTimeDebitCents(
+        cnc,
+        "2026-09-01T10:00:00Z",
+        "2026-09-01T12:00:00Z",
+      ),
+    ).toBe(TREY_MACHINE_RATES.regularCncHourlyCents * 2);
+    expect(
+      workstationTimeDebitCents(
+        plasma,
+        "2026-09-01T10:00:00Z",
+        "2026-09-01T10:15:00Z",
+      ),
+    ).toBe(5000 + 500);
+    expect(
+      workstationTimeDebitCents(
+        wood,
+        "2026-09-01T10:00:00Z",
+        "2026-09-01T12:00:00Z",
+      ),
+    ).toBe(0);
+    expect(
+      workstationTimeDebitCents(
+        vinyl,
+        "2026-09-01T10:00:00Z",
+        "2026-09-01T10:45:00Z",
+      ),
+    ).toBe(0);
+    expect(
+      workstationTimeDebitCents(
+        sub,
+        "2026-09-01T10:00:00Z",
+        "2026-09-01T11:00:00Z",
+      ),
+    ).toBe(0);
+    expect(workstationBillingMode(vinyl)).toBe("per_sheet");
+    expect(workstationBillingMode(printer)).toBe("hourly");
+    expect(workstationBillingMode(wood)).toBe("free");
   });
 
   it("settles overage by addition — next grant pays debt first", () => {

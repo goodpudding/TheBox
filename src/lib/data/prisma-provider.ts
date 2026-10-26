@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { loadFixtures } from "./load-fixtures";
 import { MockDataProvider } from "./mock-provider";
 import type { DataProvider } from "./provider";
+import { cloneBundle, sliceChangedBundle } from "./persist-delta";
 import type {
   AccessLog,
   AuditEvent,
@@ -232,12 +233,22 @@ function mapUser(row: {
   return user;
 }
 
-async function createManyIfAny<T extends object>(
-  createMany: (args: { data: T[] }) => Promise<unknown>,
+async function upsertManyIfAny<T extends { id: string }>(
+  upsert: (args: {
+    where: { id: string };
+    create: T;
+    update: Omit<T, "id">;
+  }) => Promise<unknown>,
   data: T[],
 ): Promise<void> {
-  if (data.length === 0) return;
-  await createMany({ data });
+  for (const row of data) {
+    const { id, ...update } = row;
+    await upsert({
+      where: { id },
+      create: row,
+      update: update as Omit<T, "id">,
+    });
+  }
 }
 
 /**
@@ -814,6 +825,8 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
         amountCents: Number(e.amountCents),
         sourcePaymentId: (e.sourcePaymentId as string | null) ?? null,
         usageSessionId: (e.usageSessionId as string | null) ?? null,
+        workstationSessionId:
+          (e.workstationSessionId as string | null) ?? null,
         bookingId: (e.bookingId as string | null) ?? null,
         actorId: (e.actorId as string | null) ?? null,
         note: (e.note as string | null) ?? null,
@@ -827,51 +840,31 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
 }
 
 /**
- * Full-replace domain tables from an in-memory fixture bundle.
- * Does not touch Auth Account / Session / VerificationToken rows directly
- * (deleting users may cascade Auth rows — acceptable for Phase 5 seed-sized data).
+ * Incremental upsert of an in-memory fixture bundle.
+ * Does not wipe tables. Does not touch Workstation* rows or User.kioskPinHash.
+ * When `previous` is passed, only mutated rows are written.
  */
 export async function persistBundleToPrisma(
   bundle: MockFixtureBundle,
+  previous?: MockFixtureBundle | null,
 ): Promise<void> {
-  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+  let settingsChanged = true;
+  let toWrite = bundle;
+  if (previous) {
+    const sliced = sliceChangedBundle(previous, bundle);
+    if (sliced.empty) return;
+    toWrite = sliced.bundle;
+    settingsChanged = sliced.settingsChanged;
+  }
+  bundle = toWrite;
+
+  await prisma.$transaction(
+    async (tx: Prisma.TransactionClient) => {
     const db = prismaTx(tx);
-    // Children first
-    if (db.creditLedgerEntry) await db.creditLedgerEntry.deleteMany();
-    await db.auditEvent.deleteMany();
-    await db.accessLog.deleteMany();
-    await db.usageSession.deleteMany();
-    if (db.videoWatch) await db.videoWatch.deleteMany();
-    await db.lessonProgress.deleteMany();
-    await db.quizAttempt.deleteMany();
-    await db.question.deleteMany();
-    if (db.lessonVideo) await db.lessonVideo.deleteMany();
-    await db.lesson.deleteMany();
-    await db.booking.deleteMany();
-    await db.reservation.deleteMany();
-    await db.maintenanceBlock.deleteMany();
-    await db.userCertification.deleteMany();
-    await db.waiverSignature.deleteMany();
-    await db.policyAcknowledgement.deleteMany();
-    await db.volunteerInterest.deleteMany();
-    if (db.bounty) await db.bounty.deleteMany();
-    if (db.classInterestSignup) await db.classInterestSignup.deleteMany();
-    if (db.classInterestBoard) await db.classInterestBoard.deleteMany();
-    await db.badge.deleteMany();
-    await db.classSession.deleteMany();
-    await db.learningModule.deleteMany();
-    await db.volunteerRole.deleteMany();
-    await db.membershipProduct.deleteMany();
-    await db.contentPage.deleteMany();
-    await db.machine.deleteMany();
-    await db.certification.deleteMany();
-    await db.user.updateMany({ data: { householdPrimaryUserId: null } });
-    await db.user.deleteMany();
-    await db.orgSettings.deleteMany();
 
     // Parents first — users without household links
-    await createManyIfAny(
-      (args) => db.user.createMany(args),
+    await upsertManyIfAny(
+      (args) => db.user.upsert(args),
       bundle.users.map((u) => ({
         id: u.id,
         email: u.email,
@@ -907,8 +900,8 @@ export async function persistBundleToPrisma(
       }
     }
 
-    await createManyIfAny(
-      (args) => tx.certification.createMany(args),
+    await upsertManyIfAny(
+      (args) => tx.certification.upsert(args),
       bundle.certifications.map((c) => ({
         id: c.id,
         slug: c.slug,
@@ -925,8 +918,8 @@ export async function persistBundleToPrisma(
       })),
     );
 
-    await createManyIfAny(
-      (args) => tx.machine.createMany(args),
+    await upsertManyIfAny(
+      (args) => tx.machine.upsert(args),
       bundle.machines.map((m) =>
         ({
           id: m.id,
@@ -951,8 +944,8 @@ export async function persistBundleToPrisma(
       ),
     );
 
-    await createManyIfAny(
-      (args) => tx.contentPage.createMany(args),
+    await upsertManyIfAny(
+      (args) => tx.contentPage.upsert(args),
       bundle.contentPages.map((p) => ({
         id: p.id,
         notionId: p.notionId ?? null,
@@ -971,11 +964,44 @@ export async function persistBundleToPrisma(
       })),
     );
 
-    await tx.orgSettings.create({
+    if (settingsChanged) await tx.orgSettings.upsert({
+      where: { id: "default" },
       // Cast: client may lag schema until `prisma generate`.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      data: {
+      create: {
         id: "default",
+        orgName: bundle.settings.orgName,
+        paymentUrl: bundle.settings.paymentUrl,
+        donationUrl: bundle.settings.donationUrl,
+        scholarshipDonationUrl: bundle.settings.scholarshipDonationUrl,
+        contactEmail: bundle.settings.contactEmail,
+        hoursContentSlug: bundle.settings.hoursContentSlug,
+        currentWaiverVersion: bundle.settings.currentWaiverVersion,
+        memberExpectationsPolicySlug:
+          bundle.settings.memberExpectationsPolicySlug,
+        quizPassThresholdPercent: bundle.settings.quizPassThresholdPercent,
+        quizAttemptLimit: bundle.settings.quizAttemptLimit,
+        quizQuestionCount: bundle.settings.quizQuestionCount,
+        requireSafetyCriticalAll:
+          bundle.settings.requireSafetyCriticalAll ?? true,
+        classCancellationCutoffHours:
+          bundle.settings.classCancellationCutoffHours,
+        paymentHoldHours: bundle.settings.paymentHoldHours,
+        reservationHorizonDays: bundle.settings.reservationHorizonDays,
+        maxHoursPerDay: bundle.settings.maxHoursPerDay,
+        maxOpenReservations: bundle.settings.maxOpenReservations,
+        reservationSlotMinutes: bundle.settings.reservationSlotMinutes,
+        communitySeatCap: bundle.settings.communitySeatCap,
+        makerMonthlyCents: bundle.settings.makerMonthlyCents,
+        patronScholarshipSurchargeCents:
+          bundle.settings.patronScholarshipSurchargeCents,
+        scholarshipFundBalanceCents:
+          bundle.settings.scholarshipFundBalanceCents,
+        scholarshipSeatsAwarded: bundle.settings.scholarshipSeatsAwarded,
+        showPhase3Tiers: bundle.settings.showPhase3Tiers,
+        updatedAt: asDate(bundle.settings.updatedAt) ?? new Date(),
+      } as any,
+      update: {
         orgName: bundle.settings.orgName,
         paymentUrl: bundle.settings.paymentUrl,
         donationUrl: bundle.settings.donationUrl,
@@ -1009,8 +1035,8 @@ export async function persistBundleToPrisma(
       } as any,
     });
 
-    await createManyIfAny(
-      (args) => tx.membershipProduct.createMany(args),
+    await upsertManyIfAny(
+      (args) => tx.membershipProduct.upsert(args),
       bundle.membershipProducts.map((p) => ({
         id: p.id,
         tier: p.tier,
@@ -1037,8 +1063,8 @@ export async function persistBundleToPrisma(
       })),
     );
 
-    await createManyIfAny(
-      (args) => tx.volunteerRole.createMany(args),
+    await upsertManyIfAny(
+      (args) => tx.volunteerRole.upsert(args),
       bundle.volunteerRoles.map((r) => ({
         id: r.id,
         slug: r.slug,
@@ -1052,8 +1078,8 @@ export async function persistBundleToPrisma(
       })),
     );
 
-    await createManyIfAny(
-      (args) => tx.learningModule.createMany(args),
+    await upsertManyIfAny(
+      (args) => tx.learningModule.upsert(args),
       bundle.learningModules.map(
         (m) =>
           ({
@@ -1076,8 +1102,8 @@ export async function persistBundleToPrisma(
       ),
     );
 
-    await createManyIfAny(
-      (args) => tx.classSession.createMany(args),
+    await upsertManyIfAny(
+      (args) => tx.classSession.upsert(args),
       bundle.classSessions.map((c) => ({
         id: c.id,
         title: c.title,
@@ -1102,8 +1128,8 @@ export async function persistBundleToPrisma(
     );
 
     if (db.classInterestBoard) {
-      await createManyIfAny(
-        (args) => db.classInterestBoard.createMany(args),
+      await upsertManyIfAny(
+        (args) => db.classInterestBoard.upsert(args),
         (bundle.classInterestBoards ?? []).map((b) => ({
           id: b.id,
           title: b.title,
@@ -1130,8 +1156,8 @@ export async function persistBundleToPrisma(
       );
     }
     if (db.classInterestSignup) {
-      await createManyIfAny(
-        (args) => db.classInterestSignup.createMany(args),
+      await upsertManyIfAny(
+        (args) => db.classInterestSignup.upsert(args),
         (bundle.classInterestSignups ?? []).map((s) => ({
           id: s.id,
           boardId: s.boardId,
@@ -1145,8 +1171,8 @@ export async function persistBundleToPrisma(
       );
     }
 
-    await createManyIfAny(
-      (args) => tx.badge.createMany(args),
+    await upsertManyIfAny(
+      (args) => tx.badge.upsert(args),
       bundle.badges.map((b) => ({
         id: b.id,
         uid: b.uid,
@@ -1159,8 +1185,8 @@ export async function persistBundleToPrisma(
       })),
     );
 
-    await createManyIfAny(
-      (args) => tx.waiverSignature.createMany(args),
+    await upsertManyIfAny(
+      (args) => tx.waiverSignature.upsert(args),
       bundle.waiverSignatures.map((w) => ({
         id: w.id,
         userId: w.userId,
@@ -1175,8 +1201,8 @@ export async function persistBundleToPrisma(
       })),
     );
 
-    await createManyIfAny(
-      (args) => tx.policyAcknowledgement.createMany(args),
+    await upsertManyIfAny(
+      (args) => tx.policyAcknowledgement.upsert(args),
       bundle.policyAcknowledgements.map((a) => ({
         id: a.id,
         userId: a.userId,
@@ -1189,8 +1215,8 @@ export async function persistBundleToPrisma(
       })),
     );
 
-    await createManyIfAny(
-      (args) => tx.userCertification.createMany(args),
+    await upsertManyIfAny(
+      (args) => tx.userCertification.upsert(args),
       bundle.userCertifications.map((uc) => ({
         id: uc.id,
         userId: uc.userId,
@@ -1209,8 +1235,8 @@ export async function persistBundleToPrisma(
       })),
     );
 
-    await createManyIfAny(
-      (args) => tx.maintenanceBlock.createMany(args),
+    await upsertManyIfAny(
+      (args) => tx.maintenanceBlock.upsert(args),
       bundle.maintenanceBlocks.map((m) => ({
         id: m.id,
         machineId: m.machineId,
@@ -1224,8 +1250,8 @@ export async function persistBundleToPrisma(
       })),
     );
 
-    await createManyIfAny(
-      (args) => tx.reservation.createMany(args),
+    await upsertManyIfAny(
+      (args) => tx.reservation.upsert(args),
       bundle.reservations.map((r) => ({
         id: r.id,
         userId: r.userId,
@@ -1242,8 +1268,8 @@ export async function persistBundleToPrisma(
       })),
     );
 
-    await createManyIfAny(
-      (args) => tx.booking.createMany(args),
+    await upsertManyIfAny(
+      (args) => tx.booking.upsert(args),
       bundle.bookings.map((b) => ({
         id: b.id,
         classSessionId: b.classSessionId,
@@ -1262,8 +1288,8 @@ export async function persistBundleToPrisma(
       })),
     );
 
-    await createManyIfAny(
-      (args) => tx.lesson.createMany(args),
+    await upsertManyIfAny(
+      (args) => tx.lesson.upsert(args),
       bundle.lessons.map(
         (l) =>
           ({
@@ -1284,8 +1310,8 @@ export async function persistBundleToPrisma(
     );
 
     if (db.lessonVideo) {
-      await createManyIfAny(
-        (args) => db.lessonVideo.createMany(args),
+      await upsertManyIfAny(
+        (args) => db.lessonVideo.upsert(args),
         (bundle.lessonVideos ?? []).map((v) => ({
           id: v.id,
           lessonId: v.lessonId,
@@ -1308,8 +1334,8 @@ export async function persistBundleToPrisma(
       );
     }
 
-    await createManyIfAny(
-      (args) => tx.question.createMany(args),
+    await upsertManyIfAny(
+      (args) => tx.question.upsert(args),
       bundle.questions.map(
         (q) =>
           ({
@@ -1334,8 +1360,8 @@ export async function persistBundleToPrisma(
       ),
     );
 
-    await createManyIfAny(
-      (args) => tx.quizAttempt.createMany(args),
+    await upsertManyIfAny(
+      (args) => tx.quizAttempt.upsert(args),
       bundle.quizAttempts.map(
         (a) =>
           ({
@@ -1360,8 +1386,8 @@ export async function persistBundleToPrisma(
       ),
     );
 
-    await createManyIfAny(
-      (args) => tx.lessonProgress.createMany(args),
+    await upsertManyIfAny(
+      (args) => tx.lessonProgress.upsert(args),
       bundle.lessonProgress.map((p) => ({
         id: p.id,
         userId: p.userId,
@@ -1374,8 +1400,8 @@ export async function persistBundleToPrisma(
     );
 
     if (db.videoWatch) {
-      await createManyIfAny(
-        (args) => db.videoWatch.createMany(args),
+      await upsertManyIfAny(
+        (args) => db.videoWatch.upsert(args),
         (bundle.videoWatches ?? []).map((w) => ({
           id: w.id,
           userId: w.userId,
@@ -1388,8 +1414,8 @@ export async function persistBundleToPrisma(
       );
     }
 
-    await createManyIfAny(
-      (args) => tx.usageSession.createMany(args),
+    await upsertManyIfAny(
+      (args) => tx.usageSession.upsert(args),
       bundle.usageSessions.map((s) => ({
         id: s.id,
         userId: s.userId,
@@ -1406,8 +1432,8 @@ export async function persistBundleToPrisma(
     );
 
     if (db.creditLedgerEntry) {
-      await createManyIfAny(
-        (args) => db.creditLedgerEntry.createMany(args),
+      await upsertManyIfAny(
+        (args) => db.creditLedgerEntry.upsert(args),
         (bundle.creditLedgerEntries ?? []).map((e) => ({
           id: e.id,
           userId: e.userId,
@@ -1415,6 +1441,7 @@ export async function persistBundleToPrisma(
           amountCents: e.amountCents,
           sourcePaymentId: e.sourcePaymentId ?? null,
           usageSessionId: e.usageSessionId ?? null,
+          workstationSessionId: e.workstationSessionId ?? null,
           bookingId: e.bookingId ?? null,
           actorId: e.actorId ?? null,
           note: e.note ?? null,
@@ -1426,8 +1453,8 @@ export async function persistBundleToPrisma(
       );
     }
 
-    await createManyIfAny(
-      (args) => tx.accessLog.createMany(args),
+    await upsertManyIfAny(
+      (args) => tx.accessLog.upsert(args),
       bundle.accessLogs.map((l) => ({
         id: l.id,
         readerKey: l.readerKey,
@@ -1445,8 +1472,8 @@ export async function persistBundleToPrisma(
       })),
     );
 
-    await createManyIfAny(
-      (args) => tx.volunteerInterest.createMany(args),
+    await upsertManyIfAny(
+      (args) => tx.volunteerInterest.upsert(args),
       bundle.volunteerInterests.map((v) => ({
         id: v.id,
         name: v.name,
@@ -1466,8 +1493,8 @@ export async function persistBundleToPrisma(
     );
 
     if (db.bounty) {
-      await createManyIfAny(
-        (args) => db.bounty.createMany(args),
+      await upsertManyIfAny(
+        (args) => db.bounty.upsert(args),
         (bundle.bounties ?? []).map((b) => ({
           id: b.id,
           title: b.title,
@@ -1487,8 +1514,8 @@ export async function persistBundleToPrisma(
       );
     }
 
-    await createManyIfAny(
-      (args) => tx.auditEvent.createMany(args),
+    await upsertManyIfAny(
+      (args) => tx.auditEvent.upsert(args),
       bundle.auditEvents.map((e) => ({
         id: e.id,
         action: e.action,
@@ -1503,7 +1530,9 @@ export async function persistBundleToPrisma(
         deletedAt: asDate(e.deletedAt),
       })),
     );
-  });
+    },
+    { timeout: 60_000 },
+  );
 }
 
 function shouldPersistAfter(methodName: string): boolean {
@@ -1516,6 +1545,7 @@ function shouldPersistAfter(methodName: string): boolean {
 }
 
 function createPersistingProxy(mock: MockDataProvider): DataProvider {
+  let snapshot = cloneBundle(mock.getState());
   return new Proxy(mock, {
     get(target, prop, receiver) {
       const value = Reflect.get(target, prop, receiver);
@@ -1526,7 +1556,9 @@ function createPersistingProxy(mock: MockDataProvider): DataProvider {
           value as (...a: unknown[]) => Promise<unknown>
         ).apply(target, args);
         if (shouldPersistAfter(name)) {
-          await persistBundleToPrisma(target.getState());
+          const next = target.getState();
+          await persistBundleToPrisma(next, snapshot);
+          snapshot = cloneBundle(next);
         }
         return result;
       };

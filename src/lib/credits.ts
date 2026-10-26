@@ -171,10 +171,54 @@ export function hourlyRateCentsFor(machine: BillingMachine): number {
   return billingFor(machine).hourlyRateCents;
 }
 
-function durationHours(startedAt: string, endedAt: string): number {
+export function durationHours(startedAt: string, endedAt: string): number {
   const ms = new Date(endedAt).getTime() - new Date(startedAt).getTime();
   if (!Number.isFinite(ms) || ms <= 0) return 0;
   return ms / 3_600_000;
+}
+
+export type WorkstationBillingMode = "hourly" | "per_sheet" | "free";
+
+export function workstationBillingMode(
+  machine: BillingMachine,
+): WorkstationBillingMode {
+  const b = billingFor(machine);
+  if (b.sessionUnit === "sheet") return "per_sheet";
+  if (b.hourlyRateCents <= 0 && b.setupFeeCents <= 0) return "free";
+  return "hourly";
+}
+
+/**
+ * Desk login/logout charge. Hourly (+ plasma setup) only.
+ * Vinyl/sublimation stay per-sheet — this does not invent a time charge or a
+ * phantom sheet when the member only occupies the PC.
+ */
+export function workstationTimeDebitCents(
+  machine: BillingMachine,
+  startedAt: string,
+  endedAt: string,
+): number {
+  const b = billingFor(machine);
+  if (b.sessionUnit === "sheet") return 0;
+  const time = Math.round(durationHours(startedAt, endedAt) * b.hourlyRateCents);
+  return b.setupFeeCents + time;
+}
+
+export function workstationTimeDebitNote(
+  machine: Pick<Machine, "name"> & BillingMachine,
+  startedAt: string,
+  endedAt: string,
+): string {
+  const b = billingFor(machine);
+  const mode = workstationBillingMode(machine);
+  if (mode === "per_sheet") {
+    return `${machine.name} · per sheet (not timed)`;
+  }
+  const minutes = Math.round(durationHours(startedAt, endedAt) * 60);
+  const parts = [`${machine.name} desk`];
+  if (b.setupFeeCents > 0) parts.push("setup");
+  if (minutes > 0) parts.push(`${minutes} min`);
+  return parts.join(" · ");
 }
 
 /** Bill Trey’s rate for one ended session. Sheet machines = 1 sheet, no UI. */

@@ -154,6 +154,31 @@ describe("evaluateMachineAccess", () => {
     });
   });
 
+  it("allows workstation launch without a badge when skipBadge is set", () => {
+    const result = evaluateMachineAccess({
+      user: baseUser,
+      badge: null,
+      machine,
+      userCertifications: [...certified],
+      waiverSignatures: [waiver],
+      currentWaiverVersion: "2026.1",
+      skipBadge: true,
+    });
+    expect(result).toEqual({ allow: true, reason: "ok" });
+  });
+
+  it("still requires a badge when skipBadge is omitted", () => {
+    const result = evaluateMachineAccess({
+      user: baseUser,
+      badge: null,
+      machine,
+      userCertifications: [...certified],
+      waiverSignatures: [waiver],
+      currentWaiverVersion: "2026.1",
+    });
+    expect(result.reason).toBe("unknown_badge");
+  });
+
   it("allows when reservationRequired and overlapping reservation present", () => {
     const result = evaluateMachineAccess({
       user: baseUser,

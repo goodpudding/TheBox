@@ -20,6 +20,11 @@ export interface MachineAccessInput {
    * has an overlapping booked reservation at `now`.
    */
   hasOverlappingReservation?: boolean;
+  /**
+   * Workstation launch has a logged-in member, not a badge tap.
+   * ESP32 authorize still requires a badge (default).
+   */
+  skipBadge?: boolean;
   /** Defaults to Date.now() */
   now?: Date | ISODateTime;
 }
@@ -60,20 +65,23 @@ export function evaluateMachineAccess(
     return { allow: false, reason: "machine_inactive" };
   }
 
-  if (!badge) {
-    return { allow: false, reason: "unknown_badge" };
-  }
-  if (!badge.active) {
-    return { allow: false, reason: "badge_inactive" };
-  }
-  if (!badge.userId) {
-    return { allow: false, reason: "badge_unlinked" };
-  }
-
-  if (!user || user.id !== badge.userId) {
+  if (!input.skipBadge) {
+    if (!badge) {
+      return { allow: false, reason: "unknown_badge" };
+    }
+    if (!badge.active) {
+      return { allow: false, reason: "badge_inactive" };
+    }
+    if (!badge.userId) {
+      return { allow: false, reason: "badge_unlinked" };
+    }
+    if (!user || user.id !== badge.userId) {
+      return { allow: false, reason: "user_inactive" };
+    }
+  } else if (!user) {
     return { allow: false, reason: "user_inactive" };
   }
-  if (user.status !== "active") {
+  if (!user || user.status !== "active") {
     return { allow: false, reason: "user_inactive" };
   }
   if (!user.shopAccess) {

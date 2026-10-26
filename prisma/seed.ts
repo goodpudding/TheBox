@@ -923,6 +923,123 @@ async function main() {
     console.warn("Skipping credit ledger seed (migrate schema first):", err);
   }
 
+  try {
+    const { DEMO_KIOSK_PIN, hashKioskPin } = await import(
+      "../src/lib/workstation/pin"
+    );
+    const pinHash = await hashKioskPin(DEMO_KIOSK_PIN);
+    await prisma.user.updateMany({
+      where: { kioskPinHash: null, status: "active" },
+      data: { kioskPinHash: pinHash },
+    });
+
+    const workstations = [
+      {
+        id: "ws-pc-1",
+        name: "Design PC 1",
+        deviceId: "BOX-PC-1",
+        location: "3D lab",
+        billedMachineId: "m-bambu-a1",
+        idleLockMinutes: 10,
+        idleLogoutMinutes: 30,
+      },
+      {
+        id: "ws-pc-2",
+        name: "Laser PC",
+        deviceId: "BOX-PC-2",
+        location: "Laser room",
+        billedMachineId: "m-laser-co2",
+        idleLockMinutes: 10,
+        idleLogoutMinutes: 30,
+      },
+    ];
+    for (const w of workstations) {
+      await prismaLoose.workstation.upsert({
+        where: { id: w.id },
+        create: w,
+        update: {
+          name: w.name,
+          location: w.location,
+          billedMachineId: w.billedMachineId,
+          idleLockMinutes: w.idleLockMinutes,
+          idleLogoutMinutes: w.idleLogoutMinutes,
+        },
+      });
+    }
+
+    const maps = [
+      {
+        id: "map-notepad",
+        machineId: null,
+        workstationId: null,
+        displayName: "Notepad",
+        exeName: "notepad.exe",
+        exePath: "C:\\Windows\\System32\\notepad.exe",
+        sortOrder: 0,
+      },
+      {
+        id: "map-bambu",
+        machineId: "m-bambu-a1",
+        workstationId: null,
+        displayName: "Bambu Studio",
+        exeName: "bambu-studio.exe",
+        exePath: "C:\\Program Files\\Bambu Studio\\bambu-studio.exe",
+        sortOrder: 1,
+      },
+      {
+        id: "map-prusa",
+        machineId: "m-prusa-mk4",
+        workstationId: null,
+        displayName: "PrusaSlicer",
+        exeName: "prusa-slicer.exe",
+        exePath: "C:\\Program Files\\Prusa3D\\PrusaSlicer\\prusa-slicer.exe",
+        sortOrder: 2,
+      },
+      {
+        id: "map-corel",
+        machineId: "m-laser-co2",
+        workstationId: null,
+        displayName: "CorelDRAW",
+        exeName: "CorelDRW.exe",
+        exePath: "C:\\Program Files\\Corel\\CorelDRAW\\Programs64\\CorelDRW.exe",
+        sortOrder: 3,
+      },
+      {
+        id: "map-sawgrass",
+        machineId: "m-sub-printer",
+        workstationId: null,
+        displayName: "Sawgrass Print Utility",
+        exeName: "SawgrassPrintUtility.exe",
+        exePath: null,
+        sortOrder: 4,
+      },
+      {
+        id: "map-silhouette",
+        machineId: "m-vinyl-cutter",
+        workstationId: null,
+        displayName: "Silhouette Studio",
+        exeName: "Silhouette Studio.exe",
+        exePath: null,
+        sortOrder: 5,
+      },
+    ];
+    for (const m of maps) {
+      await prismaLoose.machineSoftwareMap.upsert({
+        where: { id: m.id },
+        create: { ...m, active: true },
+        update: {
+          displayName: m.displayName,
+          exeName: m.exeName,
+          exePath: m.exePath,
+          sortOrder: m.sortOrder,
+        },
+      });
+    }
+    console.log("Seeded workstation desks + demo kiosk PIN hashes.");
+  } catch (err) {
+    console.warn("Skipping workstation seed (migrate schema first):", err);
+  }
+
   console.log("Seed complete.");
 }
 
