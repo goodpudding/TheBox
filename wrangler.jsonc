@@ -19,6 +19,7 @@
 	"images": {
 		"binding": "IMAGES"
 	},
+<<<<<<< HEAD
 	// Prisma talks to this through @prisma/adapter-d1 (src/lib/db.ts).
 	// Schema lives in migrations/; the deploy command applies them with
 	// `wrangler d1 migrations apply thebox-db --remote`.
@@ -39,6 +40,8 @@
 		"AUTH_EMAIL_FROM": "Discover Burien Makerspace <portal@discoverburienmakerspace.com>",
 		"PAYMENT_URL": "https://www.zeffy.com/en-US/ticketing/burien-makers-spaces-memberships"
 	},
+=======
+>>>>>>> fa2aedb (Match PR #6 Cloudflare preview self-reference layout)
 	// Branch preview builds (`npx wrangler preview`). Previews do not inherit
 	// production bindings. OpenNext still needs WORKER_SELF_REFERENCE; a missing
 	// or stale name (package.json is `the-box-portal`) fails Workers Builds on
