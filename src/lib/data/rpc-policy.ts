@@ -104,6 +104,8 @@ export const RPC_RULES = {
   resuggestInterestBoard: { access: "user", arg: 1 },
   adminListMembers: { access: "staff", arg: -1 },
   adminUpdateMemberStatus: { access: "staff", arg: 2 },
+  setMyKioskPin: { access: "user", arg: 0 },
+  adminResetMemberKioskPin: { access: "staff", arg: 1 },
   adminSetMemberTeacher: { access: "staff", arg: 2 },
   adminGrantCredits: { access: "staff", arg: 0, field: "actorId" },
   adminApproveInterestBoard: { access: "staff", arg: 1 },
