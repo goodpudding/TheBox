@@ -42,7 +42,7 @@
 	// Branch preview builds (`npx wrangler preview`). Previews do not inherit
 	// production bindings. OpenNext still needs WORKER_SELF_REFERENCE; a missing
 	// or stale name (package.json is `the-box-portal`) fails Workers Builds on
-	// PRs even when production (`thebox`) is green.
+	// PRs even when production (`thebox`) is green. D1 is bound here too.
 	"previews": {
 		"images": {
 			"binding": "IMAGES"
