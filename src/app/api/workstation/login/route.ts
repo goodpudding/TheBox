@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json({
       token: started.token,
+      mustChangePin: started.mustChangePin,
       me,
     });
   } catch (err) {

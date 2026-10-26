@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatDateTime } from "@/lib/format";
 import { formatBillingInterval, formatTier } from "@/lib/utils";
-import type { Badge, CreditWallet, OrgSettings, WaiverSignature } from "@/lib/data";
+import type { CreditWallet, OrgSettings, WaiverSignature } from "@/lib/data";
 import { CreditWalletPanel } from "@/components/credit-wallet";
 
 export default function AccountPage() {
@@ -25,19 +25,30 @@ function AccountBody() {
   const { provider, currentUser, refreshUser, bump, revision } = useData();
   const [settings, setSettings] = useState<OrgSettings | null>(null);
   const [waivers, setWaivers] = useState<WaiverSignature[]>([]);
-  const [badges, setBadges] = useState<Badge[]>([]);
   const [wallet, setWallet] = useState<CreditWallet | null>(null);
   const [saved, setSaved] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pinSet, setPinSet] = useState(false);
+  const [pinPending, setPinPending] = useState(false);
+  const [pinError, setPinError] = useState<string | null>(null);
+  const [pinMessage, setPinMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!currentUser) return;
     void (async () => {
       setSettings(await provider.getSettings());
       setWaivers(await provider.listWaiverHistory(currentUser.id));
-      setBadges(await provider.listBadges(currentUser.id));
       setWallet(await provider.getCreditWallet(currentUser.id));
+      setPinSet(Boolean(currentUser.kioskPinSet));
+      const pinRes = await fetch("/api/account/kiosk-pin", {
+        headers: { "x-box-user-id": currentUser.id },
+        cache: "no-store",
+      });
+      if (pinRes.ok) {
+        const body = (await pinRes.json()) as { pinSet?: boolean };
+        if (body.pinSet) setPinSet(true);
+      }
     })();
   }, [currentUser, provider, revision]);
 
@@ -68,6 +79,44 @@ function AccountBody() {
       setError(err instanceof Error ? err.message : "Could not save");
     } finally {
       setPending(false);
+    }
+  }
+
+  async function onSavePin(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!currentUser) return;
+    setPinPending(true);
+    setPinError(null);
+    setPinMessage(null);
+    const form = e.currentTarget;
+    const pin = String(form.get("pin") ?? "");
+    const confirmPin = String(form.get("confirmPin") ?? "");
+    if (pin !== confirmPin) {
+      setPinError("PINs don't match.");
+      setPinPending(false);
+      return;
+    }
+    try {
+      await provider.setMyKioskPin(currentUser.id, pin);
+      const res = await fetch("/api/account/kiosk-pin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-box-user-id": currentUser.id,
+        },
+        body: JSON.stringify({ pin }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        throw new Error(body.error ?? "Could not save shop PIN");
+      }
+      setPinSet(true);
+      setPinMessage("Shop PIN saved.");
+      form.reset();
+    } catch (err) {
+      setPinError(err instanceof Error ? err.message : "Could not save shop PIN");
+    } finally {
+      setPinPending(false);
     }
   }
 
@@ -197,33 +246,58 @@ function AccountBody() {
         </Button>
       </form>
 
-      <section className="mt-16 max-w-2xl">
-        <p className="eyebrow">Linked badges</p>
-        {badges.length > 0 ? (
-          <ul className="mt-4 divide-y divide-border border-y border-border">
-            {badges.map((b) => (
-              <li
-                key={b.id}
-                className="flex flex-wrap items-center justify-between gap-2 py-3"
-              >
-                <div>
-                  <p className="font-display font-medium text-brown">
-                    {b.label ?? "Badge"}
-                  </p>
-                  <p className="font-mono text-xs text-secondary">{b.uid}</p>
-                </div>
-                <StatusPill tone={b.active ? "ok" : "danger"}>
-                  {b.active ? "Active" : "Inactive"}
-                </StatusPill>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-3 text-secondary">
-            No badges linked yet. Staff can link one from the admin members
-            screen.
+      <section className="mt-16 max-w-xl">
+        <p className="eyebrow">Shop PIN</p>
+        <p className="mt-3 text-secondary leading-relaxed">
+          Use this with the email on your membership to sign in at any shop PC.
+          4–6 digits.
+        </p>
+        {pinSet ? (
+          <p className="mt-4 font-display font-semibold text-brown">
+            PIN is set · Change PIN
           </p>
-        )}
+        ) : null}
+        <form onSubmit={onSavePin} className="mt-4 space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="shop-pin">{pinSet ? "New PIN" : "PIN"}</Label>
+            <Input
+              id="shop-pin"
+              name="pin"
+              type="password"
+              inputMode="numeric"
+              pattern="\d{4,6}"
+              autoComplete="off"
+              required
+              minLength={4}
+              maxLength={6}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="shop-pin-confirm">Confirm PIN</Label>
+            <Input
+              id="shop-pin-confirm"
+              name="confirmPin"
+              type="password"
+              inputMode="numeric"
+              pattern="\d{4,6}"
+              autoComplete="off"
+              required
+              minLength={4}
+              maxLength={6}
+            />
+          </div>
+          {pinError ? (
+            <p className="text-sm text-accent" role="alert">
+              {pinError}
+            </p>
+          ) : null}
+          {pinMessage ? (
+            <p className="text-sm text-primary-text">{pinMessage}</p>
+          ) : null}
+          <Button type="submit" disabled={pinPending}>
+            {pinPending ? "Saving…" : pinSet ? "Change PIN" : "Save PIN"}
+          </Button>
+        </form>
       </section>
 
       <section className="mt-16 max-w-2xl">

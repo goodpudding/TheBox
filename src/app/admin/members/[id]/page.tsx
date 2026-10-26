@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatDateTime } from "@/lib/format";
+import { formatShopPin } from "@/lib/workstation/pin-policy";
 import { formatMoneyExact, formatTier } from "@/lib/utils";
 import { ledgerKindLabel } from "@/lib/credits";
 import type {
@@ -90,6 +91,8 @@ export default function AdminMemberDetailPage() {
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmPinReset, setConfirmPinReset] = useState(false);
+  const [temporaryPin, setTemporaryPin] = useState<string | null>(null);
   const [editingCertId, setEditingCertId] = useState<string | null>(null);
   const [revokeReasons, setRevokeReasons] = useState<Record<string, string>>(
     {},
@@ -255,6 +258,40 @@ export default function AdminMemberDetailPage() {
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not grant credits");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function onResetShopPin() {
+    if (!member || !currentUser) return;
+    setPending(true);
+    setError(null);
+    setMessage(null);
+    setTemporaryPin(null);
+    try {
+      const result = await provider.adminResetMemberKioskPin(
+        member.id,
+        currentUser.id,
+      );
+      const res = await fetch(`/api/admin/members/${member.id}/kiosk-pin`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-box-user-id": currentUser.id,
+        },
+        body: JSON.stringify({ temporaryPin: result.temporaryPin }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        throw new Error(body.error ?? "Could not reset shop PIN");
+      }
+      setMember(result.user);
+      setTemporaryPin(result.temporaryPin);
+      setConfirmPinReset(false);
+      bump();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not reset shop PIN");
     } finally {
       setPending(false);
     }
@@ -478,6 +515,63 @@ export default function AdminMemberDetailPage() {
             ))}
           </select>
         </div>
+        {currentUser?.role === "staff" || currentUser?.role === "admin" ? (
+          <div className="mt-6 space-y-3">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending || !currentUser}
+              onClick={() => {
+                setConfirmPinReset(true);
+                setTemporaryPin(null);
+              }}
+            >
+              Reset shop PIN
+            </Button>
+            {confirmPinReset ? (
+              <div className="rounded-2xl border border-border bg-surface p-4">
+                <p className="text-sm text-secondary">
+                  Replace this member&apos;s shop PIN with a temporary one?
+                  Read the new PIN to them. It is shown once.
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={pending}
+                    onClick={() => void onResetShopPin()}
+                  >
+                    {pending ? "Resetting…" : "Reset PIN"}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={pending}
+                    onClick={() => setConfirmPinReset(false)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+            {temporaryPin ? (
+              <div className="flex items-start justify-between gap-3 rounded-2xl border border-primary/40 bg-primary/10 px-4 py-3">
+                <p className="text-sm text-brown">
+                  Temporary PIN: {formatShopPin(temporaryPin)} — read it to the
+                  member; it will not be shown again.
+                </p>
+                <button
+                  type="button"
+                  className="font-display text-sm font-semibold text-primary-text"
+                  onClick={() => setTemporaryPin(null)}
+                >
+                  Dismiss
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         <div className="mt-6">
           <p className="text-sm text-secondary">
             Teacher is a modifier (orthogonal to membership role). Teachers can

@@ -1732,6 +1732,8 @@ export async function persistBundleToPrisma(
 function shouldPersistAfter(methodName: string): boolean {
   if (methodName === "setCurrentUserId") return false;
   if (methodName === "getState") return false;
+  if (methodName === "setMyKioskPin") return false;
+  if (methodName === "adminResetMemberKioskPin") return false;
   if (methodName.startsWith("get")) return false;
   if (methodName.startsWith("list")) return false;
   if (methodName.startsWith("adminList")) return false;
@@ -1749,6 +1751,36 @@ function createPersistingProxy(mock: MockDataProvider): DataProvider {
         const result = await (
           value as (...a: unknown[]) => Promise<unknown>
         ).apply(target, args);
+        if (name === "setMyKioskPin" || name === "adminResetMemberKioskPin") {
+          const memberId = String(args[0]);
+          const pin =
+            name === "setMyKioskPin"
+              ? String(args[1])
+              : (result as { temporaryPin: string }).temporaryPin;
+          const { hashKioskPin } = await import("@/lib/workstation/pin");
+          await prisma.user.update({
+            where: { id: memberId },
+            data: {
+              kioskPinHash: await hashKioskPin(pin),
+              kioskPinMustChange: name === "adminResetMemberKioskPin",
+            },
+          });
+          if (name === "adminResetMemberKioskPin") {
+            await prisma.auditEvent.create({
+              data: {
+                id: `audit_${crypto.randomUUID().slice(0, 8)}`,
+                action: "member.pin_reset",
+                actorId: String(args[1]),
+                subjectUserId: memberId,
+                entityType: "user",
+                entityId: memberId,
+                metadata: JSON.stringify({ mustChange: true }),
+                occurredAt: new Date(),
+              },
+            });
+          }
+          return result;
+        }
         if (shouldPersistAfter(name)) {
           const next = target.getState();
           await persistBundleToPrisma(next, snapshot);

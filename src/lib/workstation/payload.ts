@@ -100,6 +100,7 @@ export async function memberMePayload(input: {
       status: r.status,
     })),
     jobs,
+    mustChangePin: userRow.kioskPinMustChange,
     session: {
       id: input.session.id,
       workstationId: input.session.workstationId,

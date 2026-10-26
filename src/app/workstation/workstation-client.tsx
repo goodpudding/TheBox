@@ -76,6 +76,7 @@ type Me = {
     idleLogoutMinutes: number;
     billing: Billing;
   };
+  mustChangePin?: boolean;
 };
 
 type Config = {
@@ -160,6 +161,10 @@ export function WorkstationClient() {
   } | null>(null);
   const [locked, setLocked] = useState(false);
   const [lockPin, setLockPin] = useState("");
+  const [lockError, setLockError] = useState<string | null>(null);
+  const [mustChangePin, setMustChangePin] = useState(false);
+  const [nextPin, setNextPin] = useState("");
+  const [confirmNextPin, setConfirmNextPin] = useState("");
   const [now, setNow] = useState(Date.now());
   const [lastActivity, setLastActivity] = useState(Date.now());
   const [launchNote, setLaunchNote] = useState<string | null>(null);
@@ -180,6 +185,7 @@ export function WorkstationClient() {
     }
     const body = (await res.json()) as Me;
     setMe(body);
+    setMustChangePin(Boolean(body.mustChangePin));
     return body;
   }, []);
 
@@ -219,11 +225,12 @@ export function WorkstationClient() {
     await nativeClear();
     setMe(null);
     setLocked(false);
+    setMustChangePin(false);
     setLaunchNote(null);
   }, []);
 
   useEffect(() => {
-    if (!me) return;
+    if (!me || mustChangePin) return;
     const idleMs = Date.now() - lastActivity;
     const lockMs = me.session.idleLockMinutes * 60_000;
     const logoutMs = me.session.idleLogoutMinutes * 60_000;
@@ -232,7 +239,7 @@ export function WorkstationClient() {
     } else if (idleMs >= lockMs) {
       setLocked(true);
     }
-  }, [now, lastActivity, me, logout]);
+  }, [now, lastActivity, me, logout, mustChangePin]);
 
   useEffect(() => {
     if (!qr || me) return;
@@ -270,13 +277,21 @@ export function WorkstationClient() {
           pin,
         }),
       });
-      const body = (await res.json()) as { error?: string; token?: string; me?: Me };
+      const body = (await res.json()) as {
+        error?: string;
+        token?: string;
+        me?: Me;
+        mustChangePin?: boolean;
+      };
       if (!res.ok) throw new Error(body.error ?? "Could not sign in");
       if (body.token) {
         writeStoredToken(body.token);
         await nativeStoreToken(body.token);
       }
       setMe(body.me ?? null);
+      setMustChangePin(
+        Boolean(body.mustChangePin || body.me?.mustChangePin),
+      );
       setLastActivity(Date.now());
       setPin("");
     } catch (err) {
@@ -309,10 +324,50 @@ export function WorkstationClient() {
 
   async function unlock(e: React.FormEvent) {
     e.preventDefault();
-    if (lockPin.length >= 4) {
+    setLockError(null);
+    try {
+      const res = await apiFetch("/api/workstation/unlock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: lockPin }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setLockError(body.error ?? "PIN didn't match");
+        return;
+      }
       setLocked(false);
       setLockPin("");
       setLastActivity(Date.now());
+    } catch (err) {
+      setLockError(err instanceof Error ? err.message : "PIN didn't match");
+    }
+  }
+
+  async function chooseNewPin(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (nextPin !== confirmNextPin) {
+      setError("PINs don't match.");
+      return;
+    }
+    setPending(true);
+    try {
+      const res = await apiFetch("/api/workstation/pin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: nextPin }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(body.error ?? "Could not save PIN");
+      setMustChangePin(false);
+      setNextPin("");
+      setConfirmNextPin("");
+      setLastActivity(Date.now());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save PIN");
+    } finally {
+      setPending(false);
     }
   }
 
@@ -450,6 +505,64 @@ export function WorkstationClient() {
     );
   }
 
+  if (me && mustChangePin) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-page px-6">
+        <form
+          onSubmit={(e) => void chooseNewPin(e)}
+          className="w-full max-w-md"
+        >
+          <p className="eyebrow">Shop PIN</p>
+          <h1 className="mt-2 font-display text-3xl font-semibold text-brown">
+            Choose a new PIN
+          </h1>
+          <p className="mt-3 text-secondary">
+            This temporary PIN works until you pick your own. 4–6 digits.
+          </p>
+          <div className="mt-6 space-y-2">
+            <Label htmlFor="next-pin">New PIN</Label>
+            <Input
+              id="next-pin"
+              type="password"
+              inputMode="numeric"
+              pattern="\d{4,6}"
+              autoComplete="off"
+              required
+              value={nextPin}
+              onChange={(e) => setNextPin(e.target.value)}
+            />
+          </div>
+          <div className="mt-4 space-y-2">
+            <Label htmlFor="next-pin-confirm">Confirm PIN</Label>
+            <Input
+              id="next-pin-confirm"
+              type="password"
+              inputMode="numeric"
+              pattern="\d{4,6}"
+              autoComplete="off"
+              required
+              value={confirmNextPin}
+              onChange={(e) => setConfirmNextPin(e.target.value)}
+            />
+          </div>
+          {error ? (
+            <p className="mt-4 text-sm text-accent" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <div className="mt-6 flex gap-3">
+            <Button type="submit" disabled={pending}>
+              {pending ? "Saving…" : "Save PIN"}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => void logout()}>
+              Log out
+            </Button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-page text-charcoal">
       {locked && me ? (
@@ -473,9 +586,15 @@ export function WorkstationClient() {
               className="mt-2"
               inputMode="numeric"
               autoComplete="off"
+              type="password"
               value={lockPin}
               onChange={(e) => setLockPin(e.target.value)}
             />
+            {lockError ? (
+              <p className="mt-3 text-sm text-accent" role="alert">
+                {lockError}
+              </p>
+            ) : null}
             <div className="mt-6 flex gap-3">
               <Button type="submit">Unlock</Button>
               <Button type="button" variant="outline" onClick={() => void logout()}>
