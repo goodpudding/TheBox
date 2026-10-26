@@ -49,6 +49,16 @@ import type {
   BountyStatus,
   CreditLedgerEntry,
   CreditWallet,
+  InventoryArea,
+  InventoryItem,
+  ItemPhoto,
+  ItemEvent,
+  ItemCondition,
+  ItemStatus,
+  ReviewStatus,
+  PhotoKind,
+  InventoryIssueType,
+  InventoryRetireReason,
 } from "./types";
 
 // Re-export view/DTO types used by the provider interface
@@ -347,6 +357,106 @@ export interface BountyView extends Bounty {
   claimedByDisplayName?: string | null;
 }
 
+export interface InventoryListFilters {
+  search?: string;
+  areaId?: string | null;
+  condition?: ItemCondition | ItemCondition[];
+  status?: ItemStatus | ItemStatus[];
+  reviewStatus?: ReviewStatus | ReviewStatus[];
+  location?: string;
+  includeRetired?: boolean;
+  includePending?: boolean;
+}
+
+export interface CreateInventoryItemInput {
+  name: string;
+  model?: string | null;
+  manufacturer?: string | null;
+  serialNumber?: string | null;
+  noSerial?: boolean;
+  quantity?: number;
+  isMachine?: boolean;
+  areaId?: string | null;
+  location?: string | null;
+  condition: ItemCondition;
+  notes?: string | null;
+  photoKeys: Array<{
+    storageKey: string;
+    thumbKey?: string | null;
+    kind: PhotoKind;
+    mimeType: string;
+    width?: number | null;
+    height?: number | null;
+  }>;
+  continueDespiteDuplicate?: boolean;
+}
+
+export interface UpdateInventoryItemInput {
+  name?: string;
+  model?: string | null;
+  manufacturer?: string | null;
+  serialNumber?: string | null;
+  noSerial?: boolean;
+  quantity?: number;
+  isMachine?: boolean;
+  areaId?: string | null;
+  location?: string | null;
+  condition?: ItemCondition;
+  notes?: string | null;
+}
+
+export interface InventoryItemView extends InventoryItem {
+  assetTag: string;
+  areaName?: string | null;
+  createdByName?: string | null;
+  reviewedByName?: string | null;
+  frontPhoto?: ItemPhoto | null;
+}
+
+export interface InventoryItemDetail extends InventoryItemView {
+  photos: ItemPhoto[];
+  events: Array<ItemEvent & { actorName?: string | null }>;
+}
+
+export interface InventoryDuplicateHit {
+  id: string;
+  assetTag: string;
+  name: string;
+}
+
+export interface InventoryIssueInput {
+  type: InventoryIssueType;
+  note?: string | null;
+  photoKey?: string | null;
+  photoMimeType?: string | null;
+}
+
+export interface InventoryCsvMappedRow {
+  name: string;
+  model?: string | null;
+  manufacturer?: string | null;
+  serialNumber?: string | null;
+  quantity?: number;
+  condition: ItemCondition;
+  areaId?: string | null;
+  location?: string | null;
+  notes?: string | null;
+  photoLinks?: Partial<Record<PhotoKind, string>>;
+}
+
+export interface InventoryImportResult {
+  dryRun: boolean;
+  created: number;
+  failed: Array<{ row: number; reason: string }>;
+  preview: Array<{
+    row: number;
+    name: string;
+    areaId: string | null;
+    condition: ItemCondition;
+    photoCount: number;
+  }>;
+}
+
 export interface ClassInterestBoardInput {
   title: string;
   summary: string;
@@ -582,6 +692,86 @@ export interface DataProvider {
   submitBountyRequest(input: BountyRequestInput): Promise<Bounty>;
   claimBounty(id: string, userId: string): Promise<Bounty>;
   completeBounty(id: string, userId: string): Promise<Bounty>;
+
+  listInventoryAreas(): Promise<InventoryArea[]>;
+  listAreaStewards(): Promise<import("./types").AreaSteward[]>;
+  upsertInventoryArea(
+    actorId: string,
+    data: { id?: string; slug: string; name: string; active?: boolean },
+  ): Promise<InventoryArea>;
+  listInventoryManufacturers(): Promise<string[]>;
+  listInventoryLocations(): Promise<string[]>;
+  pendingInventoryCount(userId: string): Promise<number>;
+  listInventoryItems(
+    viewerId: string,
+    filters?: InventoryListFilters,
+  ): Promise<InventoryItemView[]>;
+  getInventoryItem(
+    viewerId: string,
+    assetTag: string,
+  ): Promise<InventoryItemDetail | null>;
+  findInventoryBySerial(
+    serial: string,
+  ): Promise<InventoryDuplicateHit[]>;
+  createInventoryItem(
+    userId: string,
+    data: CreateInventoryItemInput,
+  ): Promise<InventoryItemView>;
+  updateInventoryItem(
+    userId: string,
+    id: string,
+    patch: UpdateInventoryItemInput,
+  ): Promise<InventoryItemView>;
+  reviewInventoryItem(
+    userId: string,
+    id: string,
+    decision: "approve" | "reject",
+    reason?: string,
+  ): Promise<InventoryItemView>;
+  changeInventoryStatus(
+    userId: string,
+    id: string,
+    status: ItemStatus,
+    note?: string,
+  ): Promise<InventoryItemView>;
+  moveInventoryItem(
+    userId: string,
+    id: string,
+    location: string,
+    note?: string,
+  ): Promise<InventoryItemView>;
+  reportInventoryIssue(
+    userId: string,
+    id: string,
+    input: InventoryIssueInput,
+  ): Promise<ItemEvent>;
+  retireInventoryItem(
+    userId: string,
+    id: string,
+    reason: InventoryRetireReason | string,
+  ): Promise<InventoryItemView>;
+  addInventoryPhoto(
+    userId: string,
+    itemId: string,
+    photo: {
+      storageKey: string;
+      thumbKey?: string | null;
+      kind: PhotoKind;
+      mimeType: string;
+      width?: number | null;
+      height?: number | null;
+    },
+  ): Promise<ItemPhoto>;
+  markInventoryLabelsPrinted(
+    userId: string,
+    itemIds: string[],
+  ): Promise<void>;
+  importInventoryCsv(
+    userId: string,
+    rows: InventoryCsvMappedRow[],
+    dryRun: boolean,
+  ): Promise<InventoryImportResult>;
+
   getSettings(): Promise<OrgSettings>;
   listMembershipProducts(): Promise<MembershipProduct[]>;
   getScholarshipFundSummary(): Promise<ScholarshipFundSummary>;

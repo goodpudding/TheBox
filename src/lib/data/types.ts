@@ -711,6 +711,140 @@ export interface DisplayConfig {
   updatedAt: ISODateTime;
 }
 
+/** Shop inventory — tools, machines, materials. Not Zeffy billing. */
+export type ItemCondition =
+  | "NEW"
+  | "GOOD"
+  | "FAIR"
+  | "NEEDS_REPAIR"
+  | "BROKEN";
+
+export type ItemStatus =
+  | "ACTIVE"
+  | "IN_REPAIR"
+  | "OUT_ON_LOAN"
+  | "MISSING"
+  | "RETIRED";
+
+export type ReviewStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export type PhotoKind = "FRONT" | "SIDE" | "SERIAL" | "OTHER";
+
+export type AcquisitionSource = "DONATED" | "PURCHASED" | "LOANED_IN" | "UNKNOWN";
+
+export type ItemEventType =
+  | "CREATED"
+  | "UPDATED"
+  | "APPROVED"
+  | "REJECTED"
+  | "CONDITION_CHANGED"
+  | "STATUS_CHANGED"
+  | "MOVED"
+  | "PHOTO_ADDED"
+  | "ISSUE_REPORTED"
+  | "LABEL_PRINTED"
+  | "RETIRED";
+
+export type InventoryIssueType =
+  | "BROKEN"
+  | "NEEDS_REPAIR"
+  | "MISSING_PART"
+  | "OTHER";
+
+export type InventoryRetireReason =
+  | "sold"
+  | "scrapped"
+  | "donated"
+  | "lost";
+
+export type InventoryAction =
+  | "viewApproved"
+  | "viewPending"
+  | "reportIssue"
+  | "submit"
+  | "addPhoto"
+  | "approve"
+  | "reject"
+  | "edit"
+  | "changeStatus"
+  | "move"
+  | "retire"
+  | "importCsv"
+  | "printLabels"
+  | "manageAreas";
+
+export interface InventoryArea {
+  id: string;
+  slug: string;
+  name: string;
+  sortOrder: number;
+  active: boolean;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+}
+
+export interface AreaSteward {
+  id: string;
+  areaId: string;
+  userId: string;
+  createdAt: ISODateTime;
+}
+
+export interface InventoryItem {
+  id: string;
+  tagNumber: number;
+  name: string;
+  model?: string | null;
+  manufacturer?: string | null;
+  serialNumber?: string | null;
+  noSerial: boolean;
+  quantity: number;
+  isMachine: boolean;
+  areaId?: string | null;
+  location?: string | null;
+  condition: ItemCondition;
+  status: ItemStatus;
+  notes?: string | null;
+  reviewStatus: ReviewStatus;
+  reviewedById?: string | null;
+  reviewedAt?: ISODateTime | null;
+  rejectReason?: string | null;
+  acquisitionSource?: AcquisitionSource | null;
+  acquiredAt?: ISODateTime | null;
+  donorName?: string | null;
+  estimatedValue?: number | null;
+  labelPrintedAt?: ISODateTime | null;
+  retiredAt?: ISODateTime | null;
+  retiredReason?: string | null;
+  createdById: string;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+}
+
+export interface ItemPhoto {
+  id: string;
+  itemId?: string | null;
+  kind: PhotoKind;
+  storageKey: string;
+  thumbKey?: string | null;
+  mimeType: string;
+  width?: number | null;
+  height?: number | null;
+  uploadedById: string;
+  createdAt: ISODateTime;
+}
+
+export interface ItemEvent {
+  id: string;
+  itemId: string;
+  type: ItemEventType;
+  actorId: string;
+  changes?: Record<string, { from: unknown; to: unknown }> | null;
+  note?: string | null;
+  photoId?: string | null;
+  createdAt: ISODateTime;
+}
+
 /** Aggregated fixture bundle loaded into MockDataProvider */
 export interface MockFixtureBundle {
   users: User[];
@@ -744,6 +878,11 @@ export interface MockFixtureBundle {
   auditEvents: AuditEvent[];
   membershipProducts: MembershipProduct[];
   creditLedgerEntries: CreditLedgerEntry[];
+  inventoryAreas: InventoryArea[];
+  areaStewards: AreaSteward[];
+  inventoryItems: InventoryItem[];
+  itemPhotos: ItemPhoto[];
+  itemEvents: ItemEvent[];
   settings: OrgSettings;
   promoSlides: PromoSlide[];
   displayConfig: DisplayConfig;

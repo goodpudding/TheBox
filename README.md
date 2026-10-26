@@ -237,8 +237,9 @@ For Postgres production, change `provider` in `prisma/schema.prisma` to `postgre
 ## Routes (summary)
 
 Public: `/join`, `/support`, `/policies`, `/volunteer`, `/login`, `/equipment`, `/display?token=…`, `/bounties`, `/history`, `/staff`  
-Member: `/dashboard`, `/account`, `/certifications`, `/usage`, `/classes`, `/reserve`, `/learn`, `/bounties` (claim), onboarding  
+Member: `/dashboard`, `/account`, `/certifications`, `/usage`, `/classes`, `/reserve`, `/learn`, `/inventory`, `/bounties` (claim), onboarding  
 Admin: `/admin/*` (including `/admin/display`), `/dev/reader`  
+Inventory: `/inventory`, `/inventory/new`, `/inventory/review`, `/inventory/[assetTag]`, `/inventory/labels`, `/inventory/import`, short QR `/i/BX-00042`  
 
 ## Learning modules
 

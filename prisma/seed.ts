@@ -1040,6 +1040,126 @@ async function main() {
     console.warn("Skipping workstation seed (migrate schema first):", err);
   }
 
+  try {
+    await seedSimple("inventory-areas.json", (a) =>
+      prismaLoose.inventoryArea.upsert({
+        where: { id: String(a.id) },
+        create: {
+          id: String(a.id),
+          slug: String(a.slug),
+          name: String(a.name),
+          sortOrder: Number(a.sortOrder ?? 0),
+          active: Boolean(a.active ?? true),
+          createdAt: asDate(a.createdAt as string) ?? new Date(),
+          updatedAt: asDate(a.updatedAt as string) ?? new Date(),
+        },
+        update: {
+          name: String(a.name),
+          slug: String(a.slug),
+          sortOrder: Number(a.sortOrder ?? 0),
+          active: Boolean(a.active ?? true),
+        },
+      }),
+    );
+    await seedSimple("area-stewards.json", (s) =>
+      prismaLoose.areaSteward.upsert({
+        where: { id: String(s.id) },
+        create: {
+          id: String(s.id),
+          areaId: String(s.areaId),
+          userId: String(s.userId),
+          createdAt: asDate(s.createdAt as string) ?? new Date(),
+        },
+        update: {
+          areaId: String(s.areaId),
+          userId: String(s.userId),
+        },
+      }),
+    );
+    await seedSimple("inventory-items.json", (i) =>
+      prismaLoose.inventoryItem.upsert({
+        where: { id: String(i.id) },
+        create: {
+          id: String(i.id),
+          tagNumber: Number(i.tagNumber),
+          name: String(i.name),
+          model: (i.model as string) ?? null,
+          manufacturer: (i.manufacturer as string) ?? null,
+          serialNumber: (i.serialNumber as string) ?? null,
+          noSerial: Boolean(i.noSerial),
+          quantity: Number(i.quantity ?? 1),
+          isMachine: Boolean(i.isMachine),
+          areaId: (i.areaId as string) ?? null,
+          location: (i.location as string) ?? null,
+          condition: String(i.condition),
+          status: String(i.status ?? "ACTIVE"),
+          notes: (i.notes as string) ?? null,
+          reviewStatus: String(i.reviewStatus ?? "PENDING"),
+          reviewedById: (i.reviewedById as string) ?? null,
+          reviewedAt: asDate(i.reviewedAt as string),
+          rejectReason: (i.rejectReason as string) ?? null,
+          acquisitionSource: (i.acquisitionSource as string) ?? null,
+          acquiredAt: asDate(i.acquiredAt as string),
+          donorName: (i.donorName as string) ?? null,
+          estimatedValue:
+            i.estimatedValue == null ? null : Number(i.estimatedValue),
+          labelPrintedAt: asDate(i.labelPrintedAt as string),
+          retiredAt: asDate(i.retiredAt as string),
+          retiredReason: (i.retiredReason as string) ?? null,
+          createdById: String(i.createdById),
+          createdAt: asDate(i.createdAt as string) ?? new Date(),
+          updatedAt: asDate(i.updatedAt as string) ?? new Date(),
+        },
+        update: {
+          name: String(i.name),
+          status: String(i.status ?? "ACTIVE"),
+          reviewStatus: String(i.reviewStatus ?? "PENDING"),
+        },
+      }),
+    );
+    await seedSimple("item-photos.json", (p) =>
+      prismaLoose.itemPhoto.upsert({
+        where: { id: String(p.id) },
+        create: {
+          id: String(p.id),
+          itemId: (p.itemId as string) ?? null,
+          kind: String(p.kind),
+          storageKey: String(p.storageKey),
+          thumbKey: (p.thumbKey as string) ?? null,
+          mimeType: String(p.mimeType),
+          width: (p.width as number) ?? null,
+          height: (p.height as number) ?? null,
+          uploadedById: String(p.uploadedById),
+          createdAt: asDate(p.createdAt as string) ?? new Date(),
+        },
+        update: {
+          storageKey: String(p.storageKey),
+          kind: String(p.kind),
+        },
+      }),
+    );
+    await seedSimple("item-events.json", (e) =>
+      prismaLoose.itemEvent.upsert({
+        where: { id: String(e.id) },
+        create: {
+          id: String(e.id),
+          itemId: String(e.itemId),
+          type: String(e.type),
+          actorId: String(e.actorId),
+          changes: e.changes ? JSON.stringify(e.changes) : null,
+          note: (e.note as string) ?? null,
+          photoId: (e.photoId as string) ?? null,
+          createdAt: asDate(e.createdAt as string) ?? new Date(),
+        },
+        update: {
+          note: (e.note as string) ?? null,
+        },
+      }),
+    );
+  } catch (err) {
+    console.warn("Skipping inventory seed (migrate schema first):", err);
+  }
+
   console.log("Seed complete.");
 }
 

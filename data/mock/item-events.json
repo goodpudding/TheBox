@@ -1,0 +1,142 @@
+[
+  {
+    "id": "ie-sander-created",
+    "itemId": "inv-sander",
+    "type": "CREATED",
+    "actorId": "u-maya",
+    "changes": null,
+    "note": null,
+    "photoId": null,
+    "createdAt": "2026-03-01T11:20:00-08:00"
+  },
+  {
+    "id": "ie-sander-approved",
+    "itemId": "inv-sander",
+    "type": "APPROVED",
+    "actorId": "u-staff",
+    "changes": { "reviewStatus": { "from": "PENDING", "to": "APPROVED" } },
+    "note": null,
+    "photoId": null,
+    "createdAt": "2026-03-02T15:00:00-08:00"
+  },
+  {
+    "id": "ie-sander-label",
+    "itemId": "inv-sander",
+    "type": "LABEL_PRINTED",
+    "actorId": "u-staff",
+    "changes": null,
+    "note": null,
+    "photoId": null,
+    "createdAt": "2026-03-03T10:00:00-08:00"
+  },
+  {
+    "id": "ie-prusa-created",
+    "itemId": "inv-prusa",
+    "type": "CREATED",
+    "actorId": "u-staff",
+    "changes": null,
+    "note": null,
+    "photoId": null,
+    "createdAt": "2026-02-18T14:00:00-08:00"
+  },
+  {
+    "id": "ie-prusa-approved",
+    "itemId": "inv-prusa",
+    "type": "APPROVED",
+    "actorId": "u-admin",
+    "changes": { "reviewStatus": { "from": "PENDING", "to": "APPROVED" } },
+    "note": null,
+    "photoId": null,
+    "createdAt": "2026-02-20T12:00:00-08:00"
+  },
+  {
+    "id": "ie-laser-created",
+    "itemId": "inv-laser",
+    "type": "CREATED",
+    "actorId": "u-staff",
+    "changes": null,
+    "note": null,
+    "photoId": null,
+    "createdAt": "2026-02-18T14:10:00-08:00"
+  },
+  {
+    "id": "ie-laser-approved",
+    "itemId": "inv-laser",
+    "type": "APPROVED",
+    "actorId": "u-admin",
+    "changes": { "reviewStatus": { "from": "PENDING", "to": "APPROVED" } },
+    "note": null,
+    "photoId": null,
+    "createdAt": "2026-02-20T12:10:00-08:00"
+  },
+  {
+    "id": "ie-clamps-created",
+    "itemId": "inv-clamps",
+    "type": "CREATED",
+    "actorId": "u-maya",
+    "changes": null,
+    "note": null,
+    "photoId": null,
+    "createdAt": "2026-03-08T11:00:00-08:00"
+  },
+  {
+    "id": "ie-clamps-approved",
+    "itemId": "inv-clamps",
+    "type": "APPROVED",
+    "actorId": "u-maya",
+    "changes": { "reviewStatus": { "from": "PENDING", "to": "APPROVED" } },
+    "note": null,
+    "photoId": null,
+    "createdAt": "2026-03-08T13:00:00-08:00"
+  },
+  {
+    "id": "ie-heatpress-created",
+    "itemId": "inv-heatpress",
+    "type": "CREATED",
+    "actorId": "u-jordan",
+    "changes": null,
+    "note": null,
+    "photoId": null,
+    "createdAt": "2026-04-02T16:40:00-07:00"
+  },
+  {
+    "id": "ie-jigsaw-created",
+    "itemId": "inv-jigsaw",
+    "type": "CREATED",
+    "actorId": "u-jordan",
+    "changes": null,
+    "note": null,
+    "photoId": null,
+    "createdAt": "2026-04-10T18:15:00-07:00"
+  },
+  {
+    "id": "ie-tablesaw-created",
+    "itemId": "inv-tablesaw",
+    "type": "CREATED",
+    "actorId": "u-staff",
+    "changes": null,
+    "note": null,
+    "photoId": null,
+    "createdAt": "2026-01-18T10:00:00-08:00"
+  },
+  {
+    "id": "ie-tablesaw-approved",
+    "itemId": "inv-tablesaw",
+    "type": "APPROVED",
+    "actorId": "u-admin",
+    "changes": { "reviewStatus": { "from": "PENDING", "to": "APPROVED" } },
+    "note": null,
+    "photoId": null,
+    "createdAt": "2026-01-20T11:00:00-08:00"
+  },
+  {
+    "id": "ie-tablesaw-retired",
+    "itemId": "inv-tablesaw",
+    "type": "RETIRED",
+    "actorId": "u-admin",
+    "changes": { "status": { "from": "ACTIVE", "to": "RETIRED" } },
+    "note": "scrapped",
+    "photoId": null,
+    "createdAt": "2026-01-22T09:00:00-08:00"
+  }
+]

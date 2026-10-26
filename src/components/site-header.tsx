@@ -32,6 +32,7 @@ const shopLinks = [
   { href: "/classes", label: "Classes" },
   { href: "/reserve", label: "Reserve" },
   { href: "/learn", label: "Learn" },
+  { href: "/inventory", label: "Inventory" },
   { href: "/bounties", label: "Bounties" },
 ];
 
