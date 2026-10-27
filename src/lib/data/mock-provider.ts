@@ -3955,6 +3955,18 @@ export class MockDataProvider implements DataProvider {
   async adminUpdateSettings(
     data: Partial<OrgSettings>,
   ): Promise<OrgSettings> {
+    if (data.defaultInstructorId) {
+      const instructor = this.state.users.find(
+        (user) => user.id === data.defaultInstructorId,
+      );
+      if (!instructor) {
+        throw new Error(
+          "That default instructor is not a member. Choose someone from the list, or leave it blank.",
+        );
+      }
+    } else if (data.defaultInstructorId === "") {
+      data.defaultInstructorId = null;
+    }
     Object.assign(this.state.settings, data, { updatedAt: this.now() });
     return { ...this.state.settings };
   }
