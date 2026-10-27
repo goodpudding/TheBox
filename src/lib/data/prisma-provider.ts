@@ -1119,7 +1119,11 @@ export async function persistBundleToPrisma(
           bundle.settings.scholarshipFundBalanceCents,
         scholarshipSeatsAwarded: bundle.settings.scholarshipSeatsAwarded,
         showPhase3Tiers: bundle.settings.showPhase3Tiers,
-        defaultInstructorId: bundle.settings.defaultInstructorId ?? null,
+        defaultInstructorId:
+          bundle.settings.defaultInstructorId &&
+          bundle.users.some((user) => user.id === bundle.settings.defaultInstructorId)
+            ? bundle.settings.defaultInstructorId
+            : null,
         defaultClassCapacity: bundle.settings.defaultClassCapacity ?? 8,
         updatedAt: asDate(bundle.settings.updatedAt) ?? new Date(),
       } as any,
@@ -1153,7 +1157,11 @@ export async function persistBundleToPrisma(
           bundle.settings.scholarshipFundBalanceCents,
         scholarshipSeatsAwarded: bundle.settings.scholarshipSeatsAwarded,
         showPhase3Tiers: bundle.settings.showPhase3Tiers,
-        defaultInstructorId: bundle.settings.defaultInstructorId ?? null,
+        defaultInstructorId:
+          bundle.settings.defaultInstructorId &&
+          bundle.users.some((user) => user.id === bundle.settings.defaultInstructorId)
+            ? bundle.settings.defaultInstructorId
+            : null,
         defaultClassCapacity: bundle.settings.defaultClassCapacity ?? 8,
         updatedAt: asDate(bundle.settings.updatedAt) ?? new Date(),
       } as any,

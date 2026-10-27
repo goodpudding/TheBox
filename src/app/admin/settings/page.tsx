@@ -6,11 +6,12 @@ import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { OrgSettings } from "@/lib/data";
+import type { OrgSettings, User } from "@/lib/data";
 
 export default function AdminSettingsPage() {
   const { provider, revision, bump } = useData();
   const [settings, setSettings] = useState<OrgSettings | null>(null);
+  const [instructors, setInstructors] = useState<User[]>([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -18,6 +19,15 @@ export default function AdminSettingsPage() {
   useEffect(() => {
     void (async () => {
       setSettings(await provider.getSettings());
+      const members = await provider.adminListMembers();
+      setInstructors(
+        members.filter(
+          (member) =>
+            member.role === "admin" ||
+            member.role === "staff" ||
+            member.isTeacher,
+        ),
+      );
     })();
   }, [provider, revision]);
 
@@ -128,11 +138,29 @@ export default function AdminSettingsPage() {
           label="Scholarship donation URL"
           defaultValue={settings.scholarshipDonationUrl}
         />
-        <Field
-          id="defaultInstructorId"
-          label="Default class instructor user id"
-          defaultValue={settings.defaultInstructorId ?? ""}
-        />
+        <label className="block space-y-2">
+          <span className="font-display text-sm font-medium text-charcoal">
+            Default class instructor
+          </span>
+          <select
+            id="defaultInstructorId"
+            name="defaultInstructorId"
+            key={`${settings.updatedAt}:${instructors.map((member) => member.id).join(",")}`}
+            defaultValue={
+              instructors.some((member) => member.id === settings.defaultInstructorId)
+                ? (settings.defaultInstructorId ?? "")
+                : ""
+            }
+            className="flex h-11 w-full rounded-full border border-border bg-surface px-4 font-display text-sm text-charcoal"
+          >
+            <option value="">None</option>
+            {instructors.map((member) => (
+              <option key={member.id} value={member.id}>
+                {member.displayName} · {member.email}
+              </option>
+            ))}
+          </select>
+        </label>
         <Field
           id="defaultClassCapacity"
           label="Default class capacity"
