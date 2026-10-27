@@ -55,9 +55,23 @@ export default function JoinPage() {
     })();
   }, [provider, revision]);
 
-  const current = products.filter(
-    (p) => p.phase < 3 && p.visibleOnJoin !== false,
-  );
+  const ladder = [
+    "friend",
+    "day",
+    "community",
+    "maker",
+    "patron",
+    "scholarship",
+    "shop_steward",
+    "household_addon",
+  ];
+  const rank = (tier: string) => {
+    const index = ladder.indexOf(tier);
+    return index === -1 ? ladder.length : index;
+  };
+  const current = products
+    .filter((p) => p.phase < 3 && p.visibleOnJoin !== false)
+    .sort((a, b) => rank(a.tier) - rank(b.tier));
   const coming = products.filter((p) => p.phase === 3);
   const payUrl = zeffyPaymentUrl ?? settings?.paymentUrl;
 
