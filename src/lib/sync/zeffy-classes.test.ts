@@ -134,6 +134,47 @@ describe("planClassSync", () => {
     expect(plan.upserts.some((item) => item.id === "csv" || item.id === "admin")).toBe(false);
   });
 
+  it("does not import a past occurrence and cancels one that already ended", () => {
+    const plan = planClassSync({
+      now: NOW,
+      defaultInstructorId: "u-admin",
+      defaultCapacity: 8,
+      existing: [
+        row({
+          id: "past",
+          title: "Painting with Paul",
+          zeffyCampaignId: "paul",
+          zeffyOccurrenceId: "jan",
+          endsAt: "2026-01-28T22:00:00.000Z",
+        }),
+      ],
+      campaigns: [
+        campaign({
+          id: "paul",
+          title: "Painting with Paul",
+          occurrences: [
+            {
+              id: "jan",
+              start: Date.parse("2026-01-28T20:00:00.000Z") / 1000,
+              end: Date.parse("2026-01-28T22:00:00.000Z") / 1000,
+              is_archived: false,
+            },
+            {
+              id: "nov",
+              start: Date.parse("2026-11-10T20:00:00.000Z") / 1000,
+              end: Date.parse("2026-11-10T22:00:00.000Z") / 1000,
+              is_archived: false,
+            },
+          ],
+        }),
+      ],
+    });
+
+    expect(plan.cancelIds).toEqual(["past"]);
+    expect(plan.created).toBe(1);
+    expect(plan.upserts[0]?.fields.zeffyOccurrenceId).toBe("nov");
+  });
+
   it("keeps staff-edited fields", () => {
     const plan = planClassSync({
       now: NOW,

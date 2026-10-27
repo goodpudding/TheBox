@@ -1413,7 +1413,7 @@ export class MockDataProvider implements DataProvider {
       .filter((c) => !filters?.category || c.category === filters.category)
       .filter(
         (c) =>
-          !filters?.upcomingOnly || new Date(c.startsAt).getTime() >= now,
+          !filters?.upcomingOnly || new Date(c.endsAt).getTime() >= now,
       )
       .sort(
         (a, b) =>
