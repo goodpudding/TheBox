@@ -1,4 +1,5 @@
 import type { Machine, MembershipProduct, MembershipTier } from "@/lib/data/types";
+import { isMakerProUpgradeName } from "@/lib/zeffy/upgrade";
 
 /** Membership Plus ($75 Lamplab rate) grants this on each succeeded payment. */
 export const PLUS_CREDIT_GRANT_CENTS = 5000;
@@ -180,6 +181,7 @@ export function inferCreditGrantCents(input: {
   const summary = (input.summary ?? "").toLowerCase();
   const blob = `${name} ${summary}`;
 
+  if (isMakerProUpgradeName(input.name)) return PLUS_CREDIT_GRANT_CENTS;
   if (/\bunlimited\b/.test(name)) return 0;
   if (/machine credit/.test(blob) || /\$50 of machine/.test(blob)) {
     return PLUS_CREDIT_GRANT_CENTS;

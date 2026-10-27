@@ -4,6 +4,7 @@ import type {
   MembershipTier,
 } from "@/lib/data/types";
 import { inferCreditGrantCents } from "@/lib/credits";
+import { isMakerProUpgradeName } from "@/lib/zeffy/upgrade";
 import type {
   ZeffyCampaign,
   ZeffyPayment,
@@ -46,6 +47,7 @@ export function inferMembershipTier(
   priceCents: number,
 ): MembershipTier {
   const n = name.toLowerCase();
+  if (isMakerProUpgradeName(name)) return "maker_pro";
   if (/\bday pass\b/.test(n) || /(^|\s)day(\s|$)/.test(n)) return "day";
   if (/\bstudent\b/.test(n) || /\byouth\b/.test(n)) return "community";
   if (/\bcommunity\b/.test(n) && !/\blab\b/.test(n)) return "community";
@@ -122,7 +124,7 @@ export function mapRateToMembershipProduct(input: {
     annualPriceCents: null,
     shopAccess: tier !== "friend",
     phase: 1,
-    visibleOnJoin: joinable,
+    visibleOnJoin: joinable && !isMakerProUpgradeName(name),
     joinable,
     highlight,
     sortOrder,
