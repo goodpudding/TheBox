@@ -149,7 +149,7 @@ export async function syncClassesFromZeffy(now = new Date()): Promise<{
   if (plan.cancelIds.length > 0) {
     await prisma.classSession.updateMany({
       where: { id: { in: plan.cancelIds } },
-      data: { cancelledAt: syncedAt, syncedAt },
+      data: { cancelledAt: syncedAt, published: false, syncedAt },
     });
   }
 

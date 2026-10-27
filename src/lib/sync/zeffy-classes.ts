@@ -181,6 +181,9 @@ export function planClassSync(input: {
         zeffyTimeToIso(occurrence.end) ??
         zeffyTimeToIso(campaign.end_date) ??
         startsAt;
+      if (new Date(endsAt).getTime() < input.now.getTime()) {
+        continue;
+      }
       const priceCents = lowestPriceCents(campaign.rates);
       const fields: Omit<ClassSyncRow, "id" | "staffEditedFields"> = {
         title: campaign.title,
@@ -218,14 +221,12 @@ export function planClassSync(input: {
   const cancelIds: string[] = [];
   for (const row of zeffyRows) {
     if (row.cancelledAt) continue;
+    const ended = new Date(row.endsAt).getTime() < input.now.getTime();
     const key = occurrenceKey(
       row.zeffyCampaignId ?? "",
       row.zeffyOccurrenceId ?? SINGLE_OCCURRENCE_ID,
     );
-    if (seen.has(key)) continue;
-    const ended = new Date(row.endsAt).getTime();
-    if (ended < input.now.getTime() - WINDOW_MS) continue;
-    cancelIds.push(row.id);
+    if (ended || !seen.has(key)) cancelIds.push(row.id);
   }
 
   return {

@@ -39,6 +39,7 @@ export default function AdminClassesPage() {
     void (async () => {
       try {
         const rows = await provider.listClasses({
+          upcomingOnly: true,
           includeCancelled: true,
           includeImported: true,
         });
@@ -111,7 +112,7 @@ export default function AdminClassesPage() {
   return (
     <AdminShell
       title="Classes"
-      description="Published sessions (upcoming and past). Create or edit sessions and manage rosters."
+      description="Upcoming sessions. A Zeffy date drops off this list, and off Google Calendar, after it ends."
     >
       <div className="flex flex-wrap items-center gap-3">
         <Button asChild>
