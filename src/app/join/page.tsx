@@ -55,7 +55,9 @@ export default function JoinPage() {
     })();
   }, [provider, revision]);
 
-  const current = products.filter((p) => p.phase < 3);
+  const current = products.filter(
+    (p) => p.phase < 3 && p.visibleOnJoin !== false,
+  );
   const coming = products.filter((p) => p.phase === 3);
   const payUrl = zeffyPaymentUrl ?? settings?.paymentUrl;
 

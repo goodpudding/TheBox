@@ -9,8 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatDateTime } from "@/lib/format";
-import { formatBillingInterval, formatTier } from "@/lib/utils";
-import type { CreditWallet, OrgSettings, WaiverSignature } from "@/lib/data";
+import { formatBillingInterval, formatMoney, formatTier } from "@/lib/utils";
+import type { CreditWallet, MembershipProduct, OrgSettings, WaiverSignature } from "@/lib/data";
+import {
+  currentProductForTier,
+  findMakerProProduct,
+  findUpgradeProduct,
+  upgradeDifferenceCents,
+} from "@/lib/zeffy/upgrade";
 import { CreditWalletPanel } from "@/components/credit-wallet";
 
 export default function AccountPage() {
@@ -26,6 +32,7 @@ function AccountBody() {
   const [settings, setSettings] = useState<OrgSettings | null>(null);
   const [waivers, setWaivers] = useState<WaiverSignature[]>([]);
   const [wallet, setWallet] = useState<CreditWallet | null>(null);
+  const [products, setProducts] = useState<MembershipProduct[]>([]);
   const [saved, setSaved] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +56,7 @@ function AccountBody() {
           await refreshUser();
         }
         setSettings(await provider.getSettings());
+        setProducts(await provider.listMembershipProducts());
         setWaivers(await provider.listWaiverHistory(currentUser.id));
         setWallet(await provider.getCreditWallet(currentUser.id));
         setPinSet(Boolean(currentUser.kioskPinSet));
@@ -159,7 +167,7 @@ function AccountBody() {
         </StatusPill>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-6 flex flex-wrap gap-3">
         <Button asChild>
           <a
             href={settings?.paymentUrl ?? "#"}
@@ -169,6 +177,11 @@ function AccountBody() {
             Manage billing
           </a>
         </Button>
+        <MakerProUpgrade
+          tier={currentUser.tier}
+          products={products}
+          fallbackUrl={settings?.paymentUrl}
+        />
       </div>
 
       {wallet ? (
@@ -334,5 +347,38 @@ function AccountBody() {
         )}
       </section>
     </PageShell>
+  );
+}
+
+function MakerProUpgrade({
+  tier,
+  products,
+  fallbackUrl,
+}: {
+  tier: MembershipProduct["tier"] | null | undefined;
+  products: MembershipProduct[];
+  fallbackUrl?: string | null;
+}) {
+  const pro = findMakerProProduct(products);
+  const current = currentProductForTier(products, tier);
+  const difference = pro ? upgradeDifferenceCents(current, pro) : null;
+  if (!pro || difference == null) return null;
+  const upgrade = findUpgradeProduct(products, difference);
+  const href = upgrade?.zeffyUrl ?? fallbackUrl;
+  if (!href) return null;
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Button asChild variant="outline">
+        <a href={href} target="_blank" rel="noopener noreferrer">
+          Upgrade to Maker Pro · {formatMoney(difference)}
+        </a>
+      </Button>
+      <p className="max-w-sm text-sm text-secondary">
+        {upgrade
+          ? "On Zeffy, choose Upgrade to Maker Pro. That rate is the difference, not another full membership. Next month, switch the recurring rate to Maker Pro."
+          : `Add a Zeffy rate named “Upgrade to Maker Pro” for ${formatMoney(difference)}, then choose that rate. The full Maker Pro rate would charge ${formatMoney(pro.priceCents)} again.`}
+      </p>
+    </div>
   );
 }
