@@ -129,10 +129,12 @@ export async function listAllZeffyCampaigns(): Promise<ZeffyCampaign[]> {
 
 export async function listAllZeffyPayments(options?: {
   campaignId?: string;
+  createdGte?: number;
 }): Promise<ZeffyPayment[]> {
   return pageAll((cursor) =>
     listZeffyPayments({
       campaignId: options?.campaignId,
+      createdGte: options?.createdGte,
       cursor,
       limit: 100,
     }),

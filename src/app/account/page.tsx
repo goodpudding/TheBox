@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { MemberGate } from "@/components/member-gate";
 import { PageHero, PageShell } from "@/components/page-shell";
 import { StatusPill } from "@/components/status-pill";
@@ -33,11 +33,21 @@ function AccountBody() {
   const [pinPending, setPinPending] = useState(false);
   const [pinError, setPinError] = useState<string | null>(null);
   const [pinMessage, setPinMessage] = useState<string | null>(null);
+  const syncedFor = useRef<string | null>(null);
 
   useEffect(() => {
     if (!currentUser) return;
+    const userId = currentUser.id;
     void (async () => {
       try {
+        if (syncedFor.current !== userId) {
+          syncedFor.current = userId;
+          await fetch("/api/account/sync-membership", {
+            method: "POST",
+            cache: "no-store",
+          });
+          await refreshUser();
+        }
         setSettings(await provider.getSettings());
         setWaivers(await provider.listWaiverHistory(currentUser.id));
         setWallet(await provider.getCreditWallet(currentUser.id));
@@ -54,7 +64,7 @@ function AccountBody() {
         setError(err instanceof Error ? err.message : "Could not load your account");
       }
     })();
-  }, [currentUser, provider, revision]);
+  }, [currentUser, provider, revision, refreshUser]);
 
   if (!currentUser) return null;
 
