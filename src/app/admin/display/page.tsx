@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { AdminShell } from "@/components/admin-shell";
 import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { isLiveDataMode } from "@/lib/data/mode";
 import type {
   DisplayConfig,
   DisplayPanelId,
@@ -34,11 +35,16 @@ const ALL_PANELS: DisplayPanelId[] = [
   "membership",
 ];
 
-function displayUrl(token: string): string {
-  const base =
-    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
-    (typeof window !== "undefined" ? window.location.origin : "");
-  return `${base}/display?token=${encodeURIComponent(token)}`;
+const DEV_KIOSK_URL = "/display?token=dev-display-token-change-me";
+
+async function fetchKioskUrl(): Promise<string> {
+  const res = await fetch("/api/admin/display/kiosk-url", { cache: "no-store" });
+  const data = (await res.json().catch(() => null)) as
+    | { url?: string; error?: string }
+    | null;
+  if (res.ok && data?.url) return data.url;
+  if (process.env.NODE_ENV !== "production") return DEV_KIOSK_URL;
+  throw new Error(data?.error ?? "Could not load the kiosk URL");
 }
 
 function emptyPromo(): {
@@ -74,9 +80,26 @@ export default function AdminDisplayPage() {
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const token =
-    process.env.NEXT_PUBLIC_DISPLAY_TOKEN?.trim() ||
-    "dev-display-token-change-me";
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+  const [kioskError, setKioskError] = useState<string | null>(null);
+  const live = isLiveDataMode();
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchKioskUrl().then(
+      (url) => {
+        if (!cancelled) setPreviewSrc(url);
+      },
+      (err: unknown) => {
+        if (!cancelled) {
+          setKioskError(err instanceof Error ? err.message : String(err));
+        }
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     void (async () => {
@@ -88,8 +111,6 @@ export default function AdminDisplayPage() {
       setConfig(c);
     })();
   }, [provider, revision]);
-
-  const previewSrc = useMemo(() => displayUrl(token), [token]);
 
   async function saveConfig(next: Partial<DisplayConfig>) {
     setPending(true);
@@ -156,6 +177,7 @@ export default function AdminDisplayPage() {
   }
 
   async function copyUrl() {
+    if (!previewSrc) return;
     try {
       await navigator.clipboard.writeText(previewSrc);
       setMessage("Display URL copied.");
@@ -175,33 +197,49 @@ export default function AdminDisplayPage() {
         </p>
       ) : null}
       {message ? <p className="mb-4 text-sm text-secondary">{message}</p> : null}
+      {live ? (
+        <p
+          className="mb-6 rounded-2xl border border-border bg-surface/60 px-4 py-3 text-sm text-brown"
+          role="status"
+        >
+          Display settings and promos are not saved on the live site yet.
+        </p>
+      ) : null}
 
       <section className="max-w-3xl">
         <h2 className="font-display text-xl font-semibold text-brown">
           Display URL
         </h2>
         <p className="mt-2 break-all font-mono text-sm text-secondary">
-          {previewSrc}
+          {previewSrc ?? kioskError ?? "Loading…"}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <Button type="button" size="sm" onClick={() => void copyUrl()}>
+          <Button
+            type="button"
+            size="sm"
+            disabled={!previewSrc}
+            onClick={() => void copyUrl()}
+          >
             Copy
           </Button>
-          <Button asChild size="sm" variant="secondary">
-            <a href={previewSrc} target="_blank" rel="noreferrer">
-              Open
-            </a>
-          </Button>
+          {previewSrc ? (
+            <Button asChild size="sm" variant="secondary">
+              <a href={previewSrc} target="_blank" rel="noreferrer">
+                Open
+              </a>
+            </Button>
+          ) : null}
         </div>
         <p className="mt-2 text-sm text-secondary">
-          Set <code className="font-mono">DISPLAY_TOKEN</code> and{" "}
-          <code className="font-mono">NEXT_PUBLIC_DISPLAY_TOKEN</code> to the
-          same long random value in <code className="font-mono">.env</code>.
+          The token in this URL is the{" "}
+          <code className="font-mono">DISPLAY_TOKEN</code> secret on the
+          Worker (Cloudflare dashboard → Settings → Variables and Secrets).
+          Rotate it there if the URL leaks.
         </p>
       </section>
 
       {config ? (
-        <section className="mt-12 max-w-xl space-y-4">
+        <fieldset disabled={live} className="mt-12 max-w-xl space-y-4">
           <h2 className="font-display text-xl font-semibold text-brown">
             Panels
           </h2>
@@ -319,109 +357,111 @@ export default function AdminDisplayPage() {
               )}
             </div>
           </div>
-        </section>
+        </fieldset>
       ) : null}
 
       <section className="mt-12 max-w-xl">
         <h2 className="font-display text-xl font-semibold text-brown">
           {form.id ? "Edit promo" : "New promo"}
         </h2>
-        <form onSubmit={onSavePromo} className="mt-4 space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="title">Title</Label>
-            <Input
-              id="title"
-              required
-              value={form.title}
-              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="body">Body</Label>
-            <Textarea
-              id="body"
-              required
-              value={form.body}
-              onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="imageUrl">Image URL</Label>
-            <Input
-              id="imageUrl"
-              value={form.imageUrl}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, imageUrl: e.target.value }))
-              }
-            />
-            <Input
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void onUpload(file).catch((err) => setError(String(err)));
-              }}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="qrUrl">QR target URL</Label>
-            <Input
-              id="qrUrl"
-              value={form.qrUrl}
-              onChange={(e) => setForm((f) => ({ ...f, qrUrl: e.target.value }))}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
+        <form onSubmit={onSavePromo} className="mt-4">
+          <fieldset disabled={live} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="startsAt">Starts</Label>
+              <Label htmlFor="title">Title</Label>
               <Input
-                id="startsAt"
-                type="datetime-local"
+                id="title"
                 required
-                value={form.startsAt}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, startsAt: e.target.value }))
-                }
+                value={form.title}
+                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="endsAt">Ends</Label>
-              <Input
-                id="endsAt"
-                type="datetime-local"
+              <Label htmlFor="body">Body</Label>
+              <Textarea
+                id="body"
                 required
-                value={form.endsAt}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, endsAt: e.target.value }))
-                }
+                value={form.body}
+                onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
               />
             </div>
-          </div>
-          <label className="flex items-center gap-3 text-sm">
-            <input
-              type="checkbox"
-              checked={form.active}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, active: e.target.checked }))
-              }
-              className="size-4 accent-brown"
-            />
-            Active
-          </label>
-          <div className="flex gap-2">
-            <Button type="submit" disabled={pending}>
-              {pending ? "Saving…" : form.id ? "Save promo" : "Create promo"}
-            </Button>
-            {form.id ? (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setForm(emptyPromo())}
-              >
-                Clear
+            <div className="space-y-2">
+              <Label htmlFor="imageUrl">Image URL</Label>
+              <Input
+                id="imageUrl"
+                value={form.imageUrl}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, imageUrl: e.target.value }))
+                }
+              />
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void onUpload(file).catch((err) => setError(String(err)));
+                }}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="qrUrl">QR target URL</Label>
+              <Input
+                id="qrUrl"
+                value={form.qrUrl}
+                onChange={(e) => setForm((f) => ({ ...f, qrUrl: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="startsAt">Starts</Label>
+                <Input
+                  id="startsAt"
+                  type="datetime-local"
+                  required
+                  value={form.startsAt}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, startsAt: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="endsAt">Ends</Label>
+                <Input
+                  id="endsAt"
+                  type="datetime-local"
+                  required
+                  value={form.endsAt}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, endsAt: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+            <label className="flex items-center gap-3 text-sm">
+              <input
+                type="checkbox"
+                checked={form.active}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, active: e.target.checked }))
+                }
+                className="size-4 accent-brown"
+              />
+              Active
+            </label>
+            <div className="flex gap-2">
+              <Button type="submit" disabled={pending}>
+                {pending ? "Saving…" : form.id ? "Save promo" : "Create promo"}
               </Button>
-            ) : null}
-          </div>
+              {form.id ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setForm(emptyPromo())}
+                >
+                  Clear
+                </Button>
+              ) : null}
+            </div>
+          </fieldset>
         </form>
       </section>
 
@@ -443,7 +483,7 @@ export default function AdminDisplayPage() {
                   {p.active ? "" : " · inactive"}
                 </p>
               </div>
-              <div className="flex gap-2">
+              <fieldset disabled={live} className="flex gap-2">
                 <Button
                   type="button"
                   size="sm"
@@ -474,7 +514,7 @@ export default function AdminDisplayPage() {
                 >
                   Delete
                 </Button>
-              </div>
+              </fieldset>
             </li>
           ))}
         </ul>
@@ -484,11 +524,13 @@ export default function AdminDisplayPage() {
         <h2 className="font-display text-xl font-semibold text-brown">
           Live preview
         </h2>
-        <iframe
-          title="Lobby display preview"
-          src={previewSrc}
-          className="mt-4 h-[480px] w-full max-w-4xl rounded-2xl border border-border bg-page"
-        />
+        {previewSrc ? (
+          <iframe
+            title="Lobby display preview"
+            src={previewSrc}
+            className="mt-4 h-[480px] w-full max-w-4xl rounded-2xl border border-border bg-page"
+          />
+        ) : null}
       </section>
     </AdminShell>
   );

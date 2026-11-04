@@ -1095,7 +1095,7 @@ export class MockDataProvider implements DataProvider {
     const instructor = board.instructorHintUserId
       ? this.state.users.find((u) => u.id === board.instructorHintUserId)
       : null;
-    return {
+    const view: ClassInterestBoardView = {
       ...board,
       interestCount,
       viewerSignedUp,
@@ -1103,6 +1103,34 @@ export class MockDataProvider implements DataProvider {
       proposedByDisplayName: proposedBy?.displayName ?? board.contactName,
       instructorHintDisplayName: instructor?.displayName ?? null,
     };
+    const isProposer =
+      !!this.currentUserId && board.proposedByUserId === this.currentUserId;
+    if (!this.viewerIsStaff() && !isProposer) {
+      delete view.contactEmail;
+      delete view.contactName;
+      delete view.staffNotes;
+      delete view.reviewedById;
+    }
+    return view;
+  }
+
+  /** Non-staff see live boards and their own proposals, not pending/rejected/expired ones. */
+  private interestBoardVisible(board: ClassInterestBoard): boolean {
+    if (
+      board.status === "open" ||
+      board.status === "ready" ||
+      board.status === "scheduled"
+    ) {
+      return true;
+    }
+    return !!this.currentUserId && board.proposedByUserId === this.currentUserId;
+  }
+
+  private viewerIsStaff(): boolean {
+    if (!this.currentUserId) return false;
+    return isStaffRole(
+      this.state.users.find((u) => u.id === this.currentUserId) ?? null,
+    );
   }
 
   private assertInterestPriority(classSessionId: string, userId: string): void {
@@ -1144,6 +1172,8 @@ export class MockDataProvider implements DataProvider {
       boards = boards.filter(
         (b) => b.status === "open" || b.status === "ready",
       );
+    } else if (!this.viewerIsStaff()) {
+      boards = boards.filter((b) => this.interestBoardVisible(b));
     }
     if (filters?.proposedByUserId) {
       boards = boards.filter(
@@ -1173,6 +1203,7 @@ export class MockDataProvider implements DataProvider {
       (b) => b.id === id && !b.deletedAt,
     );
     if (!board) return null;
+    if (!this.viewerIsStaff() && !this.interestBoardVisible(board)) return null;
     return this.toInterestView(
       board,
       viewerUserId ?? this.currentUserId,
@@ -1425,6 +1456,9 @@ export class MockDataProvider implements DataProvider {
   async getClass(id: string): Promise<ClassSessionView | null> {
     const session = this.state.classSessions.find((c) => c.id === id);
     if (!session) return null;
+    if ((!session.published || session.deletedAt) && !this.viewerIsStaff()) {
+      return null;
+    }
     return this.toClassView(session, this.currentUserId);
   }
 
@@ -2238,10 +2272,15 @@ export class MockDataProvider implements DataProvider {
     const claimer = bounty.claimedByUserId
       ? this.state.users.find((u) => u.id === bounty.claimedByUserId)
       : undefined;
-    return {
+    const view: BountyView = {
       ...bounty,
       claimedByDisplayName: claimer?.displayName ?? null,
     };
+    if (!this.currentUserId) {
+      delete view.requesterEmail;
+      delete view.userId;
+    }
+    return view;
   }
 
   async listBounties(filters?: {

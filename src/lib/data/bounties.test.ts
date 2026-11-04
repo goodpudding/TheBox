@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createMockDataProvider } from "./mock-provider";
 import { canClaimBounty, isDisplayBounty } from "./bounties";
 
@@ -58,8 +58,11 @@ describe("bounty board", () => {
   });
 
   it("puts open and recently claimed bounties on the lobby feed, not completed", async () => {
+    // The aprons fixture was claimed 2026-10-20; stay inside the display window.
+    vi.useFakeTimers({ now: new Date("2026-10-25T12:00:00-07:00"), toFake: ["Date"] });
     const provider = createMockDataProvider(null);
     const feed = await provider.getDisplayFeed();
+    vi.useRealTimers();
     const ids = feed.bounties.map((b) => b.id);
     expect(ids).toContain("bounty-open-sign");
     expect(ids).toContain("bounty-claimed-aprons");

@@ -365,7 +365,11 @@ export interface BountyRequestInput {
   userId?: string | null;
 }
 
-export interface BountyView extends Bounty {
+/** requesterEmail and userId are omitted for anonymous viewers. */
+export interface BountyView
+  extends Omit<Bounty, "requesterEmail" | "userId"> {
+  requesterEmail?: string;
+  userId?: string | null;
   claimedByDisplayName?: string | null;
 }
 
@@ -523,7 +527,16 @@ export interface ClassInterestBoardAdminUpdate {
   reviewedById?: string | null;
 }
 
-export interface ClassInterestBoardView extends ClassInterestBoard {
+/** Contact and review fields are only present for staff and the proposer. */
+export interface ClassInterestBoardView
+  extends Omit<
+    ClassInterestBoard,
+    "contactEmail" | "contactName" | "staffNotes" | "reviewedById"
+  > {
+  contactEmail?: string;
+  contactName?: string;
+  staffNotes?: string | null;
+  reviewedById?: string | null;
   interestCount: number;
   viewerSignedUp: boolean;
   daysRemaining: number | null;

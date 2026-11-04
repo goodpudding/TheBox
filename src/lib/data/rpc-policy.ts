@@ -50,7 +50,7 @@ export const RPC_RULES = {
   getModule: { access: "public", arg: -1 },
   markLessonComplete: { access: "user", arg: 1 },
   markVideoWatched: { access: "user", arg: 1 },
-  getQuestionBank: { access: "user", arg: -1 },
+  getQuestionBank: { access: "staff", arg: -1 },
   startQuiz: { access: "user", arg: 1 },
   submitQuiz: { access: "user", arg: 0, field: "userId" },
   getModulePublishReadiness: { access: "staff", arg: -1 },
@@ -99,7 +99,7 @@ export const RPC_RULES = {
   getInterestBoard: { access: "public", arg: 1 },
   proposeInterestBoard: { access: "public", arg: 0, field: "proposedByUserId" },
   joinInterestBoard: { access: "public", arg: 0, field: "userId" },
-  leaveInterestBoard: { access: "public", arg: 1, field: "userId" },
+  leaveInterestBoard: { access: "user", arg: 1, field: "userId" },
   listInterestSignups: { access: "staff", arg: -1 },
   resuggestInterestBoard: { access: "user", arg: 1 },
   adminListMembers: { access: "staff", arg: -1 },
@@ -156,8 +156,10 @@ export const RPC_RULES = {
   adminSyncContent: { access: "staff", arg: -1 },
   adminUpdateSettings: { access: "staff", arg: -1 },
   adminListAuditEvents: { access: "staff", arg: -1 },
-  getDisplayFeed: { access: "public", arg: -1 },
-  getMachineStatus: { access: "public", arg: -1 },
+  // The kiosk reads the feed from /api/display/feed with the display token.
+  getDisplayFeed: { access: "staff", arg: -1 },
+  // /reserve shows live floor status to signed-in members.
+  getMachineStatus: { access: "user", arg: -1 },
   listPromos: { access: "staff", arg: -1 },
   savePromo: { access: "staff", arg: -1 },
   deletePromo: { access: "staff", arg: -1 },
@@ -232,7 +234,7 @@ export async function handleDataRpc(input: {
     return { status: 403, body: { ok: false, error: "Not available in production" } };
   }
 
-  if (!(method in RPC_RULES)) {
+  if (!Object.hasOwn(RPC_RULES, method)) {
     return { status: 400, body: { ok: false, error: `Unknown method: ${method}` } };
   }
 
@@ -260,6 +262,12 @@ export async function handleDataRpc(input: {
   const pinned = staff
     ? args
     : pinArgs(name, args, input.sessionUser?.id ?? null);
+  if (!staff && name === "leaveInterestBoard") {
+    pinned[1] = {
+      ...(pinned[1] as Record<string, unknown>),
+      email: input.sessionUser?.email ?? null,
+    };
+  }
 
   const fn = input.provider[name] as (...a: unknown[]) => Promise<unknown>;
   try {

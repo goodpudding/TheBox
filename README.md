@@ -280,7 +280,7 @@ Firmware for **ESP32 + PN532 + Shelly Smart Plug** lives in [`firmware/esp32-rea
 
 ## Lobby display (kiosk TV)
 
-Full-screen `/display?token=…` for a stick PC or Raspberry Pi in Chromium kiosk mode. Protected by `DISPLAY_TOKEN` (must match `NEXT_PUBLIC_DISPLAY_TOKEN`). Polls `/api/display/feed` every 60s.
+Full-screen `/display?token=…` for a stick PC or Raspberry Pi in Chromium kiosk mode. Protected by the `DISPLAY_TOKEN` Worker secret. Staff copy the full kiosk URL from **Admin → Display**, which builds it server-side so the token never ships in client JavaScript. Polls `/api/display/feed` every 60s.
 
 ```bash
 # Example Chromium kiosk (Linux)

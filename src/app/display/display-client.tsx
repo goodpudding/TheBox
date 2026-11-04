@@ -12,8 +12,10 @@ import { PanelPromos } from "@/components/display/panel-promos";
 import { PanelMembership } from "@/components/display/panel-membership";
 import { PanelBounties } from "@/components/display/panel-bounties";
 import type { DisplayFeed, DisplayPanelId } from "@/lib/data";
+import { laParts } from "@/lib/data/display-feed";
 
 const POLL_MS = 60_000;
+const FETCH_TIMEOUT_MS = 20_000;
 const NIGHTLY_RELOAD_HOUR = 4;
 
 function panelHasContent(id: DisplayPanelId, feed: DisplayFeed): boolean {
@@ -57,7 +59,7 @@ function buildRotation(feed: DisplayFeed, cycle: number): DisplayPanelId[] {
 export default function DisplayClient() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
-  const { provider, revision } = useData();
+  const { revision } = useData();
 
   const [feed, setFeed] = useState<DisplayFeed | null>(null);
   const [denied, setDenied] = useState(false);
@@ -69,10 +71,12 @@ export default function DisplayClient() {
   const [nowTick, setNowTick] = useState(0);
 
   const loadFeed = useCallback(async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     try {
       const res = await fetch(
         `/api/display/feed?token=${encodeURIComponent(token)}`,
-        { cache: "no-store" },
+        { cache: "no-store", signal: controller.signal },
       );
       if (res.status === 401) {
         setDenied(true);
@@ -80,16 +84,6 @@ export default function DisplayClient() {
       }
       if (!res.ok) throw new Error(`Feed ${res.status}`);
       const apiFeed = (await res.json()) as DisplayFeed;
-      try {
-        const liveMachines = await provider.getMachineStatus();
-        apiFeed.machines = liveMachines;
-        const live = await provider.getDisplayFeed();
-        apiFeed.todayReservations = live.todayReservations;
-        apiFeed.todaySessions = live.todaySessions;
-        if (live.bounties) apiFeed.bounties = live.bounties;
-      } catch {
-        /* keep API feed */
-      }
       setFeed(apiFeed);
       setFetchedAt(Date.now());
       setStaleMinutes(null);
@@ -103,8 +97,10 @@ export default function DisplayClient() {
         }
         return prev;
       });
+    } finally {
+      clearTimeout(timeout);
     }
-  }, [token, provider]);
+  }, [token]);
 
   useEffect(() => {
     if (!token) {
@@ -123,7 +119,7 @@ export default function DisplayClient() {
 
   useEffect(() => {
     const id = setInterval(() => {
-      if (new Date().getHours() === NIGHTLY_RELOAD_HOUR) {
+      if (laParts(new Date()).hour === NIGHTLY_RELOAD_HOUR) {
         window.location.reload();
       }
     }, 30 * 60_000);

@@ -7,6 +7,7 @@ import { StatusPill } from "@/components/status-pill";
 import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { formatWishlistPrice } from "@/lib/data/wishlist";
+import { isLiveDataMode } from "@/lib/data/mode";
 import { formatDateTime } from "@/lib/format";
 import type {
   WishlistCatalog,
@@ -21,6 +22,7 @@ export default function AdminWishlistPage() {
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const live = isLiveDataMode();
 
   useEffect(() => {
     void (async () => {
@@ -82,6 +84,15 @@ export default function AdminWishlistPage() {
         item until staff (or a matching Zeffy payment) mark it purchased.
       </p>
 
+      {live ? (
+        <p
+          className="mb-8 rounded-2xl border border-border bg-surface/60 px-4 py-3 text-sm text-brown"
+          role="status"
+        >
+          Purchase reports and “Mark purchased” are not saved on the live site
+          yet. Track donated items by email until this is turned on.
+        </p>
+      ) : null}
       {error ? (
         <p className="mb-4 rounded-2xl border border-accent/40 bg-accent/15 px-4 py-3 text-brown">
           {error}
@@ -124,7 +135,7 @@ export default function AdminWishlistPage() {
                   </div>
                   <StatusPill tone="warn">Pending</StatusPill>
                 </div>
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className={live ? "hidden" : "mt-4 flex flex-wrap gap-2"}>
                   <Button
                     size="sm"
                     disabled={pendingId !== null}
@@ -161,7 +172,7 @@ export default function AdminWishlistPage() {
         )}
       </section>
 
-      <section className="mt-14">
+      <section className={live ? "hidden" : "mt-14"}>
         <p className="eyebrow">Still needed</p>
         <h2 className="mt-2 font-display text-xl font-semibold text-brown">
           Mark purchased

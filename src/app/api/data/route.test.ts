@@ -104,6 +104,77 @@ describe("/api/data", () => {
     expect(adminUpdateMemberStatus).not.toHaveBeenCalled();
   });
 
+  it("rejects the display feed for a member", async () => {
+    const member = user("member-1", "member");
+    const getDisplayFeed = vi.fn();
+    auth.mockResolvedValue({ user: { id: member.id } });
+    createServerDataProvider.mockResolvedValue(provider(member, { getDisplayFeed }));
+    const res = await post({ method: "getDisplayFeed", args: [] });
+    expect(res.status).toBe(403);
+    expect(getDisplayFeed).not.toHaveBeenCalled();
+  });
+
+  it("rejects machine status for an anonymous caller", async () => {
+    const getMachineStatus = vi.fn();
+    auth.mockResolvedValue(null);
+    createServerDataProvider.mockResolvedValue(provider(null, { getMachineStatus }));
+    const res = await post({ method: "getMachineStatus", args: [] });
+    expect(res.status).toBe(401);
+    expect(getMachineStatus).not.toHaveBeenCalled();
+  });
+
+  it("rejects the question bank for a member", async () => {
+    const member = user("member-1", "member");
+    const getQuestionBank = vi.fn();
+    auth.mockResolvedValue({ user: { id: member.id } });
+    createServerDataProvider.mockResolvedValue(provider(member, { getQuestionBank }));
+    const res = await post({ method: "getQuestionBank", args: ["module-1"] });
+    expect(res.status).toBe(403);
+    expect(getQuestionBank).not.toHaveBeenCalled();
+  });
+
+  it.each(["__proto__", "constructor", "toString", "hasOwnProperty"])(
+    "rejects inherited property %s as an unknown method",
+    async (method) => {
+      auth.mockResolvedValue(null);
+      createServerDataProvider.mockResolvedValue(provider(null));
+      const res = await post({ method, args: [] });
+      expect(res.status).toBe(400);
+    },
+  );
+
+  it("leaveInterestBoard ignores a spoofed email from a member", async () => {
+    const member = user("member-1", "member");
+    const leaveInterestBoard = vi.fn(async () => {});
+    auth.mockResolvedValue({ user: { id: member.id } });
+    createServerDataProvider.mockResolvedValue(
+      provider(member, { leaveInterestBoard }),
+    );
+    const res = await post({
+      method: "leaveInterestBoard",
+      args: ["board-1", { userId: "victim", email: "victim@example.com" }],
+    });
+    expect(res.status).toBe(200);
+    expect(leaveInterestBoard).toHaveBeenCalledWith("board-1", {
+      userId: "member-1",
+      email: "member-1@example.com",
+    });
+  });
+
+  it("leaveInterestBoard requires sign-in", async () => {
+    const leaveInterestBoard = vi.fn(async () => {});
+    auth.mockResolvedValue(null);
+    createServerDataProvider.mockResolvedValue(
+      provider(null, { leaveInterestBoard }),
+    );
+    const res = await post({
+      method: "leaveInterestBoard",
+      args: ["board-1", { email: "victim@example.com" }],
+    });
+    expect(res.status).toBe(401);
+    expect(leaveInterestBoard).not.toHaveBeenCalled();
+  });
+
   it("rejects the dev toolbar switch in production", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("NEXT_PUBLIC_DEMO_MODE", "");

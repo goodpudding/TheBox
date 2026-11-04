@@ -17,6 +17,7 @@ import {
   WISHLIST_PRICE_BANDS,
   type WishlistPriceBandId,
 } from "@/lib/data/wishlist";
+import { isLiveDataMode } from "@/lib/data/mode";
 import type {
   OrgSettings,
   WishlistCatalog,
@@ -60,6 +61,8 @@ export default function WishlistPage() {
   const [message, setMessage] = useState<string | null>(null);
 
   const isStaff = canMarkWishlistPurchased(currentUser);
+  // Purchase reports and item status are not persisted on the live site yet.
+  const canReport = !isLiveDataMode();
 
   useEffect(() => {
     let cancelled = false;
@@ -230,8 +233,10 @@ export default function WishlistPage() {
                 {contact}
               </a>
               , talk to staff in the shop, or message us on the makerspace
-              Discord. You can also tap “I bought this” below — that stays
-              pending until staff confirm, so the item stays on the list.
+              Discord.
+              {canReport
+                ? " You can also tap “I bought this” below — that stays pending until staff confirm, so the item stays on the list."
+                : null}
             </p>
           </div>
           <div className="rounded-2xl border border-border bg-surface p-5">
@@ -345,6 +350,7 @@ export default function WishlistPage() {
                   key={item.id}
                   item={item}
                   isStaff={isStaff}
+                  canReport={canReport}
                   contactEmail={contact}
                   currentUser={currentUser}
                   reporting={reportingId === item.id}
@@ -399,6 +405,7 @@ export default function WishlistPage() {
 function WishlistRow({
   item,
   isStaff,
+  canReport,
   contactEmail,
   currentUser,
   reporting,
@@ -409,6 +416,7 @@ function WishlistRow({
 }: {
   item: WishlistItemView;
   isStaff: boolean;
+  canReport: boolean;
   contactEmail: string;
   currentUser: { displayName: string; email: string } | null;
   reporting: boolean;
@@ -473,15 +481,23 @@ function WishlistRow({
             <a href={`mailto:${contactEmail}`}>Talk to us</a>
           </Button>
         )}
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={onToggleReport}
-        >
-          I bought this
-        </Button>
-        {isStaff ? (
+        {canReport ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={onToggleReport}
+          >
+            I bought this
+          </Button>
+        ) : (
+          <Button asChild size="sm" variant="ghost">
+            <a href={`mailto:${contactEmail}?subject=${encodeURIComponent(`I bought: ${item.name}`)}`}>
+              I bought this — email us
+            </a>
+          </Button>
+        )}
+        {isStaff && canReport ? (
           <Button
             type="button"
             size="sm"
@@ -493,7 +509,7 @@ function WishlistRow({
           </Button>
         ) : null}
       </div>
-      {reporting ? (
+      {reporting && canReport ? (
         <form
           onSubmit={onReport}
           className="mt-5 max-w-xl space-y-3 rounded-2xl border border-border bg-surface/60 p-5"

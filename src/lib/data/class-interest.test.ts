@@ -76,6 +76,63 @@ describe("class interest boards", () => {
     expect(next.status).toBe("pending");
   });
 
+  it("hides contact and review fields from other viewers", async () => {
+    const provider = createMockDataProvider("u-jordan");
+    const pending = await provider.proposeInterestBoard({
+      title: "Member idea",
+      summary: "Needs review",
+      contactName: "Jordan",
+      contactEmail: "jordan@example.com",
+      proposedByUserId: "u-jordan",
+    });
+    const mine = await provider.getInterestBoard(pending.id);
+    expect(mine?.contactEmail).toBe("jordan@example.com");
+    expect(
+      (await provider.listInterestBoards()).map((b) => b.id),
+    ).toContain(pending.id);
+
+    await provider.setCurrentUserId("u-maya");
+    expect(await provider.getInterestBoard(pending.id)).toBeNull();
+    const listed = await provider.listInterestBoards();
+    expect(listed.map((b) => b.id)).not.toContain(pending.id);
+    for (const board of listed) {
+      if (board.proposedByUserId === "u-maya") continue;
+      expect(board).not.toHaveProperty("contactEmail");
+      expect(board).not.toHaveProperty("staffNotes");
+    }
+
+    await provider.setCurrentUserId(null);
+    const open = (await provider.listInterestBoards({ publicOnly: true }))[0];
+    expect(open).toBeTruthy();
+    expect(open).not.toHaveProperty("contactName");
+    expect(open).not.toHaveProperty("reviewedById");
+
+    await provider.setCurrentUserId("u-admin");
+    const staffView = await provider.getInterestBoard(pending.id);
+    expect(staffView?.contactEmail).toBe("jordan@example.com");
+  });
+
+  it("strips bounty requester details for anonymous viewers", async () => {
+    const provider = createMockDataProvider(null);
+    const [bounty] = await provider.listBounties();
+    expect(bounty).toBeTruthy();
+    expect(bounty).not.toHaveProperty("requesterEmail");
+    expect(bounty).not.toHaveProperty("userId");
+    await provider.setCurrentUserId("u-maya");
+    expect((await provider.listBounties())[0]).toHaveProperty("requesterEmail");
+  });
+
+  it("hides unpublished classes from non-staff", async () => {
+    const provider = createMockDataProvider("u-admin");
+    const session = (await provider.listClasses({ upcomingOnly: true }))[0]!;
+    await provider.adminUpsertClass({ ...session, published: false });
+    expect(await provider.getClass(session.id)).not.toBeNull();
+    await provider.setCurrentUserId("u-maya");
+    expect(await provider.getClass(session.id)).toBeNull();
+    await provider.setCurrentUserId(null);
+    expect(await provider.getClass(session.id)).toBeNull();
+  });
+
   it("gates booking during priority window", async () => {
     const provider = createMockDataProvider("u-admin");
     const classes = await provider.listClasses({ upcomingOnly: true });

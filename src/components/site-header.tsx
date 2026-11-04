@@ -9,7 +9,7 @@ import { BrandMark } from "@/components/brand-logo";
 import { useData } from "@/components/providers";
 import { isLiveDataMode } from "@/lib/data/mode";
 import { cn } from "@/lib/utils";
-import type { Role } from "@/lib/data";
+import { canScheduleMaintenance, type Role } from "@/lib/data";
 
 const publicLinks = [
   { href: "/join", label: "Join" },
@@ -80,32 +80,16 @@ function memberNavClass(active: boolean, mobile = false) {
 export function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const { currentUser, switchUser, clearCurrentUser, provider, revision } = useData();
+  const { currentUser, switchUser, clearCurrentUser } = useData();
   const [open, setOpen] = useState(false);
   const [youOpen, setYouOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
-  const [canMaintenance, setCanMaintenance] = useState(false);
+  const canMaintenance = canScheduleMaintenance(currentUser);
   const youRef = useRef<HTMLDivElement>(null);
   const youMenuId = useId();
 
   const isStaff =
     currentUser?.role === "staff" || currentUser?.role === "admin";
-
-  useEffect(() => {
-    if (!currentUser) {
-      setCanMaintenance(false);
-      return;
-    }
-    let cancelled = false;
-    void provider.getToolChampionProgress(currentUser.id).then((p) => {
-      if (!cancelled) setCanMaintenance(p.canScheduleMaintenance);
-    }).catch(() => {
-      if (!cancelled) setCanMaintenance(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [currentUser, provider, revision]);
 
   useEffect(() => {
     setYouOpen(false);

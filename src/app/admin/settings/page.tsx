@@ -302,8 +302,9 @@ export default function AdminSettingsPage() {
             Lobby display token
           </p>
           <p className="mt-2 text-sm text-secondary">
-            Set DISPLAY_TOKEN and NEXT_PUBLIC_DISPLAY_TOKEN in .env to the same
-            long random value. Manage promos and panel rotation under Admin →
+            The kiosk token is the DISPLAY_TOKEN secret on the Worker
+            (Cloudflare dashboard → Settings → Variables and Secrets). Copy the
+            kiosk URL, and manage promos and panel rotation, under Admin →
             Display.
           </p>
         </div>

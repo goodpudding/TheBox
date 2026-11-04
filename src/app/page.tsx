@@ -6,10 +6,11 @@ import { useData } from "@/components/providers";
 import { PageShell } from "@/components/page-shell";
 
 export default function HomePage() {
-  const { provider, currentUser, revision } = useData();
+  const { provider, currentUser, revision, sessionResolved } = useData();
   const router = useRouter();
 
   useEffect(() => {
+    if (!sessionResolved) return;
     void (async () => {
       if (!currentUser) {
         router.replace("/join");
@@ -22,7 +23,7 @@ export default function HomePage() {
       }
       router.replace("/dashboard");
     })();
-  }, [currentUser, provider, revision, router]);
+  }, [currentUser, provider, revision, router, sessionResolved]);
 
   return (
     <PageShell>

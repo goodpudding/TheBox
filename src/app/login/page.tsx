@@ -1,17 +1,38 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { Suspense, useState, type FormEvent } from "react";
+import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { PageHero, PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+/** Auth.js sends `?error=` here (pages.error); NoAccount comes from providers.tsx. */
+const ERROR_MESSAGES: Record<string, string> = {
+  Verification: "That link expired, request a new one.",
+  NoAccount: "We couldn't find an account for this email.",
+};
+
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
+  const searchParams = useSearchParams();
+  const errorCode = searchParams.get("error");
   const [email, setEmail] = useState("");
   const [pending, setPending] = useState(false);
   const [sent, setSent] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    errorCode
+      ? (ERROR_MESSAGES[errorCode] ?? "Sign-in failed. Request a new link.")
+      : null,
+  );
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -19,8 +40,7 @@ export default function LoginPage() {
     setError(null);
     try {
       const callbackUrl = (() => {
-        if (typeof window === "undefined") return "/";
-        const raw = new URLSearchParams(window.location.search).get("callbackUrl");
+        const raw = searchParams.get("callbackUrl");
         if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/";
         return raw;
       })();
