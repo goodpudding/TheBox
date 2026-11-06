@@ -45,24 +45,45 @@ const ARRAY_KEYS = [
   "itemEvents",
 ] as const;
 
+export type ArrayKey = (typeof ARRAY_KEYS)[number];
+
+export function removedIds(
+  prev: { id: string }[] | undefined,
+  next: { id: string }[],
+): string[] {
+  const kept = new Set(next.map((row) => row.id));
+  return (prev ?? []).filter((row) => !kept.has(row.id)).map((row) => row.id);
+}
+
 export function sliceChangedBundle(
   previous: MockFixtureBundle,
   next: MockFixtureBundle,
-): { bundle: MockFixtureBundle; settingsChanged: boolean; empty: boolean } {
+): {
+  bundle: MockFixtureBundle;
+  removed: Partial<Record<ArrayKey, string[]>>;
+  settingsChanged: boolean;
+  empty: boolean;
+} {
   const sliced = { ...next };
+  const removed: Partial<Record<ArrayKey, string[]>> = {};
   let any = false;
   for (const key of ARRAY_KEYS) {
-    const rows = changedRows(
-      previous[key] as { id: string }[] | undefined,
-      (next[key] ?? []) as { id: string }[],
-    );
+    const prevRows = previous[key] as { id: string }[] | undefined;
+    const nextRows = (next[key] ?? []) as { id: string }[];
+    const rows = changedRows(prevRows, nextRows);
     (sliced[key] as unknown) = rows;
     if (rows.length > 0) any = true;
+    const gone = removedIds(prevRows, nextRows);
+    if (gone.length > 0) {
+      removed[key] = gone;
+      any = true;
+    }
   }
   const settingsChanged =
     JSON.stringify(previous.settings) !== JSON.stringify(next.settings);
   return {
     bundle: sliced,
+    removed,
     settingsChanged,
     empty: !any && !settingsChanged,
   };

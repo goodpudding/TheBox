@@ -62,17 +62,16 @@ export function DevToolbar() {
                 ? "Demo · mock data only"
                 : "Mock data · session writes only"}
             </span>
-            <a
-              href={`/display?token=${encodeURIComponent(
-                process.env.NEXT_PUBLIC_DISPLAY_TOKEN?.trim() ||
-                  "dev-display-token-change-me",
-              )}`}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-full border border-white/25 px-3 py-1.5 font-display text-xs font-semibold text-white hover:bg-white/10"
-            >
-              Lobby display
-            </a>
+            {process.env.NODE_ENV !== "production" ? (
+              <a
+                href="/display?token=dev-display-token-change-me"
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-full border border-white/25 px-3 py-1.5 font-display text-xs font-semibold text-white hover:bg-white/10"
+              >
+                Lobby display
+              </a>
+            ) : null}
           </>
         ) : null}
         </div>

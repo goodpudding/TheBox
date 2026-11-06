@@ -969,13 +969,22 @@ export async function persistBundleToPrisma(
 ): Promise<void> {
   let settingsChanged = true;
   let toWrite = bundle;
+  let removed: ReturnType<typeof sliceChangedBundle>["removed"] = {};
+  // The delta below only carries changed users, so validate against all of them.
+  const knownUserIds = new Set(bundle.users.map((u) => u.id));
   if (previous) {
     const sliced = sliceChangedBundle(previous, bundle);
     if (sliced.empty) return;
     toWrite = sliced.bundle;
+    removed = sliced.removed;
     settingsChanged = sliced.settingsChanged;
   }
   bundle = toWrite;
+  const defaultInstructorId =
+    bundle.settings.defaultInstructorId &&
+    knownUserIds.has(bundle.settings.defaultInstructorId)
+      ? bundle.settings.defaultInstructorId
+      : null;
 
   // D1 rejects interactive prisma.$transaction(async () => ...).
   // These upserts run one after another on the root client.
@@ -1119,11 +1128,7 @@ export async function persistBundleToPrisma(
           bundle.settings.scholarshipFundBalanceCents,
         scholarshipSeatsAwarded: bundle.settings.scholarshipSeatsAwarded,
         showPhase3Tiers: bundle.settings.showPhase3Tiers,
-        defaultInstructorId:
-          bundle.settings.defaultInstructorId &&
-          bundle.users.some((user) => user.id === bundle.settings.defaultInstructorId)
-            ? bundle.settings.defaultInstructorId
-            : null,
+        defaultInstructorId,
         defaultClassCapacity: bundle.settings.defaultClassCapacity ?? 8,
         updatedAt: asDate(bundle.settings.updatedAt) ?? new Date(),
       } as any,
@@ -1157,11 +1162,7 @@ export async function persistBundleToPrisma(
           bundle.settings.scholarshipFundBalanceCents,
         scholarshipSeatsAwarded: bundle.settings.scholarshipSeatsAwarded,
         showPhase3Tiers: bundle.settings.showPhase3Tiers,
-        defaultInstructorId:
-          bundle.settings.defaultInstructorId &&
-          bundle.users.some((user) => user.id === bundle.settings.defaultInstructorId)
-            ? bundle.settings.defaultInstructorId
-            : null,
+        defaultInstructorId,
         defaultClassCapacity: bundle.settings.defaultClassCapacity ?? 8,
         updatedAt: asDate(bundle.settings.updatedAt) ?? new Date(),
       } as any,
@@ -1757,6 +1758,21 @@ export async function persistBundleToPrisma(
         deletedAt: asDate(e.deletedAt),
       })),
     );
+
+    // Only these collections are hard-deleted by the mock; everything else
+    // uses deletedAt. Children before parents (VideoWatch -> LessonVideo).
+    const hardDeletes: Array<[keyof typeof removed, string]> = [
+      ["videoWatches", "videoWatch"],
+      ["lessonVideos", "lessonVideo"],
+      ["questions", "question"],
+      ["itemPhotos", "itemPhoto"],
+    ];
+    for (const [key, model] of hardDeletes) {
+      const ids = removed[key];
+      if (ids && ids.length > 0 && db[model]) {
+        await db[model].deleteMany({ where: { id: { in: ids } } });
+      }
+    }
 }
 
 function shouldPersistAfter(methodName: string): boolean {

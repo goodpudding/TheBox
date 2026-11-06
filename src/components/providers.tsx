@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { SessionProvider, useSession } from "next-auth/react";
+import { SessionProvider, signOut, useSession } from "next-auth/react";
 import {
   createMockDataProvider,
   type DataProvider,
@@ -53,6 +53,14 @@ function DataProviders({ children }: { children: ReactNode }) {
     bump();
   }, [bump]);
 
+  // A valid Auth.js session whose email has no member row: sign out instead of
+  // bouncing between /login and the member pages.
+  const endOrphanedSession = useCallback(async () => {
+    setCurrentUser(null);
+    await signOut({ redirect: false }).catch(() => undefined);
+    window.location.assign("/login?error=NoAccount");
+  }, []);
+
   const refreshUser = useCallback(async () => {
     if (live && status === "loading") return;
     if (live && status !== "authenticated") {
@@ -63,6 +71,10 @@ function DataProviders({ children }: { children: ReactNode }) {
     }
     try {
       const user = await provider.getCurrentUser();
+      if (live && !user) {
+        await endOrphanedSession();
+        return;
+      }
       setCurrentUser(user);
       setUserError(null);
     } catch (err) {
@@ -71,7 +83,7 @@ function DataProviders({ children }: { children: ReactNode }) {
     } finally {
       setSessionResolved(true);
     }
-  }, [live, provider, status]);
+  }, [live, provider, status, endOrphanedSession]);
 
   useEffect(() => {
     if (!live) return;
@@ -83,12 +95,16 @@ function DataProviders({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!live || typeof window === "undefined") return;
     const onSignedOut = () => {
+      if (status === "authenticated") {
+        void endOrphanedSession();
+        return;
+      }
       setCurrentUser(null);
       bump();
     };
     window.addEventListener(SIGNED_OUT_EVENT, onSignedOut);
     return () => window.removeEventListener(SIGNED_OUT_EVENT, onSignedOut);
-  }, [live, bump]);
+  }, [live, bump, status, endOrphanedSession]);
 
   const switchUser = useCallback(
     async (id: string | null) => {

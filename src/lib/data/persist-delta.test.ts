@@ -44,4 +44,27 @@ describe("sliceChangedBundle", () => {
     expect(sliced.bundle.users.map((u) => u.id)).toEqual(["u-maya"]);
     expect(sliced.bundle.machines).toEqual([]);
   });
+
+  it("reports a deleted question as removed and nothing else as dirty", () => {
+    const previous = cloneFixtures(loadFixtures());
+    const next = structuredClone(previous);
+    const [question] = next.questions.splice(0, 1);
+    expect(question).toBeTruthy();
+    const sliced = sliceChangedBundle(previous, next);
+    expect(sliced.empty).toBe(false);
+    expect(sliced.removed).toEqual({ questions: [question!.id] });
+    expect(sliced.settingsChanged).toBe(false);
+    expect(sliced.bundle.questions).toEqual([]);
+    expect(sliced.bundle.users).toEqual([]);
+  });
+
+  it("a settings-only change carries no user rows", () => {
+    const previous = cloneFixtures(loadFixtures());
+    const next = structuredClone(previous);
+    next.settings.orgName = "The Box (renamed)";
+    const sliced = sliceChangedBundle(previous, next);
+    expect(sliced.settingsChanged).toBe(true);
+    expect(sliced.bundle.users).toEqual([]);
+    expect(sliced.removed).toEqual({});
+  });
 });
