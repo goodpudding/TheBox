@@ -51,6 +51,7 @@ async function main() {
         emergencyContactName: (u.emergencyContactName as string) ?? null,
         emergencyContactPhone: (u.emergencyContactPhone as string) ?? null,
         emergencyContactRelation: (u.emergencyContactRelation as string) ?? null,
+        newsletterOptIn: Boolean(u.newsletterOptIn),
         profileComplete: Boolean(u.profileComplete),
         notes: (u._notes as string) ?? null,
         createdAt: asDate(u.createdAt as string) ?? new Date(),
