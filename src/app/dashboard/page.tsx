@@ -315,7 +315,7 @@ function DashboardBody() {
       }
       setCallouts(notes);
     })();
-  }, [currentUser, provider, revision]);
+  }, [currentUser, provider, revision, bump]);
 
   if (!currentUser) return null;
 

@@ -24,22 +24,28 @@ function statusTone(
 export default function AdminMembersPage() {
   const { provider, revision } = useData();
   const [query, setQuery] = useState("");
-  const [members, setMembers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loaded, setLoaded] = useState<{
+    query: string;
+    revision: number;
+    rows: User[];
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     void provider.adminListMembers(query).then((rows) => {
-      if (!cancelled) {
-        setMembers(rows);
-        setLoading(false);
-      }
+      if (!cancelled) setLoaded({ query, revision, rows });
     });
     return () => {
       cancelled = true;
     };
   }, [provider, revision, query]);
+
+  // Rows that answer an earlier search are not shown: it is loading until the
+  // list for what is in the box now arrives.
+  const current =
+    loaded?.query === query && loaded.revision === revision ? loaded : null;
+  const loading = current === null;
+  const members = current?.rows ?? [];
 
   return (
     <AdminShell

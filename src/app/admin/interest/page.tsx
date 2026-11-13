@@ -49,11 +49,11 @@ export default function AdminInterestPage() {
     };
   }, [provider, revision, tab]);
 
+  // A closed list keeps no rows.
+  if (!expandedId && signups.length > 0) setSignups([]);
+
   useEffect(() => {
-    if (!expandedId) {
-      setSignups([]);
-      return;
-    }
+    if (!expandedId) return;
     let cancelled = false;
     void provider.listInterestSignups(expandedId).then((rows) => {
       if (!cancelled) setSignups(rows);
