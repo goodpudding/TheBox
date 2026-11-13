@@ -46,6 +46,15 @@ export function recordFailedPinAttempt(
   }
 }
 
+/** True when this process has seen a recent wrong PIN for the pair. */
+export function hasPinFailures(
+  workstationId: string,
+  email: string,
+  now = Date.now(),
+): boolean {
+  return bucket(workstationId, email, now).failures.length > 0;
+}
+
 export function clearPinAttempts(workstationId: string, email: string): void {
   buckets.delete(key(workstationId, email));
 }

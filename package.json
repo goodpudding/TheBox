@@ -14,6 +14,8 @@
     "sync:notion": "tsx scripts/sync-notion.ts",
     "sync:zeffy": "tsx scripts/sync-zeffy.ts",
     "sync:google": "tsx scripts/sync-google.ts",
+    "typecheck": "next typegen && tsc --noEmit",
+    "db:check": "node --no-warnings scripts/check-migrations.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",

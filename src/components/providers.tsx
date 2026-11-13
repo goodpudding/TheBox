@@ -35,6 +35,26 @@ type DataContextValue = {
 
 const DataContext = createContext<DataContextValue | null>(null);
 
+/** Fixture mode only: the Dev toolbar's user, kept for this browser tab. */
+const DEV_USER_KEY = "thebox.devUser";
+
+function readDevUser(): string | null {
+  try {
+    return window.sessionStorage.getItem(DEV_USER_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeDevUser(id: string | null): void {
+  try {
+    if (id) window.sessionStorage.setItem(DEV_USER_KEY, id);
+    else window.sessionStorage.removeItem(DEV_USER_KEY);
+  } catch {
+    // Private mode or blocked storage: the choice just lasts until reload.
+  }
+}
+
 function DataProviders({ children }: { children: ReactNode }) {
   const live = isLiveDataMode();
   const [provider] = useState<DataProvider>(() =>
@@ -113,11 +133,25 @@ function DataProviders({ children }: { children: ReactNode }) {
         return;
       }
       await provider.setCurrentUserId(id);
+      writeDevUser(id);
       await refreshUser();
       bump();
     },
     [live, provider, refreshUser, bump],
   );
+
+  // Fixture mode: a full page load starts a new in-browser provider, which
+  // would drop the Dev toolbar's user. Pick the same user again.
+  useEffect(() => {
+    if (live) return;
+    const saved = readDevUser();
+    if (!saved) return;
+    void (async () => {
+      await provider.setCurrentUserId(saved);
+      await refreshUser();
+      bump();
+    })();
+  }, [live, provider, refreshUser, bump]);
 
   const value = useMemo(
     () => ({

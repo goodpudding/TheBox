@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomInt } from "node:crypto";
+import { randomBytes, randomInt } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { evaluateMachineAccess } from "@/lib/data/access";
@@ -18,11 +18,17 @@ import {
 import { hashKioskPin, isValidPinShape, verifyKioskPin } from "./pin";
 import {
   clearPinAttempts,
+  hasPinFailures,
   isPinAttemptLocked,
   PIN_LOCK_MESSAGE,
   PIN_MISMATCH_MESSAGE,
   recordFailedPinAttempt,
 } from "@/lib/workstation/pin-attempts";
+import {
+  isPinLockedDurably,
+  recordPinFailure,
+  recordPinSuccess,
+} from "./pin-throttle";
 import {
   clearWorkstationCookie,
   generateSessionToken,
@@ -226,51 +232,55 @@ export async function startWorkstationSession(input: {
   return { token, session: row, workstation };
 }
 
-export async function authenticatePin(email: string, pin: string) {
-  if (!isValidPinShape(pin)) {
-    const error = new Error("PIN must be 4–8 digits");
-    (error as Error & { status: number }).status = 400;
-    throw error;
+function statusError(message: string, status: number): Error {
+  const error = new Error(message);
+  (error as Error & { status: number }).status = status;
+  return error;
+}
+
+/**
+ * Check an email + PIN pair under the attempt limit. Every route that takes
+ * a PIN goes through here: desk login, phone approval, and desk unlock.
+ * `scope` is the workstation id, or the route name when there is no desk.
+ * Unknown email and wrong PIN give the same 401.
+ */
+export async function verifyPinLogin(input: {
+  email: string;
+  pin: string;
+  scope: string;
+}) {
+  const email = input.email.trim().toLowerCase();
+  if (
+    isPinAttemptLocked(input.scope, email) ||
+    (await isPinLockedDurably(email))
+  ) {
+    throw statusError(PIN_LOCK_MESSAGE, 429);
   }
-  const normalized = email.trim().toLowerCase();
   const userRow = await prisma.user.findFirst({
-    where: { email: normalized, deletedAt: null },
+    where: { email, deletedAt: null },
   });
-  if (!userRow || !(await verifyKioskPin(pin, userRow.kioskPinHash))) {
-    const error = new Error(PIN_MISMATCH_MESSAGE);
-    (error as Error & { status: number }).status = 401;
-    throw error;
+  const matched =
+    isValidPinShape(input.pin) &&
+    Boolean(userRow && (await verifyKioskPin(input.pin, userRow.kioskPinHash)));
+  if (!matched || !userRow) {
+    recordFailedPinAttempt(input.scope, email);
+    await recordPinFailure({
+      email,
+      userId: userRow?.id ?? null,
+      entityId: input.scope,
+    });
+    throw statusError(PIN_MISMATCH_MESSAGE, 401);
   }
+  if (hasPinFailures(input.scope, email)) {
+    await recordPinSuccess({ email, userId: userRow.id, entityId: input.scope });
+  }
+  clearPinAttempts(input.scope, email);
   return userRow;
 }
 
-async function logPinFailure(input: {
-  workstationId: string;
-  email: string;
-  userId: string | null;
-}) {
-  const emailHash = createHash("sha256")
-    .update(input.email.trim().toLowerCase())
-    .digest("hex");
-  try {
-    await prisma.auditEvent.create({
-      data: {
-        id: newId("audit"),
-        action: "workstation.pin_failed",
-        actorId: null,
-        subjectUserId: input.userId,
-        entityType: "workstation",
-        entityId: input.workstationId,
-        metadata: JSON.stringify({
-          workstationId: input.workstationId,
-          emailHash,
-        }),
-        occurredAt: new Date(),
-      },
-    });
-  } catch (err) {
-    console.error("workstation pin failure log", err);
-  }
+/** Email + PIN on the phone-approval page, where there is no desk session. */
+export async function authenticatePin(email: string, pin: string) {
+  return verifyPinLogin({ email, pin, scope: "qr-approve" });
 }
 
 export async function loginWithPin(input: {
@@ -280,34 +290,13 @@ export async function loginWithPin(input: {
 }) {
   const workstation = await lookupWorkstation(input.workstationId);
   if (!workstation || !workstation.active) {
-    const error = new Error("Unknown or inactive workstation");
-    (error as Error & { status: number }).status = 404;
-    throw error;
+    throw statusError("Unknown or inactive workstation", 404);
   }
-  const email = input.email.trim().toLowerCase();
-  if (isPinAttemptLocked(workstation.id, email)) {
-    const error = new Error(PIN_LOCK_MESSAGE);
-    (error as Error & { status: number }).status = 429;
-    throw error;
-  }
-  const userRow = await prisma.user.findFirst({
-    where: { email, deletedAt: null },
+  const userRow = await verifyPinLogin({
+    email: input.email,
+    pin: input.pin,
+    scope: workstation.id,
   });
-  const matched =
-    isValidPinShape(input.pin) &&
-    Boolean(userRow && (await verifyKioskPin(input.pin, userRow.kioskPinHash)));
-  if (!matched || !userRow) {
-    recordFailedPinAttempt(workstation.id, email);
-    await logPinFailure({
-      workstationId: workstation.id,
-      email,
-      userId: userRow?.id ?? null,
-    });
-    const error = new Error(PIN_MISMATCH_MESSAGE);
-    (error as Error & { status: number }).status = 401;
-    throw error;
-  }
-  clearPinAttempts(workstation.id, email);
   const started = await startWorkstationSession({
     workstationId: workstation.id,
     userId: userRow.id,

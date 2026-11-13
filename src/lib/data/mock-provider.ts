@@ -1,3 +1,13 @@
+import { readQuizToken, signQuizToken } from "./quiz-token";
+import {
+  MESSAGE_MAX,
+  NAME_MAX,
+  PHONE_MAX,
+  clampInt,
+  optionalText,
+  requiredEmail,
+  requiredText,
+} from "./input-limits";
 import {
   canScheduleMaintenance,
   evaluateMachineAccess,
@@ -187,16 +197,6 @@ const OPENING_HOURS: Record<number, [number, number]> = {
 
 const SEAT_STATUSES: BookingStatus[] = ["booked", "awaiting_payment", "attended"];
 
-interface QuizTokenState {
-  userId: string;
-  moduleId: string;
-  questionIds: string[];
-  /** Full question objects for multi-select + safety grading. */
-  questions: Question[];
-  startedAt: ISODateTime;
-  attemptNumber: number;
-}
-
 function endsAfterShopClosing(endsAt: string): boolean {
   const end = laParts(endsAt);
   const window = OPENING_HOURS[end.weekday];
@@ -359,7 +359,6 @@ export function mergeStaffEdits(
 export class MockDataProvider implements DataProvider {
   private state: MockFixtureBundle;
   private currentUserId: string | null;
-  private quizTokens = new Map<string, QuizTokenState>();
   /** Scrypt hashes for tests and the server provider. Never copied onto User. */
   private pinHashes = new Map<string, string>();
 
@@ -937,15 +936,16 @@ export class MockDataProvider implements DataProvider {
       throw new Error("You must agree to the waiver to sign");
     }
     this.requireUser(input.userId);
+    const fullNameTyped = requiredText(input.fullNameTyped, "Your full name", 200);
     const now = this.now();
     const sig: WaiverSignature = {
       id: this.id("ws"),
       userId: input.userId,
       version: this.state.settings.currentWaiverVersion,
       signedAt: now,
-      fullNameTyped: input.fullNameTyped,
-      ip: input.ip,
-      userAgent: input.userAgent,
+      fullNameTyped,
+      ip: optionalText(input.ip, "IP", 64) ?? "",
+      userAgent: optionalText(input.userAgent, "User agent", 512) ?? undefined,
       createdAt: now,
       updatedAt: now,
     };
@@ -1213,13 +1213,21 @@ export class MockDataProvider implements DataProvider {
   async proposeInterestBoard(
     input: ClassInterestBoardInput,
   ): Promise<ClassInterestBoard> {
-    const title = input.title.trim();
-    const summary = input.summary.trim();
-    const contactName = input.contactName.trim();
-    const contactEmail = input.contactEmail.trim().toLowerCase();
-    if (!title || !summary || !contactName || !contactEmail) {
+    const filled = (value: unknown) =>
+      typeof value === "string" && value.trim().length > 0;
+    if (
+      !filled(input.title) ||
+      !filled(input.summary) ||
+      !filled(input.contactName) ||
+      !filled(input.contactEmail)
+    ) {
       throw new Error("Title, summary, name, and email are required");
     }
+    const title = requiredText(input.title, "Title", 120);
+    const summary = requiredText(input.summary, "Summary", 2000);
+    const contactName = requiredText(input.contactName, "Name", NAME_MAX);
+    const contactEmail = requiredEmail(input.contactEmail).toLowerCase();
+    const staff = this.viewerIsStaff();
 
     const proposer = input.proposedByUserId
       ? this.state.users.find((u) => u.id === input.proposedByUserId)
@@ -1234,8 +1242,20 @@ export class MockDataProvider implements DataProvider {
     const now = this.now();
     const publishDirect =
       !input.forcePending && canPublishInterestBoard(proposer ?? null);
-    const threshold =
-      input.threshold ?? CLASS_INTEREST_DEFAULT_THRESHOLD;
+    // The proposer picks how many people it takes, within reason. Only staff
+    // may go below two or name someone else as the instructor.
+    const asked = Number(input.threshold ?? CLASS_INTEREST_DEFAULT_THRESHOLD);
+    const threshold = Number.isFinite(asked)
+      ? clampInt(asked, staff ? 1 : 2, staff ? 500 : 50)
+      : CLASS_INTEREST_DEFAULT_THRESHOLD;
+    const ownHint = proposer?.isTeacher ? proposer.id : null;
+    const instructorHintUserId = staff
+      ? (input.instructorHintUserId ?? ownHint)
+      : ownHint;
+    const category =
+      typeof input.category === "string" && input.category.length <= 40
+        ? input.category
+        : "workshop";
     const opensAt = publishDirect ? now : null;
     const closesAt = publishDirect
       ? addHours(now, CLASS_INTEREST_OPEN_DAYS * 24)
@@ -1245,15 +1265,13 @@ export class MockDataProvider implements DataProvider {
       id: this.id("interest"),
       title,
       summary,
-      category: input.category ?? "workshop",
+      category,
       status: publishDirect ? "open" : "pending",
       threshold,
       proposedByUserId: input.proposedByUserId ?? null,
       contactName,
       contactEmail,
-      instructorHintUserId:
-        input.instructorHintUserId ??
-        (proposer?.isTeacher ? proposer.id : null),
+      instructorHintUserId,
       opensAt,
       closesAt,
       scheduledClassSessionId: null,
@@ -1281,11 +1299,13 @@ export class MockDataProvider implements DataProvider {
       throw new Error("This interest board is not open for signups");
     }
 
-    const email = input.email.trim().toLowerCase();
-    const displayName = input.displayName.trim();
-    if (!email || !displayName) {
+    const filled = (value: unknown) =>
+      typeof value === "string" && value.trim().length > 0;
+    if (!filled(input.email) || !filled(input.displayName)) {
       throw new Error("Name and email are required");
     }
+    const email = requiredEmail(input.email).toLowerCase();
+    const displayName = requiredText(input.displayName, "Name", NAME_MAX);
 
     const existing = this.state.classInterestSignups.find(
       (s) =>
@@ -1294,9 +1314,23 @@ export class MockDataProvider implements DataProvider {
         ((input.userId && s.userId === input.userId) ||
           s.email.toLowerCase() === email),
     );
-    if (existing) return existing;
-
     const now = this.now();
+    if (existing) {
+      const own = !!input.userId && existing.userId === input.userId;
+      if (own || this.viewerIsStaff()) return existing;
+      // Someone else typed an email that is already on the list. Answer as if
+      // it were a new signup so the form cannot be used to look people up.
+      return {
+        id: this.id("cis"),
+        boardId: board.id,
+        userId: input.userId ?? null,
+        email,
+        displayName,
+        createdAt: now,
+        updatedAt: now,
+      };
+    }
+
     const signup: ClassInterestSignup = {
       id: this.id("cis"),
       boardId: board.id,
@@ -1846,10 +1880,21 @@ export class MockDataProvider implements DataProvider {
     const machine = this.state.machines.find((m) => m.id === machineId);
     if (!machine) throw new Error("Machine not found");
 
-    const slotMin = this.state.settings.reservationSlotMinutes;
+    const slotMin = Math.max(5, this.state.settings.reservationSlotMinutes);
     const slots: AvailabilitySlot[] = [];
+    const isDate = (value: unknown) =>
+      typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+    if (!isDate(from) || !isDate(to)) {
+      throw new Error("Invalid date range");
+    }
     const fromDate = new Date(`${from}T00:00:00-07:00`);
     const toDate = new Date(`${to}T23:59:59-07:00`);
+    const spanDays = (toDate.getTime() - fromDate.getTime()) / 86_400_000;
+    // The loop below builds one slot per step, so the span has to be bounded.
+    const maxDays = Math.max(62, this.state.settings.reservationHorizonDays + 7);
+    if (!Number.isFinite(spanDays) || spanDays < 0 || spanDays > maxDays) {
+      throw new Error("Date range is too long");
+    }
     const now = Date.now();
 
     for (
@@ -2082,13 +2127,11 @@ export class MockDataProvider implements DataProvider {
     const sampled = shuffleInPlace([...bank]).slice(0, count);
     const attemptNumber = prior.length + 1;
     const startedAt = this.now();
-    const attemptToken = this.id("quiz");
-
-    this.quizTokens.set(attemptToken, {
+    // Signed, not stored: the next request runs on a different provider.
+    const attemptToken = await signQuizToken({
       userId,
       moduleId,
       questionIds: sampled.map((q) => q.id),
-      questions: sampled.map((q) => structuredClone(q)),
       startedAt,
       attemptNumber,
     });
@@ -2110,28 +2153,57 @@ export class MockDataProvider implements DataProvider {
   }
 
   async submitQuiz(input: SubmitQuizInput): Promise<QuizAttemptResult> {
-    const token = this.quizTokens.get(input.attemptToken);
+    const token = await readQuizToken(input.attemptToken);
     if (!token) throw new Error("Invalid or expired quiz attempt token");
     if (token.userId !== input.userId || token.moduleId !== input.moduleId) {
       throw new Error("Quiz attempt token mismatch");
     }
     if (
+      !Array.isArray(input.questionIds) ||
       input.questionIds.length !== token.questionIds.length ||
       input.questionIds.some((id, i) => id !== token.questionIds[i])
     ) {
       throw new Error("Question set does not match started attempt");
     }
-    if (input.answers.length !== token.questionIds.length) {
+    if (
+      !Array.isArray(input.answers) ||
+      input.answers.length !== token.questionIds.length
+    ) {
       throw new Error("Answer count mismatch");
     }
 
     const mod = this.state.learningModules.find((m) => m.id === input.moduleId);
     if (!mod) throw new Error("Module not found");
 
+    const earlier = this.state.quizAttempts.filter(
+      (a) => a.userId === input.userId && a.moduleId === input.moduleId,
+    );
+    // A token is good for one submission. The start time is the attempt's id.
+    if (earlier.some((a) => a.startedAt === token.startedAt)) {
+      throw new Error("This quiz attempt was already submitted");
+    }
+    const limit = mod.attemptLimit || this.state.settings.quizAttemptLimit;
+    if (earlier.length >= limit) {
+      throw new Error(`Attempt limit of ${limit} reached`);
+    }
+
+    // Grade against the questions as they are now. If staff changed the bank
+    // mid-attempt, the member starts again.
+    const questions: Question[] = [];
+    for (const id of token.questionIds) {
+      const question = this.state.questions.find(
+        (q) => q.id === id && q.moduleId === input.moduleId && q.active,
+      );
+      if (!question) {
+        throw new Error("This quiz changed while you were taking it. Start again.");
+      }
+      questions.push(question);
+    }
+
     const threshold =
       mod.passThresholdPercent || this.state.settings.quizPassThresholdPercent;
     const graded = gradeQuizAttempt({
-      questions: token.questions,
+      questions,
       answers: input.answers,
       passThresholdPercent: threshold,
       requireSafetyCriticalAll: this.state.settings.requireSafetyCriticalAll,
@@ -2156,7 +2228,6 @@ export class MockDataProvider implements DataProvider {
       updatedAt: now,
     };
     this.state.quizAttempts.push(attempt);
-    this.quizTokens.delete(input.attemptToken);
 
     const priorCount = this.state.quizAttempts.filter(
       (a) => a.userId === input.userId && a.moduleId === input.moduleId,
@@ -2212,7 +2283,11 @@ export class MockDataProvider implements DataProvider {
       scorePct: graded.scorePct,
       scorePercent: graded.scorePct,
       thresholdMet: graded.thresholdMet,
-      safetyCriticalMissed: graded.safetyCriticalMissed,
+      // Prompt only. The full question carries the correct answer.
+      safetyCriticalMissed: graded.safetyCriticalMissed.map((q) => ({
+        id: q.id,
+        prompt: q.prompt,
+      })),
       attemptsRemaining,
       knowledgePassed,
     };
@@ -2248,17 +2323,28 @@ export class MockDataProvider implements DataProvider {
   async submitVolunteerInterest(
     input: VolunteerInterestInput,
   ): Promise<VolunteerInterest> {
-    if (!input.name.trim() || !input.email.trim() || !input.message.trim()) {
+    const filled = (value: unknown) =>
+      typeof value === "string" && value.trim().length > 0;
+    if (!filled(input.name) || !filled(input.email) || !filled(input.message)) {
       throw new Error("Name, email, and message are required");
     }
+    const name = requiredText(input.name, "Name", NAME_MAX);
+    const email = requiredEmail(input.email);
+    const message = requiredText(input.message, "Message", MESSAGE_MAX);
+    const phone = optionalText(input.phone, "Phone", PHONE_MAX) ?? undefined;
+    const roleId =
+      typeof input.roleId === "string" &&
+      this.state.volunteerRoles.some((r) => r.id === input.roleId)
+        ? input.roleId
+        : null;
     const now = this.now();
     const interest: VolunteerInterest = {
       id: this.id("vi"),
-      name: input.name.trim(),
-      email: input.email.trim(),
-      phone: input.phone,
-      roleId: input.roleId ?? null,
-      message: input.message.trim(),
+      name,
+      email,
+      phone,
+      roleId,
+      message,
       status: "new",
       userId: input.userId ?? null,
       createdAt: now,
@@ -2276,7 +2362,15 @@ export class MockDataProvider implements DataProvider {
       ...bounty,
       claimedByDisplayName: claimer?.displayName ?? null,
     };
-    if (!this.currentUserId) {
+    // Contact details are for staff, the person who asked, and the member
+    // who took the job. Any other account sees the request without them.
+    const viewer = this.currentUserId;
+    const mayContact =
+      !!viewer &&
+      (this.viewerIsStaff() ||
+        bounty.userId === viewer ||
+        bounty.claimedByUserId === viewer);
+    if (!mayContact) {
       delete view.requesterEmail;
       delete view.userId;
     }
@@ -2313,11 +2407,15 @@ export class MockDataProvider implements DataProvider {
   }
 
   async submitBountyRequest(input: BountyRequestInput): Promise<Bounty> {
-    const title = input.title.trim();
-    const description = input.description.trim();
-    const requesterName = input.requesterName.trim();
-    const requesterEmail = input.requesterEmail.trim();
-    const businessName = input.businessName?.trim() || null;
+    const text = (value: unknown) => (typeof value === "string" ? value.trim() : "");
+    const title = text(input.title);
+    const description = text(input.description);
+    const requesterEmail = text(input.requesterEmail);
+    if (!text(input.requesterName)) {
+      throw new Error("Name is required");
+    }
+    const requesterName = requiredText(input.requesterName, "Name", NAME_MAX);
+    const businessName = optionalText(input.businessName, "Business name", NAME_MAX);
     if (title.length < 3 || title.length > 120) {
       throw new Error("Title should be between 3 and 120 characters");
     }
@@ -2327,7 +2425,7 @@ export class MockDataProvider implements DataProvider {
     if (!requesterName) {
       throw new Error("Name is required");
     }
-    if (!isValidBountyEmail(requesterEmail)) {
+    if (requesterEmail.length > 254 || !isValidBountyEmail(requesterEmail)) {
       throw new Error("A valid email is required so a member can follow up");
     }
     const now = this.now();
@@ -2436,19 +2534,19 @@ export class MockDataProvider implements DataProvider {
     if (item.status === "fulfilled") {
       throw new Error("This item is already marked purchased");
     }
-    const name = input.name.trim();
-    const email = input.email.trim();
-    if (!name) throw new Error("Name is required");
-    if (!isValidWishlistEmail(email)) {
+    const name = requiredText(input.name, "Name", NAME_MAX);
+    const email = typeof input.email === "string" ? input.email.trim() : "";
+    if (email.length > 254 || !isValidWishlistEmail(email)) {
       throw new Error("A valid email is required so staff can follow up");
     }
+    const note = optionalText(input.note, "Note", 1000);
     const now = this.now();
     const report: WishlistPurchaseReport = {
       id: this.id("wpr"),
       itemId: item.id,
       name,
       email,
-      note: input.note?.trim() || null,
+      note,
       userId: input.userId ?? null,
       status: "pending",
       reviewedById: null,
@@ -4516,11 +4614,13 @@ export class MockDataProvider implements DataProvider {
   ): Promise<InventoryItemView> {
     const user = this.requireUser(userId);
     const item = this.requireInventoryItem(id);
+    // Permission comes from where the item is now. Moving it also needs
+    // permission on the area it is going to.
+    const stewards = this.state.areaStewards;
+    const moving = patch.areaId !== undefined && patch.areaId !== item.areaId;
     if (
-      !canInventory(user, "edit", {
-        areaId: patch.areaId !== undefined ? patch.areaId : item.areaId,
-        stewards: this.state.areaStewards,
-      })
+      !canInventory(user, "edit", { areaId: item.areaId, stewards }) ||
+      (moving && !canInventory(user, "edit", { areaId: patch.areaId, stewards }))
     ) {
       throw new Error("Stewards can edit items in their areas");
     }

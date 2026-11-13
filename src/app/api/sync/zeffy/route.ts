@@ -1,5 +1,6 @@
 import { NextResponse, connection } from "next/server";
 import { auth } from "@/auth";
+import { secretsMatch } from "@/lib/secrets";
 import {
   archiveCsvClasses,
   lastClassSyncAt,
@@ -9,9 +10,10 @@ import {
 export const runtime = "nodejs";
 
 async function allowed(request: Request): Promise<boolean> {
-  const secret = process.env.SYNC_SECRET;
-  const header = request.headers.get("authorization");
-  if (secret && header === `Bearer ${secret}`) return true;
+  const secret = process.env.SYNC_SECRET?.trim();
+  const header = request.headers.get("authorization") ?? "";
+  const bearer = /^Bearer\s+(.+)$/i.exec(header)?.[1]?.trim();
+  if (secretsMatch(bearer, secret)) return true;
   const session = await auth();
   const role = session?.user?.role;
   return role === "staff" || role === "admin";

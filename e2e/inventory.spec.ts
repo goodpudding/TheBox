@@ -1,22 +1,5 @@
 import { test, expect } from "@playwright/test";
-
-async function switchUser(page: import("@playwright/test").Page, label: string) {
-  await expect(page.getByText("Dev · Switch user")).toBeVisible();
-  const toolbarSelect = page.locator("div.fixed.bottom-0 select");
-  const options = toolbarSelect.locator("option");
-  const count = await options.count();
-  for (let i = 0; i < count; i++) {
-    const text = (await options.nth(i).textContent()) ?? "";
-    if (text.includes(label)) {
-      const value = await options.nth(i).getAttribute("value");
-      if (value != null) {
-        await toolbarSelect.selectOption(value);
-        return;
-      }
-    }
-  }
-  throw new Error(`User option not found: ${label}`);
-}
+import { switchUser } from "./helpers";
 
 test.describe("shop inventory", () => {
   test("members see approved items and not pending ones", async ({ page }) => {
@@ -26,8 +9,11 @@ test.describe("shop inventory", () => {
     await expect(page.getByRole("heading", { name: "Inventory" })).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.getByText("Orbital sander").first()).toBeVisible();
-    await expect(page.getByText("BX-00001").first()).toBeVisible();
+    // The list renders twice (table and phone cards); name the visible one.
+    await expect(
+      page.getByRole("link", { name: "Orbital sander" }).first(),
+    ).toBeVisible();
+    await expect(page.getByRole("link", { name: "BX-00001" }).first()).toBeVisible();
     await expect(page.getByText("Swing-away heat press")).toHaveCount(0);
   });
 
@@ -52,7 +38,8 @@ test.describe("shop inventory", () => {
     await expect(page.getByRole("heading", { name: "Orbital sander" })).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.getByText("History")).toBeVisible();
+    // "History" is also a site nav link, so ask for the item's section heading.
+    await expect(page.getByRole("heading", { name: "History" })).toBeVisible();
   });
 
   test("staff can open labels and import", async ({ page }) => {

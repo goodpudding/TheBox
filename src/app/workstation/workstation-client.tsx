@@ -12,6 +12,7 @@ import { formatMoneyExact, formatTier } from "@/lib/utils";
 import { quoteMachineJob } from "@/lib/credits";
 import type { MachineArea, MembershipTier } from "@/lib/data/types";
 import { isTauriShell, nativeInvoke } from "@/lib/workstation/native";
+import Link from "next/link";
 
 type Billing = {
   machineId: string;
@@ -986,24 +987,24 @@ export function WorkstationClient() {
                             Launch {eq.software.displayName}
                           </Button>
                         ) : (
-                          <a
+                          <Link
                             href="/learn"
                             className="font-display text-sm font-semibold text-primary-text underline-offset-2 hover:underline"
                           >
                             Request training
-                          </a>
+                          </Link>
                         )
                       ) : certified ? (
                         <p className="text-sm text-secondary">
                           No app mapped to this desk
                         </p>
                       ) : (
-                        <a
+                        <Link
                           href="/learn"
                           className="font-display text-sm font-semibold text-primary-text underline-offset-2 hover:underline"
                         >
                           Request training
-                        </a>
+                        </Link>
                       )}
                     </div>
                   </li>

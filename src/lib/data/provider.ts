@@ -199,7 +199,8 @@ export interface QuizAttemptResult {
   scorePct: number;
   scorePercent: number;
   thresholdMet: boolean;
-  safetyCriticalMissed: Question[];
+  /** Prompts only, so a failed attempt does not reveal the answers. */
+  safetyCriticalMissed: Pick<Question, "id" | "prompt">[];
   attemptsRemaining: number;
   knowledgePassed: boolean;
 }

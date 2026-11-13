@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { switchUser } from "./helpers";
 
 const TOKEN = "dev-display-token-change-me";
 
@@ -49,53 +50,32 @@ test.describe("Lobby display", () => {
   });
 
   test("membership panel appears every third rotation", async ({ page }) => {
+    // Panels change every 12 s and Membership joins one rotation in three, so
+    // drive the page's timers instead of waiting minutes of real time.
+    await page.clock.install();
     await page.goto(`/display?token=${encodeURIComponent(TOKEN)}`);
     await expect(page.getByText("The Box").first()).toBeVisible({
       timeout: 15_000,
     });
 
-    // Speed up: cadence is 12s in fixtures — wait across cycles by checking
-    // the feed config and observing Membership title within ~3 rotations.
-    const seen = new Set<string>();
-    const deadline = Date.now() + 50_000;
-    while (Date.now() < deadline) {
-      for (const title of [
-        "Today at The Box",
-        "Bounty board",
-        "Machine status",
-        "Coming up",
-        "Get certified",
-        "Welcome to The Box",
-        "Open Studio Fridays",
-        "Volunteer with us",
-        "Membership",
-      ]) {
-        if (await page.getByRole("heading", { name: title }).isVisible().catch(() => false)) {
-          seen.add(title === "Welcome to The Box" || title === "Open Studio Fridays" || title === "Volunteer with us" ? "Promos" : title);
-        }
-      }
-      if (seen.has("Membership")) break;
-      await page.waitForTimeout(1000);
+    const membership = page.getByText("Membership", { exact: true }).first();
+    let seen = false;
+    for (let step = 0; step < 40 && !seen; step++) {
+      // Give React a moment of real time to paint the panel it switched to.
+      seen = await membership
+        .waitFor({ state: "visible", timeout: 400 })
+        .then(() => true, () => false);
+      if (!seen) await page.clock.runFor(12_000);
     }
-    expect(seen.has("Membership")).toBe(true);
+    expect(seen).toBe(true);
   });
 
   test("reader authorize updates machine status on display", async ({
     page,
   }) => {
+    test.setTimeout(90_000);
     await page.goto("/join");
-    await expect(page.getByText("Dev · Switch user")).toBeVisible();
-    const toolbarSelect = page.locator("div.fixed.bottom-0 select");
-    const options = toolbarSelect.locator("option");
-    const count = await options.count();
-    for (let i = 0; i < count; i++) {
-      const text = (await options.nth(i).textContent()) ?? "";
-      if (text.includes("Avery Admin") || text.includes("admin")) {
-        const value = await options.nth(i).getAttribute("value");
-        if (value) await toolbarSelect.selectOption(value);
-        break;
-      }
-    }
+    await switchUser(page, "Avery Admin");
 
     await page.goto("/dev/reader");
     await expect(page.getByRole("button", { name: "Authorize" })).toBeVisible({

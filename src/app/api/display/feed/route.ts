@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerDataProvider } from "@/lib/data/factory";
+import { configuredSecret, secretsMatch } from "@/lib/secrets";
 
 function tokenIsValid(token: string | null): boolean {
-  const expected =
-    process.env.DISPLAY_TOKEN?.trim() ||
-    (process.env.NODE_ENV !== "production"
-      ? "dev-display-token-change-me"
-      : "");
-  if (!expected || !token) return false;
-  return token === expected;
+  return secretsMatch(
+    token,
+    configuredSecret("DISPLAY_TOKEN", "dev-display-token-change-me"),
+  );
 }
 
 export async function GET(request: NextRequest) {
