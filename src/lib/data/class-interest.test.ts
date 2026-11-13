@@ -118,7 +118,10 @@ describe("class interest boards", () => {
     expect(bounty).toBeTruthy();
     expect(bounty).not.toHaveProperty("requesterEmail");
     expect(bounty).not.toHaveProperty("userId");
-    await provider.setCurrentUserId("u-maya");
+    // A signed-in account with no stake in the request does not get them either.
+    await provider.setCurrentUserId("u-drew");
+    expect((await provider.listBounties())[0]).not.toHaveProperty("requesterEmail");
+    await provider.setCurrentUserId("u-staff");
     expect((await provider.listBounties())[0]).toHaveProperty("requesterEmail");
   });
 
