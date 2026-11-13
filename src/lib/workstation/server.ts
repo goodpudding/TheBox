@@ -18,6 +18,7 @@ import {
 import { hashKioskPin, isValidPinShape, verifyKioskPin } from "./pin";
 import {
   clearPinAttempts,
+  forgetPinAttemptsBefore,
   hasPinFailures,
   isPinAttemptLocked,
   PIN_LOCK_MESSAGE,
@@ -25,7 +26,7 @@ import {
   recordFailedPinAttempt,
 } from "@/lib/workstation/pin-attempts";
 import {
-  isPinLockedDurably,
+  readPinThrottle,
   recordPinFailure,
   recordPinSuccess,
 } from "./pin-throttle";
@@ -250,10 +251,11 @@ export async function verifyPinLogin(input: {
   scope: string;
 }) {
   const email = input.email.trim().toLowerCase();
-  if (
-    isPinAttemptLocked(input.scope, email) ||
-    (await isPinLockedDurably(email))
-  ) {
+  const recorded = await readPinThrottle(email);
+  if (recorded.clearedAt != null) {
+    forgetPinAttemptsBefore(input.scope, email, recorded.clearedAt);
+  }
+  if (isPinAttemptLocked(input.scope, email) || recorded.locked) {
     throw statusError(PIN_LOCK_MESSAGE, 429);
   }
   const userRow = await prisma.user.findFirst({
@@ -271,7 +273,9 @@ export async function verifyPinLogin(input: {
     });
     throw statusError(PIN_MISMATCH_MESSAGE, 401);
   }
-  if (hasPinFailures(input.scope, email)) {
+  // The database knows about wrong PINs on other routes and other Workers.
+  // This process only knows its own, and is the fallback when the read fails.
+  if (recorded.pendingFailures || hasPinFailures(input.scope, email)) {
     await recordPinSuccess({ email, userId: userRow.id, entityId: input.scope });
   }
   clearPinAttempts(input.scope, email);
@@ -337,18 +341,22 @@ export async function startQrChallenge(workstationId: string) {
   return { challenge: row, workstation };
 }
 
+/** The challenge while it can still be approved, or a 410. */
+export async function requireOpenQrChallenge(challengeId: string) {
+  const row = await prisma.workstationLoginChallenge.findUnique({
+    where: { id: challengeId },
+  });
+  if (!row || row.consumedAt || row.expiresAt.getTime() < Date.now()) {
+    throw statusError("This QR code expired. Start again at the desk.", 410);
+  }
+  return row;
+}
+
 export async function approveQrChallenge(input: {
   challengeId: string;
   userId: string;
 }) {
-  const row = await prisma.workstationLoginChallenge.findUnique({
-    where: { id: input.challengeId },
-  });
-  if (!row || row.consumedAt || row.expiresAt.getTime() < Date.now()) {
-    const error = new Error("This QR code expired. Start again at the desk.");
-    (error as Error & { status: number }).status = 410;
-    throw error;
-  }
+  const row = await requireOpenQrChallenge(input.challengeId);
   return prisma.workstationLoginChallenge.update({
     where: { id: row.id },
     data: { approvedUserId: input.userId },

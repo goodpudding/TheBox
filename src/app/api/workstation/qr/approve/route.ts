@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse, connection } from "next/server";
 import { auth } from "@/auth";
-import { approveQrChallenge, authenticatePin } from "@/lib/workstation/server";
+import {
+  approveQrChallenge,
+  authenticatePin,
+  requireOpenQrChallenge,
+} from "@/lib/workstation/server";
 import { jsonError } from "@/lib/workstation/errors";
 
 export const runtime = "nodejs";
@@ -23,6 +27,9 @@ export async function POST(request: NextRequest) {
     const session = await auth();
     let userId = session?.user?.id ?? null;
     if (!userId && body.email && body.pin) {
+      // This route needs no sign-in, and wrong PINs lock the email at every
+      // desk. Only take a PIN against a QR code a desk is showing right now.
+      await requireOpenQrChallenge(body.challengeId);
       const user = await authenticatePin(body.email, body.pin);
       userId = user.id;
     }

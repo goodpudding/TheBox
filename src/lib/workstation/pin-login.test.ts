@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const findFirstUser = vi.fn();
-const isPinLockedDurably = vi.fn();
+const readPinThrottle = vi.fn();
 const recordPinFailure = vi.fn();
 const recordPinSuccess = vi.fn();
 const verifyKioskPin = vi.fn();
@@ -13,7 +13,7 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 vi.mock("./pin-throttle", () => ({
-  isPinLockedDurably: (...args: unknown[]) => isPinLockedDurably(...args),
+  readPinThrottle: (...args: unknown[]) => readPinThrottle(...args),
   recordPinFailure: (...args: unknown[]) => recordPinFailure(...args),
   recordPinSuccess: (...args: unknown[]) => recordPinSuccess(...args),
 }));
@@ -25,6 +25,7 @@ vi.mock("./pin", async () => {
   };
 });
 
+const CLEAN = { locked: false, pendingFailures: false, clearedAt: null };
 const MAYA = { id: "u-maya", email: "maya@example.com", kioskPinHash: "scrypt:aa:bb" };
 
 async function status(run: () => Promise<unknown>): Promise<number | "ok"> {
@@ -39,11 +40,11 @@ async function status(run: () => Promise<unknown>): Promise<number | "ok"> {
 describe("verifyPinLogin", () => {
   beforeEach(async () => {
     findFirstUser.mockReset();
-    isPinLockedDurably.mockReset();
+    readPinThrottle.mockReset();
     recordPinFailure.mockReset();
     recordPinSuccess.mockReset();
     verifyKioskPin.mockReset();
-    isPinLockedDurably.mockResolvedValue(false);
+    readPinThrottle.mockResolvedValue(CLEAN);
     const { resetPinAttemptStore } = await import("./pin-attempts");
     resetPinAttemptStore();
   });
@@ -59,6 +60,19 @@ describe("verifyPinLogin", () => {
     });
     expect(user.id).toBe("u-maya");
     expect(recordPinFailure).not.toHaveBeenCalled();
+    // A clean sign-in costs no extra write.
+    expect(recordPinSuccess).not.toHaveBeenCalled();
+  });
+
+  it("records the success when the database still counts wrong PINs this process never saw", async () => {
+    const { verifyPinLogin } = await import("./server");
+    readPinThrottle.mockResolvedValue({ ...CLEAN, pendingFailures: true });
+    findFirstUser.mockResolvedValue(MAYA);
+    verifyKioskPin.mockResolvedValue(true);
+    await verifyPinLogin({ email: MAYA.email, pin: "4821", scope: "ws-pc-1" });
+    expect(recordPinSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({ email: MAYA.email, userId: "u-maya", entityId: "ws-pc-1" }),
+    );
   });
 
   it("records a failure and answers 401 for a wrong PIN", async () => {
@@ -94,7 +108,7 @@ describe("verifyPinLogin", () => {
 
   it("answers 429 without checking the PIN once the email is locked", async () => {
     const { verifyPinLogin } = await import("./server");
-    isPinLockedDurably.mockResolvedValue(true);
+    readPinThrottle.mockResolvedValue({ ...CLEAN, locked: true });
     findFirstUser.mockResolvedValue(MAYA);
     verifyKioskPin.mockResolvedValue(true);
     expect(
@@ -126,7 +140,7 @@ describe("verifyPinLogin", () => {
 
   it("authenticatePin goes through the same limit", async () => {
     const { authenticatePin } = await import("./server");
-    isPinLockedDurably.mockResolvedValue(true);
+    readPinThrottle.mockResolvedValue({ ...CLEAN, locked: true });
     expect(await status(() => authenticatePin(MAYA.email, "4821"))).toBe(429);
   });
 });

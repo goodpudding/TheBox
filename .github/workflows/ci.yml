@@ -1,5 +1,6 @@
 # Checks every pull request and every push to main: lint, types, unit tests,
-# a production build, then the browser tests against the fixture UI.
+# a production build, then the browser tests against the fixture UI and, for
+# the kiosk, a seeded local database.
 #
 # Cloudflare Workers Builds deploys main on its own. To keep a red build off
 # the live site, require the "check" and "e2e" jobs in the branch protection
@@ -60,8 +61,15 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
       - run: npx playwright install --with-deps chromium
+      - name: Local database for the kiosk tests
+        # Local D1 only: this job has no Cloudflare credentials.
+        run: npm run e2e:db
       - name: Browser tests
         run: npm run test:e2e
+        env:
+          # The kiosk tests must run here. Without this they skip when the
+          # database is missing, and a broken setup would pass unnoticed.
+          E2E_WORKSTATION: "1"
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
