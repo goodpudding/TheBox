@@ -1,3 +1,4 @@
+import { readQuizToken, signQuizToken } from "./quiz-token";
 import {
   canScheduleMaintenance,
   evaluateMachineAccess,
@@ -187,16 +188,6 @@ const OPENING_HOURS: Record<number, [number, number]> = {
 
 const SEAT_STATUSES: BookingStatus[] = ["booked", "awaiting_payment", "attended"];
 
-interface QuizTokenState {
-  userId: string;
-  moduleId: string;
-  questionIds: string[];
-  /** Full question objects for multi-select + safety grading. */
-  questions: Question[];
-  startedAt: ISODateTime;
-  attemptNumber: number;
-}
-
 function endsAfterShopClosing(endsAt: string): boolean {
   const end = laParts(endsAt);
   const window = OPENING_HOURS[end.weekday];
@@ -359,7 +350,6 @@ export function mergeStaffEdits(
 export class MockDataProvider implements DataProvider {
   private state: MockFixtureBundle;
   private currentUserId: string | null;
-  private quizTokens = new Map<string, QuizTokenState>();
   /** Scrypt hashes for tests and the server provider. Never copied onto User. */
   private pinHashes = new Map<string, string>();
 
@@ -2082,13 +2072,11 @@ export class MockDataProvider implements DataProvider {
     const sampled = shuffleInPlace([...bank]).slice(0, count);
     const attemptNumber = prior.length + 1;
     const startedAt = this.now();
-    const attemptToken = this.id("quiz");
-
-    this.quizTokens.set(attemptToken, {
+    // Signed, not stored: the next request runs on a different provider.
+    const attemptToken = await signQuizToken({
       userId,
       moduleId,
       questionIds: sampled.map((q) => q.id),
-      questions: sampled.map((q) => structuredClone(q)),
       startedAt,
       attemptNumber,
     });
@@ -2110,28 +2098,57 @@ export class MockDataProvider implements DataProvider {
   }
 
   async submitQuiz(input: SubmitQuizInput): Promise<QuizAttemptResult> {
-    const token = this.quizTokens.get(input.attemptToken);
+    const token = await readQuizToken(input.attemptToken);
     if (!token) throw new Error("Invalid or expired quiz attempt token");
     if (token.userId !== input.userId || token.moduleId !== input.moduleId) {
       throw new Error("Quiz attempt token mismatch");
     }
     if (
+      !Array.isArray(input.questionIds) ||
       input.questionIds.length !== token.questionIds.length ||
       input.questionIds.some((id, i) => id !== token.questionIds[i])
     ) {
       throw new Error("Question set does not match started attempt");
     }
-    if (input.answers.length !== token.questionIds.length) {
+    if (
+      !Array.isArray(input.answers) ||
+      input.answers.length !== token.questionIds.length
+    ) {
       throw new Error("Answer count mismatch");
     }
 
     const mod = this.state.learningModules.find((m) => m.id === input.moduleId);
     if (!mod) throw new Error("Module not found");
 
+    const earlier = this.state.quizAttempts.filter(
+      (a) => a.userId === input.userId && a.moduleId === input.moduleId,
+    );
+    // A token is good for one submission. The start time is the attempt's id.
+    if (earlier.some((a) => a.startedAt === token.startedAt)) {
+      throw new Error("This quiz attempt was already submitted");
+    }
+    const limit = mod.attemptLimit || this.state.settings.quizAttemptLimit;
+    if (earlier.length >= limit) {
+      throw new Error(`Attempt limit of ${limit} reached`);
+    }
+
+    // Grade against the questions as they are now. If staff changed the bank
+    // mid-attempt, the member starts again.
+    const questions: Question[] = [];
+    for (const id of token.questionIds) {
+      const question = this.state.questions.find(
+        (q) => q.id === id && q.moduleId === input.moduleId && q.active,
+      );
+      if (!question) {
+        throw new Error("This quiz changed while you were taking it. Start again.");
+      }
+      questions.push(question);
+    }
+
     const threshold =
       mod.passThresholdPercent || this.state.settings.quizPassThresholdPercent;
     const graded = gradeQuizAttempt({
-      questions: token.questions,
+      questions,
       answers: input.answers,
       passThresholdPercent: threshold,
       requireSafetyCriticalAll: this.state.settings.requireSafetyCriticalAll,
@@ -2156,7 +2173,6 @@ export class MockDataProvider implements DataProvider {
       updatedAt: now,
     };
     this.state.quizAttempts.push(attempt);
-    this.quizTokens.delete(input.attemptToken);
 
     const priorCount = this.state.quizAttempts.filter(
       (a) => a.userId === input.userId && a.moduleId === input.moduleId,
@@ -2212,7 +2228,11 @@ export class MockDataProvider implements DataProvider {
       scorePct: graded.scorePct,
       scorePercent: graded.scorePct,
       thresholdMet: graded.thresholdMet,
-      safetyCriticalMissed: graded.safetyCriticalMissed,
+      // Prompt only. The full question carries the correct answer.
+      safetyCriticalMissed: graded.safetyCriticalMissed.map((q) => ({
+        id: q.id,
+        prompt: q.prompt,
+      })),
       attemptsRemaining,
       knowledgePassed,
     };
