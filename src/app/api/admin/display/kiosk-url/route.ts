@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { isStaffRole } from "@/lib/data/access";
 import { mapUserRow } from "@/lib/workstation/mappers";
+import { configuredSecret } from "@/lib/secrets";
 
 export const runtime = "nodejs";
 
@@ -19,9 +20,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Staff only" }, { status: 403 });
   }
 
-  const token =
-    process.env.DISPLAY_TOKEN?.trim() ||
-    (process.env.NODE_ENV !== "production" ? DEV_TOKEN : "");
+  const token = configuredSecret("DISPLAY_TOKEN", DEV_TOKEN);
   if (!token) {
     return NextResponse.json(
       { error: "DISPLAY_TOKEN is not set on the Worker" },
