@@ -19,6 +19,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "e2e:db": "tsx scripts/e2e-db.ts",
     "fixtures:learning": "node scripts/generate-learning-fixtures.mjs",
     "fixtures:learning:extend": "node scripts/patch-learning-resin-embroidery-sub.mjs && node scripts/generate-learning-fixtures.mjs",
     "docker:mail": "docker compose up mailpit",
