@@ -85,6 +85,14 @@ test.describe("labels that depend on the time of day", () => {
     await expect(
       page.getByRole("button", { name: /^Start / }).first(),
     ).toBeVisible({ timeout: 15_000 });
+
+    // Back on the first day the 4 PM slot is offered again, but not picked:
+    // the earlier choice was dropped, not just hidden while it had no slot.
+    await page.getByLabel("Date").fill("2026-09-08");
+    await expect(
+      page.getByRole("button", { name: "Start 4:00 PM", exact: true }),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "How long?" })).toHaveCount(0);
   });
 
   test("the events list leaves out sessions that have started", async ({
