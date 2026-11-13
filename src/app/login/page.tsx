@@ -8,10 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-/** Auth.js sends `?error=` here (pages.error); NoAccount comes from providers.tsx. */
+/**
+ * Auth.js sends `?error=` here (pages.error); NoAccount comes from providers.tsx.
+ * RateLimit comes from the sign-in route when too many links were asked for.
+ */
 const ERROR_MESSAGES: Record<string, string> = {
   Verification: "That link expired, request a new one.",
   NoAccount: "We couldn't find an account for this email.",
+  RateLimit: "Too many requests. Wait a minute and try again.",
 };
 
 export default function LoginPage() {
@@ -50,7 +54,7 @@ function LoginForm() {
         callbackUrl,
       });
       if (res?.error) {
-        setError(res.error);
+        setError(ERROR_MESSAGES[res.error] ?? res.error);
       } else {
         setSent(true);
       }
