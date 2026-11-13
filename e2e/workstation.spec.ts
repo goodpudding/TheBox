@@ -121,10 +121,20 @@ test.describe("Workstation kiosk", () => {
     expect(await submitPin(page, email, WRONG_PIN)).toBe(429);
     await expect(formError(page)).toHaveText(LOCKED);
 
+    // Phone approval only takes a PIN against a QR code a desk is showing.
+    const noCode = await request.post("/api/workstation/qr/approve", {
+      data: { challengeId: "none", email, pin: WRONG_PIN },
+    });
+    expect(noCode.status()).toBe(410);
+
     // Phone approval keeps its own count in memory and has seen no attempts,
     // so a lock here can only have been read from the database.
+    const qr = await request.post("/api/workstation/qr/start", {
+      data: { workstationId: KIOSK_DEVICE_ID },
+    });
+    const { challengeId } = (await qr.json()) as { challengeId: string };
     const phone = await request.post("/api/workstation/qr/approve", {
-      data: { challengeId: "none", email, pin: WRONG_PIN },
+      data: { challengeId, email, pin: WRONG_PIN },
     });
     expect(phone.status()).toBe(429);
     expect(((await phone.json()) as { error?: string }).error).toMatch(LOCKED);

@@ -341,18 +341,22 @@ export async function startQrChallenge(workstationId: string) {
   return { challenge: row, workstation };
 }
 
+/** The challenge while it can still be approved, or a 410. */
+export async function requireOpenQrChallenge(challengeId: string) {
+  const row = await prisma.workstationLoginChallenge.findUnique({
+    where: { id: challengeId },
+  });
+  if (!row || row.consumedAt || row.expiresAt.getTime() < Date.now()) {
+    throw statusError("This QR code expired. Start again at the desk.", 410);
+  }
+  return row;
+}
+
 export async function approveQrChallenge(input: {
   challengeId: string;
   userId: string;
 }) {
-  const row = await prisma.workstationLoginChallenge.findUnique({
-    where: { id: input.challengeId },
-  });
-  if (!row || row.consumedAt || row.expiresAt.getTime() < Date.now()) {
-    const error = new Error("This QR code expired. Start again at the desk.");
-    (error as Error & { status: number }).status = 410;
-    throw error;
-  }
+  const row = await requireOpenQrChallenge(input.challengeId);
   return prisma.workstationLoginChallenge.update({
     where: { id: row.id },
     data: { approvedUserId: input.userId },
