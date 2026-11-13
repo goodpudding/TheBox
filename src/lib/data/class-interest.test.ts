@@ -136,7 +136,10 @@ describe("class interest boards", () => {
   it("gates booking during priority window", async () => {
     const provider = createMockDataProvider("u-admin");
     const classes = await provider.listClasses({ upcomingOnly: true });
-    const session = classes[0];
+    // "Upcoming" includes a class in progress, which can no longer be booked.
+    const session = classes.find(
+      (c) => new Date(c.startsAt).getTime() > Date.now(),
+    )!;
     expect(session).toBeTruthy();
 
     await provider.adminLinkInterestBoardToClass(
