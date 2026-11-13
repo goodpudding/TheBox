@@ -84,16 +84,13 @@ export function ipLimitKey(ip: string): string {
 }
 
 /**
- * Limiter key for a mailbox: case, spaces and a +tag all reach the same inbox.
- * Auth.js reads the address as the text before the first "@" plus the domain
- * up to its first comma, so the key is cut the same way; otherwise a changing
- * tail would give one inbox a fresh count on every request.
+ * Limiter key for a mailbox. It is given the one bare address a sign-in
+ * email goes to (src/auth.ts refuses anything else); case, outer spaces and
+ * a +tag all reach the same inbox.
  */
 export function emailLimitKey(email: string): string {
-  const text = email.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
-  const [local, rest] = text.split("@");
-  if (rest === undefined) return hashed("email", text);
-  return hashed("email", `${local.split("+")[0]}@${rest.split(",")[0]}`);
+  const [local, domain = ""] = email.normalize("NFKC").toLowerCase().trim().split("@");
+  return hashed("email", `${local.split("+")[0]}@${domain}`);
 }
 
 export function userLimitKey(userId: string): string {

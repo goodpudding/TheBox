@@ -78,59 +78,43 @@ describe("/api/auth sign-in email limit", () => {
     expect(elsewhere.status).toBe(200);
   });
 
-  it("refuses the 4th email to one mailbox even when each comes from somewhere new", async () => {
-    const variants = ["pat@example.com", "Pat@Example.com", " pat+news@example.com"];
-    for (const [i, email] of variants.entries()) {
-      const res = await post(signInRequest(email, `198.51.100.${i}`));
-      expect(res.status, email).toBe(200);
-    }
+  // The per-mailbox count is in src/auth.ts and is tested with the real
+  // Auth.js in sign-in-email.test.ts. Here: what the route does with its answer.
+  it("answers 429 when Auth.js says the mailbox is over its limit", async () => {
+    const limited = "http://localhost/login?error=RateLimit";
+    const answers = [
+      // To next-auth's client Auth.js sends the redirect as JSON, to a plain form as a 302.
+      () => Response.json({ url: limited }, { headers: { location: limited } }),
+      () => new Response(null, { status: 302, headers: { location: limited } }),
+    ];
     const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const res = await post(signInRequest("pat@example.com", "198.51.100.200"));
+    for (const [i, answer] of answers.entries()) {
+      authPost.mockImplementationOnce(async () => answer());
+      const res = await post(signInRequest("pat@example.com", `198.51.100.${i}`));
+      expect(res.status).toBe(429);
+      expect(res.headers.get("retry-after")).toBe("60");
+      const body = (await res.json()) as { error: string; url: string };
+      expect(body.error).toBe("Too many requests. Wait a minute and try again.");
+      expect(new URL(body.url).searchParams.get("error")).toBe("RateLimit");
+    }
     spy.mockRestore();
-    expect(res.status).toBe(429);
-    expect(authPost).toHaveBeenCalledTimes(3);
-    const other = await post(signInRequest("sam@example.com", "198.51.100.200"));
-    expect(other.status).toBe(200);
   });
 
-  it("counts the mailbox Auth.js will write to when the form names two", async () => {
-    // Auth.js keeps the last `email` field. Counting the first would let a
-    // changing decoy in front hide the inbox that really gets the mail.
-    const twice = (i: number) =>
-      new NextRequest("http://localhost/api/auth/signin/email", {
-        method: "POST",
-        headers: {
-          "content-type": "application/x-www-form-urlencoded",
-          "cf-connecting-ip": `198.51.100.${i}`,
-        },
-        body: `email=decoy${i}%40example.com&csrfToken=t&email=pat%40example.com`,
-      });
-    for (let i = 0; i < 3; i += 1) {
-      expect((await post(twice(i))).status, `call ${i + 1}`).toBe(200);
+  it("passes on every other answer from Auth.js as it is", async () => {
+    const answers = [
+      "http://localhost/login?error=MissingCSRF",
+      "http://localhost/api/auth/verify-request?provider=email&type=email",
+      "http://localhost/other?error=RateLimit",
+      "http://",
+    ];
+    for (const [i, url] of answers.entries()) {
+      authPost.mockImplementationOnce(async () =>
+        Response.json({ url }, { headers: { location: url } }),
+      );
+      const res = await post(signInRequest("pat@example.com", `198.51.100.${i}`));
+      expect(res.status, url).toBe(200);
+      expect(((await res.json()) as { url: string }).url).toBe(url);
     }
-    const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const res = await post(twice(200));
-    const tail = await post(signInRequest("pat@example.com,x", "198.51.100.201"));
-    spy.mockRestore();
-    expect(res.status).toBe(429);
-    expect(tail.status).toBe(429);
-    expect(authPost).toHaveBeenCalledTimes(3);
-  });
-
-  it("reads the mailbox from a JSON body too", async () => {
-    const json = (ip: string) =>
-      new NextRequest("http://localhost/api/auth/signin/email", {
-        method: "POST",
-        headers: { "content-type": "application/json", "cf-connecting-ip": ip },
-        body: JSON.stringify({ email: "pat@example.com", csrfToken: "t" }),
-      });
-    for (let i = 0; i < 3; i += 1) {
-      expect((await post(json(`198.51.100.${i}`))).status).toBe(200);
-    }
-    const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const res = await post(json("198.51.100.200"));
-    spy.mockRestore();
-    expect(res.status).toBe(429);
   });
 
   it("matches the sign-in path the way Auth.js does", async () => {

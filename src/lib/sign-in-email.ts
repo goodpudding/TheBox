@@ -1,3 +1,9 @@
+/**
+ * Where Auth.js sends someone whose mailbox has had its share of sign-in
+ * emails for now. The login page has the words for this code.
+ */
+export const SIGN_IN_LIMITED_PATH = "/login?error=RateLimit";
+
 /** Longest address the mail standards allow. */
 const MAX_ADDRESS_LENGTH = 254;
 
