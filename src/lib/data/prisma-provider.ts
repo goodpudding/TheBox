@@ -1096,7 +1096,6 @@ export async function persistBundleToPrisma(
     if (settingsChanged) await tx.orgSettings.upsert({
       where: { id: "default" },
       // Cast: client may lag schema until `prisma generate`.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       create: {
         id: "default",
         orgName: bundle.settings.orgName,
@@ -1131,6 +1130,7 @@ export async function persistBundleToPrisma(
         defaultInstructorId,
         defaultClassCapacity: bundle.settings.defaultClassCapacity ?? 8,
         updatedAt: asDate(bundle.settings.updatedAt) ?? new Date(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any,
       update: {
         orgName: bundle.settings.orgName,
@@ -1165,6 +1165,7 @@ export async function persistBundleToPrisma(
         defaultInstructorId,
         defaultClassCapacity: bundle.settings.defaultClassCapacity ?? 8,
         updatedAt: asDate(bundle.settings.updatedAt) ?? new Date(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any,
     });
 
