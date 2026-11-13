@@ -83,13 +83,17 @@ export function ipLimitKey(ip: string): string {
   return hashed("ip", ipBucket(ip) || "unknown");
 }
 
-/** Limiter key for a mailbox: case, spaces and a +tag all reach the same inbox. */
+/**
+ * Limiter key for a mailbox: case, spaces and a +tag all reach the same inbox.
+ * Auth.js reads the address as the text before the first "@" plus the domain
+ * up to its first comma, so the key is cut the same way; otherwise a changing
+ * tail would give one inbox a fresh count on every request.
+ */
 export function emailLimitKey(email: string): string {
-  const text = email.normalize("NFKC").trim().toLowerCase();
-  const at = text.lastIndexOf("@");
-  if (at < 0) return hashed("email", text);
-  const local = text.slice(0, at).split("+")[0];
-  return hashed("email", `${local}@${text.slice(at + 1)}`);
+  const text = email.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
+  const [local, rest] = text.split("@");
+  if (rest === undefined) return hashed("email", text);
+  return hashed("email", `${local.split("+")[0]}@${rest.split(",")[0]}`);
 }
 
 export function userLimitKey(userId: string): string {

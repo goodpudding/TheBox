@@ -94,6 +94,18 @@ describe("clientIp and limit keys", () => {
     expect(emailLimitKey("pat+one@example.com")).toBe(key);
     expect(emailLimitKey("sam@example.com")).not.toBe(key);
   });
+
+  it("drops what Auth.js drops after a comma in the domain", async () => {
+    // Auth.js mails "pat@example.com,anything" to pat@example.com, so a
+    // changing tail must not give the same inbox a fresh count each time.
+    const { emailLimitKey } = await load();
+    const key = emailLimitKey("pat@example.com");
+    expect(emailLimitKey("pat@example.com,1")).toBe(key);
+    expect(emailLimitKey("pat@example.com,sam@example.org")).toBe(key);
+    // Auth.js keeps a space before the comma; a mail service would trim it.
+    expect(emailLimitKey("pat@example.com ,1")).toBe(key);
+    expect(emailLimitKey("pat@example.com  ,2")).toBe(key);
+  });
 });
 
 describe("allowRequest", () => {

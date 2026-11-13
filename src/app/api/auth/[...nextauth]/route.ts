@@ -21,14 +21,17 @@ function sendsSignInEmail(request: Request): boolean {
   return parts.length >= 2 && parts[parts.length - 2] === "signin";
 }
 
-/** The address the link would go to. Read from a copy: Auth.js needs the body. */
+/**
+ * The address the link would go to. Read from a copy: Auth.js needs the body.
+ * When a form names `email` twice Auth.js keeps the last one, so this does too.
+ */
 async function requestedEmail(request: Request): Promise<string | null> {
   try {
     const copy = request.clone();
     const type = request.headers.get("content-type") ?? "";
     const email = type.includes("application/json")
       ? ((await copy.json()) as { email?: unknown } | null)?.email
-      : new URLSearchParams(await copy.text()).get("email");
+      : new URLSearchParams(await copy.text()).getAll("email").at(-1);
     return typeof email === "string" && email.trim() ? email : null;
   } catch {
     return null;
