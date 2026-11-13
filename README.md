@@ -212,11 +212,16 @@ npm run typecheck  # next typegen, then tsc
 npm test           # Vitest: access rules, data API policy, route handlers
 npm run db:check   # every migrations/*.sql applies to an empty database
 npm run test:e2e   # Playwright against `next dev` on fixtures
+npm run e2e:db     # rebuild the local database the kiosk browser tests use
 ```
 
 `.github/workflows/ci.yml` runs all of these, plus a production build, on every pull request and on pushes to `main`. Cloudflare deploys `main` on its own, so require the `check` and `e2e` jobs in the branch protection rule for `main` to keep a failing build off the live site. When the `db-artifacts` workflow adds a migration commit to a branch, GitHub does not start CI for that commit. Push again or re-run the jobs.
 
-Two browser tests are skipped unless you opt in: `E2E_LIVE=1` (needs a seeded session cookie) and `E2E_WORKSTATION=1` (needs a migrated and seeded local D1, because the kiosk APIs read the database directly). If Playwright cannot download its browser, point `PLAYWRIGHT_CHROMIUM_PATH` at a local Chromium.
+The kiosk tests (`e2e/workstation.spec.ts`) need a real database, because the kiosk APIs read it directly instead of fixtures. `npm run e2e:db` builds one: it deletes the local D1 that `next dev` uses (`.wrangler/state/v3/d1`), applies `migrations/*.sql` with `wrangler d1 migrations apply --local`, then adds the desk `BOX-PC-1` and two members whose demo PIN is stored as a hash. Stop `next dev` before you run it. It only touches the local database, never the live one.
+
+CI runs `npm run e2e:db` before the browser tests and sets `E2E_WORKSTATION=1`, which makes a missing database a failure. On your machine the kiosk tests run when that database is there and skip with a note when it is not. `E2E_WORKSTATION=0` skips them outright.
+
+`e2e/live-auth.spec.ts` is skipped unless you set `E2E_LIVE=1` (needs a seeded session cookie). If Playwright cannot download its browser, point `PLAYWRIGHT_CHROMIUM_PATH` at a local Chromium.
 
 ## Docker Compose
 
