@@ -54,4 +54,26 @@ test.describe("shop inventory", () => {
       page.getByRole("heading", { name: /Import from Google Form/i }),
     ).toBeVisible();
   });
+
+  test("the add-item form reopens on the draft kept in this tab", async ({
+    page,
+  }) => {
+    await page.goto("/join");
+    await switchUser(page, "Maya Chen");
+    // A draft left on the Details step.
+    await page.evaluate(() =>
+      window.sessionStorage.setItem(
+        "thebox.inventory.wizard.v1",
+        JSON.stringify({ step: 3, name: "Bench vise" }),
+      ),
+    );
+    await page.goto("/inventory/new");
+    const name = page.getByLabel("Item name");
+    await expect(name).toHaveValue("Bench vise", { timeout: 15_000 });
+
+    // Edits are kept as they are typed.
+    await name.fill("Bench vise, 6 inch");
+    await page.reload();
+    await expect(name).toHaveValue("Bench vise, 6 inch", { timeout: 15_000 });
+  });
 });

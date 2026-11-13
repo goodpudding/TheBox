@@ -15,6 +15,7 @@ import {
   CLASS_INTEREST_DEFAULT_THRESHOLD,
   CLASS_INTEREST_OPEN_DAYS,
 } from "@/lib/data";
+import { useLocationHash } from "@/lib/use-location-hash";
 import type {
   ClassCategory,
   ClassInterestBoardView,
@@ -66,12 +67,13 @@ export default function InterestBoardPage() {
     };
   }, [provider, revision]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (window.location.hash === "#suggest") {
-      setShowForm(true);
-    }
-  }, []);
+  // A #suggest link opens the form on arrival.
+  const hash = useLocationHash();
+  const [seenHash, setSeenHash] = useState("");
+  if (seenHash !== hash) {
+    setSeenHash(hash);
+    if (hash === "#suggest") setShowForm(true);
+  }
 
   const canPropose = canProposeInterestBoard(currentUser);
   const publishesDirect = canPublishInterestBoard(currentUser);

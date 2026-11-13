@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useData } from "@/components/providers";
 import { compressInventoryPhoto } from "@/lib/inventory/compress-client";
 import { CONDITION_CARDS, canInventory } from "@/lib/inventory";
+import { useHydrated } from "@/lib/use-hydrated";
 import type {
   InventoryArea,
   InventoryDuplicateHit,
@@ -104,9 +105,22 @@ export default function InventoryNewPage() {
 }
 
 function InventoryWizard() {
+  // The draft is kept in sessionStorage, which only the browser has. Start the
+  // form once the page has hydrated so it can open on the saved draft.
+  const hydrated = useHydrated();
+  if (!hydrated) {
+    return (
+      <PageShell>
+        <p className="text-secondary">Loading…</p>
+      </PageShell>
+    );
+  }
+  return <InventoryWizardForm />;
+}
+
+function InventoryWizardForm() {
   const { provider, currentUser, bump } = useData();
-  const [state, setState] = useState<WizardState>(EMPTY);
-  const [ready, setReady] = useState(false);
+  const [state, setState] = useState<WizardState>(loadWizard);
   const [areas, setAreas] = useState<InventoryArea[]>([]);
   const [makers, setMakers] = useState<string[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
@@ -117,14 +131,8 @@ function InventoryWizard() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    setState(loadWizard());
-    setReady(true);
-  }, []);
-
-  useEffect(() => {
-    if (!ready) return;
     saveWizard(state);
-  }, [state, ready]);
+  }, [state]);
 
   useEffect(() => {
     let cancelled = false;
@@ -250,14 +258,6 @@ function InventoryWizard() {
     if (state.step === 6) return true;
     return true;
   }, [state]);
-
-  if (!ready) {
-    return (
-      <PageShell>
-        <p className="text-secondary">Loading…</p>
-      </PageShell>
-    );
-  }
 
   if (currentUser && !canInventory(currentUser, "submit")) {
     return (
