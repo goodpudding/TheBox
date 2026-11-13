@@ -18,6 +18,14 @@ const MAX_FAILURES = 5;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_FAILURES_PER_DAY = 20;
 
+/**
+ * D1 refuses a LIKE pattern over 50 bytes, and `contains` sends
+ * LIKE '%value%'. The full 64-character hash made every read fail, which the
+ * catch below turned into "not locked". The first 40 characters (160 bits)
+ * still pick out one email, and match rows that store the whole hash.
+ */
+const HASH_MATCH_CHARS = 40;
+
 export function pinEmailHash(email: string): string {
   return createHash("sha256").update(email.trim().toLowerCase()).digest("hex");
 }
@@ -47,7 +55,9 @@ export async function isPinLockedDurably(
       where: {
         action: { in: [PIN_FAILED_ACTION, PIN_OK_ACTION] },
         occurredAt: { gte: new Date(now - DAY_MS) },
-        metadata: { contains: pinEmailHash(email) },
+        metadata: {
+          contains: pinEmailHash(email).slice(0, HASH_MATCH_CHARS),
+        },
       },
       select: { action: true, occurredAt: true },
       orderBy: { occurredAt: "desc" },

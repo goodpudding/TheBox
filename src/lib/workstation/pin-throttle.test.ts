@@ -13,15 +13,22 @@ const findMany = vi.fn(
       occurredAt: { gte: Date };
       metadata: { contains: string };
     };
-  }) =>
-    rows
+  }) => {
+    // D1 refuses a LIKE pattern over 50 bytes, and `contains` becomes
+    // LIKE '%value%'. Refuse it here too, or a too-long match passes these
+    // tests and then fails on every read in production.
+    if (Buffer.byteLength(`%${args.where.metadata.contains}%`) > 50) {
+      throw new Error("D1_ERROR: LIKE or GLOB pattern too complex: SQLITE_ERROR");
+    }
+    return rows
       .filter(
         (row) =>
           args.where.action.in.includes(row.action) &&
           row.occurredAt >= args.where.occurredAt.gte &&
           row.metadata.includes(args.where.metadata.contains),
       )
-      .sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime()),
+      .sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime());
+  },
 );
 
 vi.mock("@/lib/db", () => ({
