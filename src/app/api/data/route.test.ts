@@ -222,6 +222,56 @@ describe("/api/data", () => {
     expect(sent.userId).toBeNull();
   });
 
+  it("loads a fresh bundle for a signed-in write and not for a read", async () => {
+    const member = user("member-1", "member");
+    auth.mockResolvedValue({ user: { id: member.id } });
+    createServerDataProvider.mockResolvedValue(
+      provider(member, {
+        updateMemberProfile: async () => member,
+        getMember: async () => member,
+      }),
+    );
+
+    await post({ method: "updateMemberProfile", args: [member.id, {}] });
+    expect(createServerDataProvider).toHaveBeenLastCalledWith(member.id, {
+      fresh: true,
+    });
+
+    await post({ method: "getMember", args: [member.id] });
+    expect(createServerDataProvider).toHaveBeenLastCalledWith(member.id, {
+      fresh: false,
+    });
+  });
+
+  it("does not load a fresh bundle for a write it is going to refuse", async () => {
+    auth.mockResolvedValue(null);
+    createServerDataProvider.mockResolvedValue(provider(null));
+
+    const res = await post({ method: "book", args: ["class-1", "victim"] });
+    expect(res.status).toBe(401);
+    expect(createServerDataProvider).toHaveBeenLastCalledWith(null, {
+      fresh: false,
+    });
+
+    await post({ method: "dropDatabase", args: [] });
+    expect(createServerDataProvider).toHaveBeenLastCalledWith(null, {
+      fresh: false,
+    });
+  });
+
+  it("loads a fresh bundle for an anonymous write to a public method", async () => {
+    auth.mockResolvedValue(null);
+    createServerDataProvider.mockResolvedValue(
+      provider(null, { joinInterestBoard: async () => ({}) as never }),
+    );
+
+    await post({ method: "joinInterestBoard", args: [{ boardId: "board-1" }] });
+
+    expect(createServerDataProvider).toHaveBeenLastCalledWith(null, {
+      fresh: true,
+    });
+  });
+
   it("returns domain errors as ok:false", async () => {
     auth.mockResolvedValue(null);
     createServerDataProvider.mockResolvedValue(
