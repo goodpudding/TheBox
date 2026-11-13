@@ -18,6 +18,7 @@ import {
 import { hashKioskPin, isValidPinShape, verifyKioskPin } from "./pin";
 import {
   clearPinAttempts,
+  forgetPinAttemptsBefore,
   hasPinFailures,
   isPinAttemptLocked,
   PIN_LOCK_MESSAGE,
@@ -25,7 +26,7 @@ import {
   recordFailedPinAttempt,
 } from "@/lib/workstation/pin-attempts";
 import {
-  isPinLockedDurably,
+  readPinThrottle,
   recordPinFailure,
   recordPinSuccess,
 } from "./pin-throttle";
@@ -250,10 +251,11 @@ export async function verifyPinLogin(input: {
   scope: string;
 }) {
   const email = input.email.trim().toLowerCase();
-  if (
-    isPinAttemptLocked(input.scope, email) ||
-    (await isPinLockedDurably(email))
-  ) {
+  const recorded = await readPinThrottle(email);
+  if (recorded.clearedAt != null) {
+    forgetPinAttemptsBefore(input.scope, email, recorded.clearedAt);
+  }
+  if (isPinAttemptLocked(input.scope, email) || recorded.locked) {
     throw statusError(PIN_LOCK_MESSAGE, 429);
   }
   const userRow = await prisma.user.findFirst({
@@ -271,7 +273,9 @@ export async function verifyPinLogin(input: {
     });
     throw statusError(PIN_MISMATCH_MESSAGE, 401);
   }
-  if (hasPinFailures(input.scope, email)) {
+  // The database knows about wrong PINs on other routes and other Workers.
+  // This process only knows its own, and is the fallback when the read fails.
+  if (recorded.pendingFailures || hasPinFailures(input.scope, email)) {
     await recordPinSuccess({ email, userId: userRow.id, entityId: input.scope });
   }
   clearPinAttempts(input.scope, email);
