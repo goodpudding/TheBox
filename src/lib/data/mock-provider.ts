@@ -181,6 +181,7 @@ import {
   stewardAreaIds,
 } from "../inventory";
 import { notifyStewardsOfIssue } from "../inventory/notify";
+import { isIssuedPhotoKey, isPhotoMimeType } from "../inventory/upload-policy";
 
 const TZ = "America/Los_Angeles";
 
@@ -196,6 +197,72 @@ const OPENING_HOURS: Record<number, [number, number]> = {
 };
 
 const SEAT_STATUSES: BookingStatus[] = ["booked", "awaiting_payment", "attended"];
+
+/**
+ * Inventory fields for the people who look after an item: stewards of its
+ * area and staff. Everyone else browses the catalog without them.
+ */
+const INVENTORY_PRIVATE_FIELDS = [
+  "donorName",
+  "estimatedValue",
+  "notes",
+  "serialNumber",
+] as const satisfies ReadonlyArray<keyof InventoryItem>;
+
+const PHOTO_KINDS: readonly PhotoKind[] = ["FRONT", "SIDE", "SERIAL", "OTHER"];
+
+/** The add-item form sends three photos. This leaves room for a few extras. */
+const MAX_PHOTOS_PER_SUBMISSION = 12;
+
+type InventoryPhotoInput = CreateInventoryItemInput["photoKeys"][number];
+
+function photoDimension(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 && value <= 100_000
+    ? value
+    : null;
+}
+
+/**
+ * Photo details as a caller sent them. The key must be one the upload route
+ * could have issued and the type one an upload can be stored as. This does
+ * not check who uploaded the file.
+ */
+function checkedPhotoInput(raw: unknown): InventoryPhotoInput {
+  const refused = "That photo could not be attached. Upload it again.";
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(refused);
+  }
+  const photo = raw as Record<string, unknown>;
+  if (!isIssuedPhotoKey(photo.storageKey)) throw new Error(refused);
+  if (photo.thumbKey != null && !isIssuedPhotoKey(photo.thumbKey)) {
+    throw new Error(refused);
+  }
+  if (!PHOTO_KINDS.includes(photo.kind as PhotoKind)) {
+    throw new Error("Unknown photo kind.");
+  }
+  if (!isPhotoMimeType(photo.mimeType)) {
+    throw new Error("Photos must be JPEG, PNG, or WebP images.");
+  }
+  return {
+    storageKey: photo.storageKey,
+    thumbKey: (photo.thumbKey as string | null | undefined) ?? null,
+    kind: photo.kind as PhotoKind,
+    mimeType: photo.mimeType,
+    width: photoDimension(photo.width),
+    height: photoDimension(photo.height),
+  };
+}
+
+function checkedPhotoInputs(raw: unknown): InventoryPhotoInput[] {
+  if (raw == null) return [];
+  if (!Array.isArray(raw)) {
+    throw new Error("That photo could not be attached. Upload it again.");
+  }
+  if (raw.length > MAX_PHOTOS_PER_SUBMISSION) {
+    throw new Error("Too many photos for one item.");
+  }
+  return raw.map(checkedPhotoInput);
+}
 
 function endsAfterShopClosing(endsAt: string): boolean {
   const end = laParts(endsAt);
@@ -4291,7 +4358,32 @@ export class MockDataProvider implements DataProvider {
     return max + 1;
   }
 
-  private toInventoryView(item: InventoryItem): InventoryItemView {
+  /** Stewards of the item's area and staff. Same rule as seeing it pending. */
+  private seesInventoryPrivateFields(
+    viewer: User | null | undefined,
+    item: InventoryItem,
+  ): boolean {
+    return canInventory(viewer, "viewPending", {
+      areaId: item.areaId,
+      stewards: this.state.areaStewards,
+    });
+  }
+
+  /** Photos of the item this viewer may see. The serial plate is private. */
+  private inventoryPhotosFor(
+    viewer: User | null | undefined,
+    item: InventoryItem,
+  ): ItemPhoto[] {
+    const all = this.seesInventoryPrivateFields(viewer, item);
+    return this.state.itemPhotos.filter(
+      (p) => p.itemId === item.id && (all || p.kind !== "SERIAL"),
+    );
+  }
+
+  private toInventoryView(
+    item: InventoryItem,
+    viewer: User | null | undefined,
+  ): InventoryItemView {
     const area = item.areaId
       ? this.state.inventoryAreas.find((a) => a.id === item.areaId)
       : undefined;
@@ -4299,13 +4391,9 @@ export class MockDataProvider implements DataProvider {
     const reviewedBy = item.reviewedById
       ? this.state.users.find((u) => u.id === item.reviewedById)
       : undefined;
-    const front =
-      this.state.itemPhotos.find(
-        (p) => p.itemId === item.id && p.kind === "FRONT",
-      ) ??
-      this.state.itemPhotos.find((p) => p.itemId === item.id) ??
-      null;
-    return {
+    const photos = this.inventoryPhotosFor(viewer, item);
+    const front = photos.find((p) => p.kind === "FRONT") ?? photos[0] ?? null;
+    const view: InventoryItemView = {
       ...item,
       assetTag: formatAssetTag(item.tagNumber),
       areaName: area?.name ?? null,
@@ -4313,6 +4401,26 @@ export class MockDataProvider implements DataProvider {
       reviewedByName: reviewedBy?.displayName ?? null,
       frontPhoto: front,
     };
+    if (!this.seesInventoryPrivateFields(viewer, item)) {
+      for (const field of INVENTORY_PRIVATE_FIELDS) delete view[field];
+    }
+    return view;
+  }
+
+  /** Items with this serial that the viewer is allowed to know about. */
+  private inventorySerialHits(
+    serial: unknown,
+    viewer: User | null | undefined,
+  ): InventoryItem[] {
+    const key = typeof serial === "string" ? serial.trim().toLowerCase() : "";
+    if (!key) return [];
+    return this.state.inventoryItems.filter(
+      (i) =>
+        i.serialNumber &&
+        i.serialNumber.trim().toLowerCase() === key &&
+        (i.reviewStatus === "APPROVED" ||
+          this.seesInventoryPrivateFields(viewer, i)),
+    );
   }
 
   private requireInventoryItem(id: string): InventoryItem {
@@ -4454,11 +4562,15 @@ export class MockDataProvider implements DataProvider {
         if (reviews && !reviews.includes(item.reviewStatus)) return false;
         if (search) {
           const tag = formatAssetTag(item.tagNumber).toLowerCase();
+          // Matching on a serial the viewer is not shown would let them
+          // work it out one character at a time.
           const hay = [
             item.name,
             item.model,
             item.manufacturer,
-            item.serialNumber,
+            this.seesInventoryPrivateFields(viewer, item)
+              ? item.serialNumber
+              : null,
             tag,
             item.location,
           ]
@@ -4469,7 +4581,7 @@ export class MockDataProvider implements DataProvider {
         }
         return true;
       })
-      .map((item) => this.toInventoryView(item))
+      .map((item) => this.toInventoryView(item, viewer))
       .sort((a, b) => a.tagNumber - b.tagNumber);
   }
 
@@ -4487,37 +4599,61 @@ export class MockDataProvider implements DataProvider {
       stewards: this.state.areaStewards,
     });
     if (item.reviewStatus !== "APPROVED" && !canPending) return null;
-    const photos = this.state.itemPhotos
-      .filter((p) => p.itemId === item.id)
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const photos = this.inventoryPhotosFor(viewer, item).sort((a, b) =>
+      a.createdAt.localeCompare(b.createdAt),
+    );
+    // The history records old and new values for edited fields. Drop the
+    // ones this viewer is not shown on the item itself.
+    const hidden: ReadonlySet<string> = new Set(
+      canPending ? [] : INVENTORY_PRIVATE_FIELDS,
+    );
     const events = this.state.itemEvents
       .filter((e) => e.itemId === item.id)
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
       .map((e) => ({
         ...e,
+        changes: e.changes
+          ? Object.fromEntries(
+              Object.entries(e.changes).filter(([field]) => !hidden.has(field)),
+            )
+          : e.changes,
         actorName:
           this.state.users.find((u) => u.id === e.actorId)?.displayName ?? null,
       }));
-    return { ...this.toInventoryView(item), photos, events };
+    return { ...this.toInventoryView(item, viewer), photos, events };
   }
 
+  /**
+   * Serial lookup for the add-item form. It answers for the signed-in user:
+   * approved items for anyone, and items still in review (or rejected) only
+   * for a steward of that area or staff.
+   */
   async findInventoryBySerial(serial: string): Promise<InventoryDuplicateHit[]> {
-    const key = serial.trim().toLowerCase();
-    if (!key) return [];
-    return this.state.inventoryItems
-      .filter(
-        (i) => i.serialNumber && i.serialNumber.trim().toLowerCase() === key,
-      )
-      .map((i) => ({
-        id: i.id,
-        assetTag: formatAssetTag(i.tagNumber),
-        name: i.name,
-      }));
+    const viewer = this.currentUserId
+      ? this.state.users.find((u) => u.id === this.currentUserId)
+      : null;
+    return this.inventorySerialHits(serial, viewer).map((i) => ({
+      id: i.id,
+      assetTag: formatAssetTag(i.tagNumber),
+      name: i.name,
+    }));
   }
 
   async createInventoryItem(
     userId: string,
     data: CreateInventoryItemInput,
+  ): Promise<InventoryItemView> {
+    return this.insertInventoryItem(userId, data, { trustedPhotos: false });
+  }
+
+  /**
+   * `trustedPhotos` is for photos the server chose itself (the CSV import's
+   * placeholders). Anything a caller sent goes through `checkedPhotoInputs`.
+   */
+  private async insertInventoryItem(
+    userId: string,
+    data: CreateInventoryItemInput,
+    opts: { trustedPhotos: boolean },
   ): Promise<InventoryItemView> {
     this.cleanupTempPhotos();
     const user = this.requireUser(userId);
@@ -4526,7 +4662,9 @@ export class MockDataProvider implements DataProvider {
     }
     const name = data.name.trim();
     if (!name) throw new Error("Item name is required");
-    const photos = data.photoKeys ?? [];
+    const photos = opts.trustedPhotos
+      ? (data.photoKeys ?? [])
+      : checkedPhotoInputs(data.photoKeys);
     const hasFront = photos.some((p) => p.kind === "FRONT");
     const hasSide = photos.some((p) => p.kind === "SIDE");
     if (!hasFront || !hasSide) {
@@ -4538,10 +4676,12 @@ export class MockDataProvider implements DataProvider {
       throw new Error("Add a serial photo or mark that there is no serial");
     }
     if (serial && !data.continueDespiteDuplicate) {
-      const dupes = await this.findInventoryBySerial(serial);
+      // Only items the submitter may know about. A match that is still in
+      // review is for the steward to sort out, not something to reveal here.
+      const dupes = this.inventorySerialHits(serial, user);
       if (dupes.length > 0) {
         throw new Error(
-          `This might already be in inventory: ${dupes.map((d) => `${d.assetTag} ${d.name}`).join(", ")}`,
+          `This might already be in inventory: ${dupes.map((d) => `${formatAssetTag(d.tagNumber)} ${d.name}`).join(", ")}`,
         );
       }
     }
@@ -4604,7 +4744,7 @@ export class MockDataProvider implements DataProvider {
         changes: { reviewStatus: { from: "PENDING", to: "APPROVED" } },
       });
     }
-    return this.toInventoryView(item);
+    return this.toInventoryView(item, user);
   }
 
   async updateInventoryItem(
@@ -4672,7 +4812,7 @@ export class MockDataProvider implements DataProvider {
         changes,
       });
     }
-    return this.toInventoryView(item);
+    return this.toInventoryView(item, user);
   }
 
   async reviewInventoryItem(
@@ -4711,7 +4851,7 @@ export class MockDataProvider implements DataProvider {
         changes: { reviewStatus: { from: "PENDING", to: "REJECTED" } },
         note: why,
       });
-      return this.toInventoryView(item);
+      return this.toInventoryView(item, user);
     }
     item.reviewStatus = "APPROVED";
     item.reviewedById = user.id;
@@ -4724,7 +4864,7 @@ export class MockDataProvider implements DataProvider {
       actorId: user.id,
       changes: { reviewStatus: { from: "PENDING", to: "APPROVED" } },
     });
-    return this.toInventoryView(item);
+    return this.toInventoryView(item, user);
   }
 
   async changeInventoryStatus(
@@ -4756,7 +4896,7 @@ export class MockDataProvider implements DataProvider {
       changes: { status: { from, to: status } },
       note: note?.trim() || null,
     });
-    return this.toInventoryView(item);
+    return this.toInventoryView(item, user);
   }
 
   async moveInventoryItem(
@@ -4787,7 +4927,7 @@ export class MockDataProvider implements DataProvider {
       changes: { location: { from, to: next } },
       note: note?.trim() || null,
     });
-    return this.toInventoryView(item);
+    return this.toInventoryView(item, user);
   }
 
   async reportInventoryIssue(
@@ -4804,14 +4944,19 @@ export class MockDataProvider implements DataProvider {
       throw new Error("Sign in to report an issue");
     }
     let photoId: string | null = null;
-    if (input.photoKey) {
+    if (input.photoKey != null && input.photoKey !== "") {
+      const checked = checkedPhotoInput({
+        storageKey: input.photoKey,
+        kind: "OTHER",
+        mimeType: input.photoMimeType ?? "image/jpeg",
+      });
       const photo: ItemPhoto = {
         id: this.id("ip"),
         itemId: item.id,
         kind: "OTHER",
-        storageKey: input.photoKey,
-        thumbKey: input.photoKey,
-        mimeType: input.photoMimeType ?? "image/jpeg",
+        storageKey: checked.storageKey,
+        thumbKey: checked.storageKey,
+        mimeType: checked.mimeType,
         uploadedById: user.id,
         createdAt: this.now(),
       };
@@ -4871,7 +5016,7 @@ export class MockDataProvider implements DataProvider {
       changes: { status: { from, to: "RETIRED" } },
       note: why,
     });
-    return this.toInventoryView(item);
+    return this.toInventoryView(item, user);
   }
 
   async addInventoryPhoto(
@@ -4896,15 +5041,16 @@ export class MockDataProvider implements DataProvider {
     ) {
       throw new Error("Volunteers can add photos");
     }
+    const checked = checkedPhotoInput(photo);
     const row: ItemPhoto = {
       id: this.id("ip"),
       itemId: item.id,
-      kind: photo.kind,
-      storageKey: photo.storageKey,
-      thumbKey: photo.thumbKey ?? photo.storageKey,
-      mimeType: photo.mimeType,
-      width: photo.width ?? null,
-      height: photo.height ?? null,
+      kind: checked.kind,
+      storageKey: checked.storageKey,
+      thumbKey: checked.thumbKey ?? checked.storageKey,
+      mimeType: checked.mimeType,
+      width: checked.width ?? null,
+      height: checked.height ?? null,
       uploadedById: user.id,
       createdAt: this.now(),
     };
@@ -4998,22 +5144,26 @@ export class MockDataProvider implements DataProvider {
           mimeType: "image/svg+xml",
         });
       }
-      const item = await this.createInventoryItem(userId, {
-        name,
-        model: row.model,
-        manufacturer: row.manufacturer,
-        serialNumber: row.serialNumber,
-        noSerial: !row.serialNumber,
-        quantity: row.quantity ?? 1,
-        areaId: row.areaId,
-        location: row.location,
-        condition: row.condition,
-        notes: row.notes
-          ? `${row.notes}\nImported from Google Form`
-          : "Imported from Google Form",
-        photoKeys,
-        continueDespiteDuplicate: true,
-      });
+      const item = await this.insertInventoryItem(
+        userId,
+        {
+          name,
+          model: row.model,
+          manufacturer: row.manufacturer,
+          serialNumber: row.serialNumber,
+          noSerial: !row.serialNumber,
+          quantity: row.quantity ?? 1,
+          areaId: row.areaId,
+          location: row.location,
+          condition: row.condition,
+          notes: row.notes
+            ? `${row.notes}\nImported from Google Form`
+            : "Imported from Google Form",
+          photoKeys,
+          continueDespiteDuplicate: true,
+        },
+        { trustedPhotos: true },
+      );
       const createdEvent = this.state.itemEvents.find(
         (e) => e.itemId === item.id && e.type === "CREATED",
       );

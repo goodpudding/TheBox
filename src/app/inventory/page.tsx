@@ -149,7 +149,9 @@ function InventoryBrowseBody() {
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search name, model, serial, tag"
+          placeholder={
+            staff ? "Search name, model, serial, tag" : "Search name, model, tag"
+          }
           aria-label="Search inventory"
         />
         <select

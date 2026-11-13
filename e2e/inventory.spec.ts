@@ -17,6 +17,39 @@ test.describe("shop inventory", () => {
     await expect(page.getByText("Swing-away heat press")).toHaveCount(0);
   });
 
+  test("a plain member gets the item page without serial or notes", async ({
+    page,
+  }) => {
+    await page.goto("/join");
+    await switchUser(page, "Drew Santos");
+    await page.goto("/inventory");
+    await expect(
+      page.getByRole("link", { name: "Orbital sander" }).first(),
+    ).toBeVisible({ timeout: 15_000 });
+    await page.goto("/inventory/BX-00001");
+    await expect(page.getByRole("heading", { name: "Orbital sander" })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByText("Woodshop · Bay A shelf")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "History" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Report issue" })).toBeVisible();
+    await expect(page.getByText("DW6423-88421")).toHaveCount(0);
+    await expect(page.getByText(/Hook-and-loop pad/)).toHaveCount(0);
+    await expect(page.getByText("Serial", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Notes", { exact: true })).toHaveCount(0);
+  });
+
+  test("the area's steward still sees serial and notes", async ({ page }) => {
+    await page.goto("/join");
+    await switchUser(page, "Maya Chen");
+    await page.goto("/inventory/BX-00001");
+    await expect(page.getByRole("heading", { name: "Orbital sander" })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByText("DW6423-88421")).toBeVisible();
+    await expect(page.getByText(/Hook-and-loop pad/)).toBeVisible();
+  });
+
   test("woodshop steward sees the pending jigsaw in review", async ({
     page,
   }) => {
