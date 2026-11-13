@@ -1,5 +1,6 @@
 import type { DataProvider } from "@/lib/data/provider";
 import { createMockDataProvider } from "@/lib/data/mock-provider";
+import { configuredSecret, secretsMatch } from "@/lib/secrets";
 import {
   createServerDataProvider,
   getDataProviderMode,
@@ -29,13 +30,10 @@ export async function getAccessDataProvider(
 }
 
 export function readerSecretIsValid(secret: string | null | undefined): boolean {
-  const expected =
-    process.env.READER_SHARED_SECRET?.trim() ||
-    (process.env.NODE_ENV !== "production"
-      ? "dev-reader-secret-change-me"
-      : "");
-  if (!expected || !secret) return false;
-  return secret === expected;
+  return secretsMatch(
+    secret,
+    configuredSecret("READER_SHARED_SECRET", "dev-reader-secret-change-me"),
+  );
 }
 
 export function normalizeBadgeUid(raw: string): string {

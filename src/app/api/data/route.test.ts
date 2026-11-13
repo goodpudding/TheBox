@@ -285,4 +285,117 @@ describe("/api/data", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: false, error: "rates missing" });
   });
+
+  it("signs a member up to an interest board under their own email only", async () => {
+    const member = user("member-1", "member");
+    const joinInterestBoard = vi.fn(async () => ({}));
+    auth.mockResolvedValue({ user: { id: member.id } });
+    createServerDataProvider.mockResolvedValue(
+      provider(member, { joinInterestBoard }),
+    );
+    const res = await post({
+      method: "joinInterestBoard",
+      args: [{ boardId: "board-1", email: "victim@example.com", displayName: "V" }],
+    });
+    expect(res.status).toBe(200);
+    expect(joinInterestBoard).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "member-1",
+        email: "member-1@example.com",
+      }),
+    );
+  });
+
+  it("records the waiver IP and browser from the request, not the body", async () => {
+    const member = user("member-1", "member");
+    const signWaiver = vi.fn(async () => ({}));
+    auth.mockResolvedValue({ user: { id: member.id } });
+    createServerDataProvider.mockResolvedValue(provider(member, { signWaiver }));
+    const { POST } = await import("./route");
+    const res = await POST(
+      new Request("http://localhost/api/data", {
+        method: "POST",
+        headers: {
+          "cf-connecting-ip": "203.0.113.7",
+          "user-agent": "RealBrowser/1.0",
+        },
+        body: JSON.stringify({
+          method: "signWaiver",
+          args: [
+            {
+              userId: "someone-else",
+              fullNameTyped: "A B",
+              agreed: true,
+              ip: "8.8.8.8",
+              userAgent: "Forged",
+            },
+          ],
+        }),
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(signWaiver).toHaveBeenCalledWith({
+      userId: "member-1",
+      fullNameTyped: "A B",
+      agreed: true,
+      ip: "203.0.113.7",
+      userAgent: "RealBrowser/1.0",
+    });
+  });
+
+  it("does not send internal staff notes to the member they are about", async () => {
+    const member = { ...user("member-1", "member"), _notes: "watch this one" };
+    auth.mockResolvedValue({ user: { id: member.id } });
+    createServerDataProvider.mockResolvedValue(
+      provider(member, { getMember: async () => member }),
+    );
+    const me = await post({ method: "getCurrentUser", args: [] });
+    expect(JSON.stringify(await me.json())).not.toContain("watch this one");
+    const row = await post({ method: "getMember", args: ["member-1"] });
+    expect(JSON.stringify(await row.json())).not.toContain("watch this one");
+  });
+
+  it("still sends staff notes to staff", async () => {
+    const staff = user("staff-1", "staff");
+    const member = { ...user("member-1", "member"), _notes: "watch this one" };
+    auth.mockResolvedValue({ user: { id: staff.id } });
+    createServerDataProvider.mockResolvedValue(
+      provider(staff, { getMember: async () => member }),
+    );
+    const row = await post({ method: "getMember", args: ["member-1"] });
+    expect(JSON.stringify(await row.json())).toContain("watch this one");
+  });
+
+  it("refuses an oversized request body before loading any data", async () => {
+    auth.mockResolvedValue(null);
+    createServerDataProvider.mockResolvedValue(provider(null));
+    const res = await post({
+      method: "submitVolunteerInterest",
+      args: [{ name: "a", email: "a@example.com", message: "x".repeat(1_100_000) }],
+    });
+    expect(res.status).toBe(413);
+    expect(createServerDataProvider).not.toHaveBeenCalled();
+  });
+
+  it("answers malformed JSON with 400", async () => {
+    const { POST } = await import("./route");
+    const res = await POST(
+      new Request("http://localhost/api/data", { method: "POST", body: "{nope" }),
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("does not echo internal error text when the request itself fails", async () => {
+    auth.mockResolvedValue({ user: { id: "member-1" } });
+    createServerDataProvider.mockRejectedValue(
+      new Error("PrismaClientKnownRequestError: D1_ERROR no such column users.secret"),
+    );
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = await post({ method: "getSettings", args: [] });
+    spy.mockRestore();
+    expect(res.status).toBe(500);
+    const body = (await res.json()) as { ok: boolean; error: string };
+    expect(body.ok).toBe(false);
+    expect(body.error).not.toMatch(/Prisma|D1_ERROR|column/);
+  });
 });

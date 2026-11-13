@@ -1,4 +1,7 @@
 // Bundled by Wrangler after `opennextjs-cloudflare build`. Not part of the Next app.
+// The import below only exists after the OpenNext build, so it cannot be
+// @ts-expect-error: that would fail once the file is there.
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore `.open-next/worker.js` is generated at build time.
 import { default as handler } from "../.open-next/worker.js";
 import { useScheduledD1 } from "./lib/db";
@@ -29,5 +32,6 @@ export default {
 };
 
 // Required when the app uses the DO queue or tag cache.
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore generated at build time
 export { DOQueueHandler, DOShardedTagCache } from "../.open-next/worker.js";

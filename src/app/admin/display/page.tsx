@@ -37,6 +37,20 @@ const ALL_PANELS: DisplayPanelId[] = [
 
 const DEV_KIOSK_URL = "/display?token=dev-display-token-change-me";
 
+/**
+ * The kiosk URL uses the canonical domain. The preview frame loads the same
+ * page from whatever host this admin page is on, so the site's own
+ * frame-ancestors rule allows it.
+ */
+function sameOriginPath(url: string): string {
+  try {
+    const parsed = new URL(url, "http://localhost");
+    return `${parsed.pathname}${parsed.search}`;
+  } catch {
+    return url;
+  }
+}
+
 async function fetchKioskUrl(): Promise<string> {
   const res = await fetch("/api/admin/display/kiosk-url", { cache: "no-store" });
   const data = (await res.json().catch(() => null)) as
@@ -527,7 +541,7 @@ export default function AdminDisplayPage() {
         {previewSrc ? (
           <iframe
             title="Lobby display preview"
-            src={previewSrc}
+            src={sameOriginPath(previewSrc)}
             className="mt-4 h-[480px] w-full max-w-4xl rounded-2xl border border-border bg-page"
           />
         ) : null}

@@ -231,12 +231,32 @@ function pinArgs(
   return next;
 }
 
+/** Facts about the HTTP request that the browser must not be able to choose. */
+export type RpcRequestMeta = { ip: string; userAgent: string };
+
+const SELF_USER_METHODS = new Set<string>([
+  "getCurrentUser",
+  "getMember",
+  "updateMemberProfile",
+]);
+
+/** Staff notes on a member row are for staff. Drop them for everyone else. */
+function withoutStaffNotes(result: unknown): unknown {
+  if (!result || typeof result !== "object" || !("_notes" in result)) {
+    return result;
+  }
+  const copy = { ...(result as Record<string, unknown>) };
+  delete copy._notes;
+  return copy;
+}
+
 export async function handleDataRpc(input: {
   method: unknown;
   args: unknown;
   sessionUser: User | null;
   provider: DataProvider;
   productionLocked?: boolean;
+  requestMeta?: RpcRequestMeta;
 }): Promise<RpcResponse> {
   const method = typeof input.method === "string" ? input.method : "";
   const args = Array.isArray(input.args) ? input.args : null;
@@ -283,10 +303,29 @@ export async function handleDataRpc(input: {
       email: input.sessionUser?.email ?? null,
     };
   }
+  // A signed-in member joins as themselves. Only a guest types an email.
+  if (!staff && name === "joinInterestBoard" && input.sessionUser) {
+    pinned[0] = {
+      ...(pinned[0] as Record<string, unknown>),
+      email: input.sessionUser.email,
+    };
+  }
+  // The waiver record keeps where it was signed from. That comes from the
+  // request, for every caller.
+  if (name === "signWaiver" && input.requestMeta) {
+    const first = pinned[0];
+    pinned[0] = {
+      ...(first && typeof first === "object" ? (first as Record<string, unknown>) : {}),
+      ip: input.requestMeta.ip,
+      userAgent: input.requestMeta.userAgent,
+    };
+  }
 
   const fn = input.provider[name] as (...a: unknown[]) => Promise<unknown>;
   try {
-    const result = await fn.apply(input.provider, pinned);
+    const raw = await fn.apply(input.provider, pinned);
+    const result =
+      !staff && SELF_USER_METHODS.has(name) ? withoutStaffNotes(raw) : raw;
     return { status: 200, body: { ok: true, result } };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Request failed";

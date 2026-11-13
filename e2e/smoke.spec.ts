@@ -1,25 +1,5 @@
 import { test, expect } from "@playwright/test";
-
-async function switchUser(page: import("@playwright/test").Page, label: string) {
-  const select = page.locator("select").filter({ hasText: "Guest" }).or(
-    page.locator(".fixed.bottom-0 select"),
-  );
-  await expect(page.getByText("Dev · Switch user")).toBeVisible();
-  const toolbarSelect = page.locator("div.fixed.bottom-0 select");
-  const options = toolbarSelect.locator("option");
-  const count = await options.count();
-  for (let i = 0; i < count; i++) {
-    const text = (await options.nth(i).textContent()) ?? "";
-    if (text.includes(label)) {
-      const value = await options.nth(i).getAttribute("value");
-      if (value != null) {
-        await toolbarSelect.selectOption(value);
-        return;
-      }
-    }
-  }
-  throw new Error(`User option not found: ${label}`);
-}
+import { switchUser } from "./helpers";
 
 test.describe("The Box Portal critical paths (mock)", () => {
   test("onboarding: Avery completes profile → waiver → expectations", async ({
@@ -27,6 +7,9 @@ test.describe("The Box Portal critical paths (mock)", () => {
   }) => {
     await page.goto("/join");
     await switchUser(page, "Avery Brooks");
+    // The public join page stays put. A member page sends a new member to
+    // onboarding.
+    await page.goto("/dashboard");
     await page.waitForURL(/onboarding\/profile|dashboard/);
     if (page.url().includes("profile")) {
       await page.getByLabel("First name").fill("Avery");
@@ -56,9 +39,9 @@ test.describe("The Box Portal critical paths (mock)", () => {
     await page.goto("/join");
     await switchUser(page, "Maya Chen");
     await page.goto("/classes");
-    await expect(page.getByRole("heading", { name: /Classes/i })).toBeVisible({
-      timeout: 15_000,
-    });
+    await expect(
+      page.getByRole("heading", { name: /Upcoming sessions/i }),
+    ).toBeVisible({ timeout: 15_000 });
     // Open a paid class if listed
     const paidLink = page.locator('a[href^="/classes/"]').first();
     await paidLink.click();
@@ -97,7 +80,9 @@ test.describe("The Box Portal critical paths (mock)", () => {
     await page.goto("/join");
     await switchUser(page, "Avery Admin");
     await page.goto("/admin/learn");
-    await expect(page.getByText("Shop Orientation")).toBeVisible({
+    await expect(
+      page.getByRole("link", { name: "Shop Orientation", exact: true }),
+    ).toBeVisible({
       timeout: 15_000,
     });
     await expect(page.getByText(/Draft/i).first()).toBeVisible();
@@ -119,8 +104,8 @@ test.describe("The Box Portal critical paths (mock)", () => {
       page.getByText(/your request is on the board/i),
     ).toBeVisible({ timeout: 10_000 });
 
+    // Stay on the page: fixture data lives in this tab and a reload resets it.
     await switchUser(page, "Jordan Lee");
-    await page.goto("/bounties");
     await expect(
       page.getByRole("heading", { name: "Window decal for a bakery" }),
     ).toBeVisible({ timeout: 15_000 });

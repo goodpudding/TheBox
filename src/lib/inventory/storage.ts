@@ -68,6 +68,14 @@ function extFor(mime: string): string {
   return "jpg";
 }
 
+/** Absolute path for a `local:` key, or null when it leaves the photo dir. */
+function localPath(storageKey: string): string | null {
+  const root = path.resolve(LOCAL_DIR);
+  const filePath = path.resolve(root, storageKey.slice("local:".length));
+  if (!filePath.startsWith(root + path.sep)) return null;
+  return filePath;
+}
+
 class LocalPhotoStorage implements PhotoStorage {
   async putPhoto(input: PutPhotoInput): Promise<{ storageKey: string }> {
     await mkdir(LOCAL_DIR, { recursive: true });
@@ -90,11 +98,11 @@ class LocalPhotoStorage implements PhotoStorage {
       };
     }
     if (!storageKey.startsWith("local:")) return null;
-    const rel = storageKey.slice("local:".length);
-    const filePath = path.join(LOCAL_DIR, rel);
+    const filePath = localPath(storageKey);
+    if (!filePath) return null;
     try {
       const bytes = await readFile(filePath);
-      const ext = path.extname(rel).toLowerCase();
+      const ext = path.extname(filePath).toLowerCase();
       const mimeType =
         ext === ".png"
           ? "image/png"
@@ -111,7 +119,8 @@ class LocalPhotoStorage implements PhotoStorage {
 
   async deletePhoto(storageKey: string): Promise<void> {
     if (!storageKey.startsWith("local:")) return;
-    const filePath = path.join(LOCAL_DIR, storageKey.slice("local:".length));
+    const filePath = localPath(storageKey);
+    if (!filePath) return;
     await unlink(filePath).catch(() => undefined);
   }
 }
