@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPhoto } from "@/lib/inventory/storage";
 import { isServablePhotoType } from "@/lib/inventory/upload-policy";
+import { PHOTO_CSP } from "@/lib/security-headers";
 
 function notFound() {
   return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -31,7 +32,7 @@ export async function GET(
       "Content-Type": photo.mimeType,
       "Cache-Control": "public, max-age=86400, immutable",
       "X-Content-Type-Options": "nosniff",
-      "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+      "Content-Security-Policy": PHOTO_CSP,
     },
   });
 }

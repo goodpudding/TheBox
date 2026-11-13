@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
-import { SECURITY_HEADERS } from "./src/lib/security-headers";
+import { headerRules } from "./src/lib/security-headers";
 
 const nextConfig: NextConfig = {
   // Required for Prisma on Cloudflare Workers: lets OpenNext replace the
@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["@prisma/client", ".prisma/client"],
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/:path*", headers: SECURITY_HEADERS }];
+    return headerRules();
   },
 };
 

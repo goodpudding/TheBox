@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { SECURITY_HEADERS } from "./security-headers";
+import { PHOTO_CSP, SECURITY_HEADERS, headerRules } from "./security-headers";
 
 const byKey = Object.fromEntries(SECURITY_HEADERS.map((h) => [h.key, h.value]));
 
@@ -25,5 +25,16 @@ describe("security headers", () => {
     for (const { key, value } of SECURITY_HEADERS) {
       expect(file, key).toContain(`${key}: ${value}`);
     }
+  });
+
+  it("the photo route keeps its sandbox policy over the site-wide one", () => {
+    const rules = headerRules();
+    const last = rules[rules.length - 1]!;
+    expect(last.source).toBe("/api/inventory/photos/:id*");
+    expect(last.headers).toEqual([
+      { key: "Content-Security-Policy", value: PHOTO_CSP },
+    ]);
+    expect(PHOTO_CSP).toContain("sandbox");
+    expect(PHOTO_CSP).toContain("default-src 'none'");
   });
 });
