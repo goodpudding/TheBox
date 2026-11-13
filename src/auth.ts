@@ -2,6 +2,8 @@ import NextAuth from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { emailProvider } from "@/lib/auth/email-provider";
 import { prisma } from "@/lib/db";
+import { allowRequest, emailLimitKey } from "@/lib/rate-limit";
+import { SIGN_IN_LIMITED_PATH } from "@/lib/sign-in-email";
 
 /**
  * Auth.js magic-link config.
@@ -23,6 +25,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     error: "/login",
   },
   callbacks: {
+    /**
+     * Auth.js asks this right before it sends a sign-in email, after it has
+     * checked the CSRF token and the address. Counting here means the count
+     * is for the address the email really goes to, and a request that sends
+     * nothing cannot use up someone else's share. A link being opened comes
+     * through here too (no `email`) and is never limited.
+     */
+    async signIn({ account, email }) {
+      if (!email?.verificationRequest || !account) return true;
+      const mailbox = emailLimitKey(account.providerAccountId);
+      return (await allowRequest("signInEmailAddress", mailbox)) || SIGN_IN_LIMITED_PATH;
+    },
     async session({ session, user }) {
       if (session.user) {
         session.user.id = user.id;

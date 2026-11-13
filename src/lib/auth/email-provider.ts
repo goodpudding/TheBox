@@ -1,5 +1,6 @@
 import type { EmailConfig } from "next-auth/providers/email";
 import Resend from "next-auth/providers/resend";
+import { normalizeSignInEmail } from "@/lib/sign-in-email";
 
 type EmailEnv = {
   AUTH_RESEND_KEY?: string;
@@ -13,11 +14,17 @@ type EmailEnv = {
  * - Local dev: SMTP (Mailpit at 127.0.0.1:1025 by default).
  * Both are registered under the id "email" so the login page can call
  * signIn("email") regardless of which transport is active.
+ * Both only ever get one bare address to write to (normalizeSignInEmail).
  */
 export function emailProvider(env: EmailEnv): EmailConfig {
   const from = env.AUTH_EMAIL_FROM ?? "The Box <thebox@discoverburien.org>";
   if (env.AUTH_RESEND_KEY) {
-    return Resend({ id: "email", apiKey: env.AUTH_RESEND_KEY, from });
+    return Resend({
+      id: "email",
+      apiKey: env.AUTH_RESEND_KEY,
+      from,
+      normalizeIdentifier: normalizeSignInEmail,
+    });
   }
   return localSmtp(env.AUTH_EMAIL_SERVER ?? "smtp://127.0.0.1:1025", from);
 }
@@ -35,6 +42,7 @@ function localSmtp(server: string, from: string): EmailConfig {
     name: "Email",
     from,
     maxAge: 24 * 60 * 60,
+    normalizeIdentifier: normalizeSignInEmail,
     async sendVerificationRequest({ identifier, url }) {
       if (process.env.NODE_ENV !== "production") {
         const { createTransport } = await import("nodemailer");

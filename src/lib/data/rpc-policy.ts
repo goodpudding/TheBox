@@ -170,6 +170,19 @@ export const RPC_RULES = {
   getAllowlist: { access: "staff", arg: -1 },
 } as const satisfies Record<DataMethod, Rule>;
 
+/**
+ * The public methods that write. Anyone can call these without signing in, so
+ * the route limits how often before it loads any data. The route test fails
+ * when a new public method that is not a read is missing here.
+ */
+export const PUBLIC_WRITE_METHODS: ReadonlySet<string> = new Set<DataMethod>([
+  "submitVolunteerInterest",
+  "submitBountyRequest",
+  "reportWishlistPurchase",
+  "proposeInterestBoard",
+  "joinInterestBoard",
+]);
+
 /** Index of the acting-user argument, or -1 when the method has none. */
 export const ACTOR_ARG_INDEX: Record<DataMethod, number> = Object.fromEntries(
   (Object.keys(RPC_RULES) as DataMethod[]).map((name) => [
