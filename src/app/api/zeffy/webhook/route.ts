@@ -114,7 +114,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing payment data" }, { status: 400 });
   }
 
-  const provider = await createServerDataProvider(null);
+  // A payment is a write: start from the database as it is now.
+  const provider = await createServerDataProvider(null, { fresh: true });
   const applied = await applyZeffyWebhookPayment(
     provider,
     payment,

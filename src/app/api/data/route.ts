@@ -4,7 +4,7 @@ import {
   createServerDataProvider,
   lastProviderLoad,
 } from "@/lib/data/factory";
-import { handleDataRpc } from "@/lib/data/rpc-policy";
+import { handleDataRpc, needsFreshBundle } from "@/lib/data/rpc-policy";
 
 export const runtime = "nodejs";
 
@@ -17,7 +17,9 @@ export async function POST(request: Request) {
     method = typeof body.method === "string" ? body.method : "unknown";
     const session = await auth();
     const userId = session?.user?.id ?? null;
-    const provider = await createServerDataProvider(userId);
+    const provider = await createServerDataProvider(userId, {
+      fresh: needsFreshBundle(method, userId !== null),
+    });
     const sessionUser = userId ? await provider.getCurrentUser() : null;
     const response = await handleDataRpc({
       method: body.method,

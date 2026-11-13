@@ -8,6 +8,48 @@ export function changedRows<T extends { id: string }>(
   return next.filter((row) => map.get(row.id) !== JSON.stringify(row));
 }
 
+function sameValue(a: unknown, b: unknown): boolean {
+  if (a instanceof Date && b instanceof Date) return a.getTime() === b.getTime();
+  return a === b;
+}
+
+/**
+ * Columns of `next` whose value differs from `prev`, never the id.
+ * Both rows come from the same table mapping, so values are scalars or Dates.
+ */
+export function changedColumns(
+  prev: Record<string, unknown>,
+  next: Record<string, unknown>,
+): Record<string, unknown> {
+  const changed: Record<string, unknown> = {};
+  for (const [column, value] of Object.entries(next)) {
+    if (column === "id") continue;
+    if (!sameValue(prev[column], value)) changed[column] = value;
+  }
+  return changed;
+}
+
+const READ_ONLY_METHODS = new Set([
+  "setCurrentUserId",
+  "pendingInventoryCount",
+  "findInventoryBySerial",
+  "findBookingByZeffyPaymentId",
+]);
+
+/**
+ * True when a DataProvider method can change stored rows. The kiosk PIN
+ * methods write their own columns directly and never go through the bundle.
+ */
+export function shouldPersistAfter(methodName: string): boolean {
+  if (READ_ONLY_METHODS.has(methodName)) return false;
+  if (methodName === "setMyKioskPin") return false;
+  if (methodName === "adminResetMemberKioskPin") return false;
+  if (methodName.startsWith("get")) return false;
+  if (methodName.startsWith("list")) return false;
+  if (methodName.startsWith("adminList")) return false;
+  return true;
+}
+
 const ARRAY_KEYS = [
   "users",
   "badges",
