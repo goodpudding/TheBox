@@ -11,6 +11,9 @@ import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { fitDurationSlots } from "@/lib/reservation-duration";
+import { isHappeningNow } from "@/lib/time-window";
+import { useNow } from "@/lib/use-now";
 import type {
   AvailabilitySlot,
   Machine,
@@ -122,6 +125,7 @@ function ReserveMachineBody() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const now = useNow();
 
   useEffect(() => {
     if (!machineId) return;
@@ -140,12 +144,22 @@ function ReserveMachineBody() {
     };
   }, [machineId, provider, revision]);
 
+  // Another day, another machine or fresh data means other slots: drop the
+  // old ones and the picked time before the new ones load.
+  const availabilityKey = `${machineId}|${date}|${revision}`;
+  const [shownKey, setShownKey] = useState(availabilityKey);
+  if (shownKey !== availabilityKey) {
+    setShownKey(availabilityKey);
+    if (machineId && date) {
+      setSlots(null);
+      setSelectedStart(null);
+      setError(null);
+    }
+  }
+
   useEffect(() => {
     if (!machineId || !date) return;
     let cancelled = false;
-    setSlots(null);
-    setSelectedStart(null);
-    setError(null);
     void (async () => {
       try {
         const rows = await provider.getMachineAvailability(
@@ -206,15 +220,9 @@ function ReserveMachineBody() {
     return count;
   }, [displaySlots, selectedStart, maxDurationSlots]);
 
-  useEffect(() => {
-    if (!selectedStart || maxContiguous <= 0) return;
-    const preferred = Math.min(2, maxContiguous);
-    setDurationSlots((prev) =>
-      prev > maxContiguous
-        ? preferred
-        : Math.max(1, Math.min(prev, maxContiguous)),
-    );
-  }, [selectedStart, maxContiguous]);
+  // The length has to fit the open run after the picked start.
+  const fittedDuration = fitDurationSlots(durationSlots, maxContiguous);
+  if (fittedDuration !== durationSlots) setDurationSlots(fittedDuration);
 
   const endsAt = useMemo(() => {
     if (!displaySlots || !selectedStart || durationSlots < 1) return null;
@@ -427,10 +435,8 @@ function ReserveMachineBody() {
           <p className="mt-4 text-sm text-secondary">
             {bookedBlocks.length} booked block
             {bookedBlocks.length === 1 ? "" : "s"} on this day
-            {bookedBlocks.some(
-              (b) =>
-                new Date(b.startsAt).getTime() <= Date.now() &&
-                new Date(b.endsAt).getTime() > Date.now(),
+            {bookedBlocks.some((b) =>
+              isHappeningNow(b.startsAt, b.endsAt, now),
             )
               ? " · including a hold happening now"
               : ""}
