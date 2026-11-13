@@ -31,6 +31,23 @@ describe("local photo storage", () => {
     expect(photo?.bytes.length).toBe(3);
   });
 
+  it("issues keys that the inventory write methods accept", async () => {
+    const { putPhoto } = await import("./storage");
+    const { isIssuedPhotoKey } = await import("./upload-policy");
+    for (const [mimeType, folder] of [
+      ["image/jpeg", "temp"],
+      ["image/png", "temp"],
+      ["image/webp", "BX-00042"],
+    ] as const) {
+      const { storageKey } = await putPhoto({
+        bytes: Buffer.from([0xff, 0xd8, 0xff]),
+        mimeType,
+        folder,
+      });
+      expect(isIssuedPhotoKey(storageKey), storageKey).toBe(true);
+    }
+  });
+
   it("refuses a key that climbs out of the photo directory", async () => {
     await writeFile(path.join(root, "secret.png"), "top secret");
     await mkdir(path.join(root, ".data", "inventory-photos"), { recursive: true });
