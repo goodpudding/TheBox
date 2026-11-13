@@ -3,6 +3,7 @@ import type { Provider } from "next-auth/providers";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import Nodemailer from "next-auth/providers/nodemailer";
 import Resend from "next-auth/providers/resend";
+import { toClientSession } from "@/lib/auth/client-session";
 import { prisma } from "@/lib/db";
 
 const from =
@@ -41,18 +42,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     error: "/login",
   },
   callbacks: {
+    // Whatever this returns is the body of GET /api/auth/session.
     async session({ session, user }) {
-      if (session.user) {
-        session.user.id = user.id;
-        const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-        if (dbUser) {
-          session.user.name = dbUser.displayName || session.user.name;
-          session.user.email = dbUser.email;
-          session.user.role = dbUser.role;
-          session.user.status = dbUser.status;
-        }
-      }
-      return session;
+      const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+      return toClientSession(session, dbUser);
     },
   },
   trustHost: true,
