@@ -9,7 +9,7 @@ import { runClassSync } from "./lib/sync/run";
 
 type WorkerEnv = { DB?: Parameters<typeof useScheduledD1>[0] };
 
-export default {
+const worker = {
   fetch: handler.fetch,
 
   async scheduled(
@@ -30,6 +30,8 @@ export default {
     );
   },
 };
+
+export default worker;
 
 // Required when the app uses the DO queue or tag cache.
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment

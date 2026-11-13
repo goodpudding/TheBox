@@ -14,6 +14,9 @@ const eslintConfig = defineConfig([
       "react-hooks/set-state-in-effect": "warn",
       "react-hooks/purity": "warn",
       "react-hooks/preserve-manual-memoization": "warn",
+      // A leading underscore marks a parameter that is there only so the
+      // signature matches the interface it implements.
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
     },
   },
   // Override default ignores of eslint-config-next.
