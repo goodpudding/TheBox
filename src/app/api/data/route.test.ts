@@ -3,10 +3,20 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { DataProvider } from "@/lib/data/provider";
 import type { User } from "@/lib/data/types";
-import { ACTOR_ARG_INDEX } from "@/lib/data/rpc-policy";
+import {
+  ACTOR_ARG_INDEX,
+  PUBLIC_WRITE_METHODS,
+  RPC_RULES,
+} from "@/lib/data/rpc-policy";
+import { resetRateLimitStore } from "@/lib/rate-limit";
 
 const auth = vi.fn();
 const createServerDataProvider = vi.fn();
+const cloudflareEnv = vi.fn<() => Record<string, unknown>>();
+
+vi.mock("@opennextjs/cloudflare", () => ({
+  getCloudflareContext: () => ({ env: cloudflareEnv() }),
+}));
 
 vi.mock("@/auth", () => ({
   auth: () => auth(),
@@ -48,21 +58,33 @@ function provider(sessionUser: User | null, extra: Partial<DataProvider> = {}) {
   } as DataProvider;
 }
 
-async function post(body: unknown) {
+async function post(body: unknown, headers: Record<string, string> = {}) {
   const { POST } = await import("./route");
   return POST(
     new Request("http://localhost/api/data", {
       method: "POST",
+      headers,
       body: JSON.stringify(body),
     }),
   );
 }
+
+const BOUNTY = {
+  method: "submitBountyRequest",
+  args: [{ title: "Sign", description: "A sign", requesterName: "R", requesterEmail: "r@example.com" }],
+};
 
 describe("/api/data", () => {
   beforeEach(() => {
     auth.mockReset();
     createServerDataProvider.mockReset();
     vi.unstubAllEnvs();
+    // Plain Node has no Cloudflare bindings, so the in-memory limiter runs.
+    cloudflareEnv.mockReset();
+    cloudflareEnv.mockImplementation(() => {
+      throw new Error("no Cloudflare context");
+    });
+    resetRateLimitStore();
   });
 
   it("lists an actor decision for every DataProvider method", () => {
@@ -347,5 +369,128 @@ describe("/api/data", () => {
     const body = (await res.json()) as { ok: boolean; error: string };
     expect(body.ok).toBe(false);
     expect(body.error).not.toMatch(/Prisma|D1_ERROR|column/);
+  });
+
+  it("names every public method that writes as rate limited", () => {
+    const publicWrites = (Object.keys(RPC_RULES) as (keyof typeof RPC_RULES)[])
+      .filter((name) => RPC_RULES[name].access === "public")
+      .filter((name) => !/^(get|list)[A-Z]/.test(name));
+    expect([...PUBLIC_WRITE_METHODS].sort()).toEqual(publicWrites.sort());
+    expect(publicWrites.length).toBeGreaterThan(0);
+  });
+
+  it("refuses the 6th anonymous public write in a minute before loading any data", async () => {
+    const submitBountyRequest = vi.fn(async () => ({}));
+    auth.mockResolvedValue(null);
+    createServerDataProvider.mockResolvedValue(provider(null, { submitBountyRequest }));
+    const from = { "cf-connecting-ip": "203.0.113.7" };
+    for (let i = 0; i < 5; i += 1) {
+      const res = await post(BOUNTY, from);
+      expect(res.status, `call ${i + 1}`).toBe(200);
+    }
+    const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const res = await post(BOUNTY, from);
+    spy.mockRestore();
+    expect(res.status).toBe(429);
+    expect(res.headers.get("retry-after")).toBe("60");
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(await res.json()).toEqual({
+      ok: false,
+      error: "Too many requests. Wait a minute and try again.",
+    });
+    expect(createServerDataProvider).toHaveBeenCalledTimes(5);
+    expect(submitBountyRequest).toHaveBeenCalledTimes(5);
+  });
+
+  it("counts the public forms together but each address on its own", async () => {
+    const submitBountyRequest = vi.fn(async () => ({}));
+    const submitVolunteerInterest = vi.fn(async () => ({}));
+    auth.mockResolvedValue(null);
+    createServerDataProvider.mockResolvedValue(
+      provider(null, { submitBountyRequest, submitVolunteerInterest }),
+    );
+    const from = { "cf-connecting-ip": "203.0.113.7" };
+    for (let i = 0; i < 5; i += 1) await post(BOUNTY, from);
+    const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const sameAddress = await post({ method: "submitVolunteerInterest", args: [{}] }, from);
+    spy.mockRestore();
+    expect(sameAddress.status).toBe(429);
+    expect(submitVolunteerInterest).not.toHaveBeenCalled();
+    const neighbour = await post(BOUNTY, { "cf-connecting-ip": "203.0.113.8" });
+    expect(neighbour.status).toBe(200);
+  });
+
+  it("does not limit public reads", async () => {
+    const listBounties = vi.fn(async () => []);
+    auth.mockResolvedValue(null);
+    createServerDataProvider.mockResolvedValue(provider(null, { listBounties }));
+    for (let i = 0; i < 12; i += 1) {
+      const res = await post({ method: "listBounties", args: [] }, { "cf-connecting-ip": "203.0.113.7" });
+      expect(res.status).toBe(200);
+    }
+    expect(listBounties).toHaveBeenCalledTimes(12);
+  });
+
+  it("gives a signed-in member more room, counted per account", async () => {
+    const member = user("member-1", "member");
+    const submitBountyRequest = vi.fn(async () => ({}));
+    auth.mockResolvedValue({ user: { id: member.id, role: "member" } });
+    createServerDataProvider.mockResolvedValue(provider(member, { submitBountyRequest }));
+    for (let i = 0; i < 20; i += 1) {
+      // A new address every time: a member cannot dodge the count by moving.
+      const res = await post(BOUNTY, { "cf-connecting-ip": `203.0.113.${i}` });
+      expect(res.status, `call ${i + 1}`).toBe(200);
+    }
+    const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const res = await post(BOUNTY, { "cf-connecting-ip": "203.0.113.99" });
+    spy.mockRestore();
+    expect(res.status).toBe(429);
+    expect(submitBountyRequest).toHaveBeenCalledTimes(20);
+  });
+
+  it("does not limit staff", async () => {
+    const staff = user("staff-1", "staff");
+    const submitBountyRequest = vi.fn(async () => ({}));
+    auth.mockResolvedValue({ user: { id: staff.id, role: "staff" } });
+    createServerDataProvider.mockResolvedValue(provider(staff, { submitBountyRequest }));
+    for (let i = 0; i < 30; i += 1) {
+      const res = await post(BOUNTY, { "cf-connecting-ip": "203.0.113.7" });
+      expect(res.status, `call ${i + 1}`).toBe(200);
+    }
+    expect(submitBountyRequest).toHaveBeenCalledTimes(30);
+  });
+
+  it("refuses when the Cloudflare limiter says no", async () => {
+    const limit = vi.fn(async () => ({ success: false }));
+    cloudflareEnv.mockReturnValue({ RL_PUBLIC_WRITE_ANON: { limit } });
+    const submitBountyRequest = vi.fn(async () => ({}));
+    auth.mockResolvedValue(null);
+    createServerDataProvider.mockResolvedValue(provider(null, { submitBountyRequest }));
+    const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const res = await post(BOUNTY, { "cf-connecting-ip": "203.0.113.7" });
+    spy.mockRestore();
+    expect(res.status).toBe(429);
+    expect(limit).toHaveBeenCalledTimes(1);
+    const sent = (limit.mock.calls as unknown as [{ key: string }][])[0][0];
+    expect(sent.key).not.toContain("203.0.113.7");
+    expect(createServerDataProvider).not.toHaveBeenCalled();
+  });
+
+  it("keeps the forms working when the limiter itself fails", async () => {
+    const limit = vi.fn(async () => {
+      throw new Error("rate limiter unavailable");
+    });
+    cloudflareEnv.mockReturnValue({ RL_PUBLIC_WRITE_ANON: { limit } });
+    const submitBountyRequest = vi.fn(async () => ({}));
+    auth.mockResolvedValue(null);
+    createServerDataProvider.mockResolvedValue(provider(null, { submitBountyRequest }));
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    for (let i = 0; i < 8; i += 1) {
+      const res = await post(BOUNTY, { "cf-connecting-ip": "203.0.113.7" });
+      expect(res.status, `call ${i + 1}`).toBe(200);
+    }
+    spy.mockRestore();
+    expect(limit).toHaveBeenCalledTimes(8);
+    expect(submitBountyRequest).toHaveBeenCalledTimes(8);
   });
 });

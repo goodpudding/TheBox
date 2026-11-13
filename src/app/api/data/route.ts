@@ -4,7 +4,16 @@ import {
   createServerDataProvider,
   lastProviderLoad,
 } from "@/lib/data/factory";
-import { handleDataRpc } from "@/lib/data/rpc-policy";
+import { isStaffRole } from "@/lib/data/access";
+import { PUBLIC_WRITE_METHODS, handleDataRpc } from "@/lib/data/rpc-policy";
+import {
+  RATE_LIMIT_MESSAGE,
+  allowRequest,
+  clientIp,
+  ipLimitKey,
+  rateLimitHeaders,
+  userLimitKey,
+} from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -13,16 +22,33 @@ const MAX_BODY_BYTES = 1_000_000;
 
 const NO_STORE = { "Cache-Control": "no-store" };
 
-function fail(status: number, error: string) {
-  return NextResponse.json({ ok: false, error }, { status, headers: NO_STORE });
+function fail(status: number, error: string, headers: Record<string, string> = NO_STORE) {
+  return NextResponse.json({ ok: false, error }, { status, headers });
 }
 
 function requestMeta(request: Request) {
-  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
   return {
-    ip: (request.headers.get("cf-connecting-ip") ?? forwarded ?? "").slice(0, 64),
+    ip: clientIp(request).slice(0, 64),
     userAgent: (request.headers.get("user-agent") ?? "").slice(0, 512),
   };
+}
+
+/**
+ * Which limit a public write falls under, and whose count it is. Staff are
+ * not limited. A member is counted per account, everyone else per address.
+ */
+function publicWriteLimit(
+  request: Request,
+  user: { id?: string; role?: string } | undefined,
+) {
+  if (isStaffRole(user)) return null;
+  if (user?.id) {
+    return { name: "publicWriteMember", key: userLimitKey(user.id) } as const;
+  }
+  return {
+    name: "publicWriteAnonymous",
+    key: ipLimitKey(clientIp(request)),
+  } as const;
 }
 
 export async function POST(request: Request) {
@@ -57,6 +83,14 @@ export async function POST(request: Request) {
     method = typeof body.method === "string" ? body.method.slice(0, 80) : "unknown";
     const session = await auth();
     const userId = session?.user?.id ?? null;
+    if (typeof body.method === "string" && PUBLIC_WRITE_METHODS.has(body.method)) {
+      // Before the provider: a refused call must not cost a database load.
+      const limit = publicWriteLimit(request, session?.user);
+      if (limit && !(await allowRequest(limit.name, limit.key))) {
+        console.warn(JSON.stringify({ rpc: method, limited: limit.name }));
+        return fail(429, RATE_LIMIT_MESSAGE, rateLimitHeaders(limit.name));
+      }
+    }
     const provider = await createServerDataProvider(userId);
     const sessionUser = userId ? await provider.getCurrentUser() : null;
     const response = await handleDataRpc({

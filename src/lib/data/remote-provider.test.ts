@@ -39,6 +39,26 @@ describe("RemoteDataProvider", () => {
     await expect(provider.getSettings()).rejects.toThrow("rates missing");
   });
 
+  it("passes on the wait message when the server refuses with 429", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              ok: false,
+              error: "Too many requests. Wait a minute and try again.",
+            }),
+            { status: 429, headers: { "Retry-After": "60" } },
+          ),
+      ),
+    );
+    const provider = createRemoteDataProvider();
+    await expect(
+      provider.submitVolunteerInterest({ name: "Pat", email: "pat@example.com", message: "Hi" }),
+    ).rejects.toThrow("Too many requests. Wait a minute and try again.");
+  });
+
   it("emits thebox:signed-out on 401", async () => {
     vi.stubGlobal(
       "fetch",
