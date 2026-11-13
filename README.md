@@ -207,7 +207,7 @@ npm run sync:zeffy -- --dry-run
 ## Tests
 
 ```bash
-npm run lint       # ESLint. Errors fail; React Compiler advice is a warning for now
+npm run lint       # ESLint. Errors and warnings both fail
 npm run typecheck  # next typegen, then tsc
 npm test           # Vitest: access rules, data API policy, route handlers
 npm run db:check   # every migrations/*.sql applies to an empty database
