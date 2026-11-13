@@ -1003,100 +1003,14 @@ export async function persistBundleToPrisma(
   // Parents first — users without household links
   await saveTable(USERS_TABLE);
 
-    await upsertManyIfAny(
-      (args) => tx.contentPage.upsert(args),
-      bundle.contentPages.map((p) => ({
-        id: p.id,
-        notionId: p.notionId ?? null,
-        googleFileId: p.googleFileId ?? null,
-        slug: p.slug,
-        title: p.title,
-        html: p.html,
-        markdownPath: p.markdownPath ?? null,
-        category: p.category,
-        version: p.version,
-        syncedAt: asDate(p.syncedAt),
-        published: p.published,
-        createdAt: asDate(p.createdAt) ?? new Date(),
-        updatedAt: asDate(p.updatedAt) ?? new Date(),
-        deletedAt: asDate(p.deletedAt),
-      })),
-    );
-
-    if (settingsChanged) await tx.orgSettings.upsert({
-      where: { id: "default" },
-      // Cast: client may lag schema until `prisma generate`.
-      create: {
-        id: "default",
-        orgName: bundle.settings.orgName,
-        paymentUrl: bundle.settings.paymentUrl,
-        donationUrl: bundle.settings.donationUrl,
-        scholarshipDonationUrl: bundle.settings.scholarshipDonationUrl,
-        contactEmail: bundle.settings.contactEmail,
-        hoursContentSlug: bundle.settings.hoursContentSlug,
-        currentWaiverVersion: bundle.settings.currentWaiverVersion,
-        memberExpectationsPolicySlug:
-          bundle.settings.memberExpectationsPolicySlug,
-        quizPassThresholdPercent: bundle.settings.quizPassThresholdPercent,
-        quizAttemptLimit: bundle.settings.quizAttemptLimit,
-        quizQuestionCount: bundle.settings.quizQuestionCount,
-        requireSafetyCriticalAll:
-          bundle.settings.requireSafetyCriticalAll ?? true,
-        classCancellationCutoffHours:
-          bundle.settings.classCancellationCutoffHours,
-        paymentHoldHours: bundle.settings.paymentHoldHours,
-        reservationHorizonDays: bundle.settings.reservationHorizonDays,
-        maxHoursPerDay: bundle.settings.maxHoursPerDay,
-        maxOpenReservations: bundle.settings.maxOpenReservations,
-        reservationSlotMinutes: bundle.settings.reservationSlotMinutes,
-        communitySeatCap: bundle.settings.communitySeatCap,
-        makerMonthlyCents: bundle.settings.makerMonthlyCents,
-        patronScholarshipSurchargeCents:
-          bundle.settings.patronScholarshipSurchargeCents,
-        scholarshipFundBalanceCents:
-          bundle.settings.scholarshipFundBalanceCents,
-        scholarshipSeatsAwarded: bundle.settings.scholarshipSeatsAwarded,
-        showPhase3Tiers: bundle.settings.showPhase3Tiers,
-        defaultInstructorId,
-        defaultClassCapacity: bundle.settings.defaultClassCapacity ?? 8,
-        updatedAt: asDate(bundle.settings.updatedAt) ?? new Date(),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any,
-      update: {
-        orgName: bundle.settings.orgName,
-        paymentUrl: bundle.settings.paymentUrl,
-        donationUrl: bundle.settings.donationUrl,
-        scholarshipDonationUrl: bundle.settings.scholarshipDonationUrl,
-        contactEmail: bundle.settings.contactEmail,
-        hoursContentSlug: bundle.settings.hoursContentSlug,
-        currentWaiverVersion: bundle.settings.currentWaiverVersion,
-        memberExpectationsPolicySlug:
-          bundle.settings.memberExpectationsPolicySlug,
-        quizPassThresholdPercent: bundle.settings.quizPassThresholdPercent,
-        quizAttemptLimit: bundle.settings.quizAttemptLimit,
-        quizQuestionCount: bundle.settings.quizQuestionCount,
-        requireSafetyCriticalAll:
-          bundle.settings.requireSafetyCriticalAll ?? true,
-        classCancellationCutoffHours:
-          bundle.settings.classCancellationCutoffHours,
-        paymentHoldHours: bundle.settings.paymentHoldHours,
-        reservationHorizonDays: bundle.settings.reservationHorizonDays,
-        maxHoursPerDay: bundle.settings.maxHoursPerDay,
-        maxOpenReservations: bundle.settings.maxOpenReservations,
-        reservationSlotMinutes: bundle.settings.reservationSlotMinutes,
-        communitySeatCap: bundle.settings.communitySeatCap,
-        makerMonthlyCents: bundle.settings.makerMonthlyCents,
-        patronScholarshipSurchargeCents:
-          bundle.settings.patronScholarshipSurchargeCents,
-        scholarshipFundBalanceCents:
-          bundle.settings.scholarshipFundBalanceCents,
-        scholarshipSeatsAwarded: bundle.settings.scholarshipSeatsAwarded,
-        showPhase3Tiers: bundle.settings.showPhase3Tiers,
-        defaultInstructorId,
-        defaultClassCapacity: bundle.settings.defaultClassCapacity ?? 8,
-        updatedAt: asDate(bundle.settings.updatedAt) ?? new Date(),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any,
+  const loadedUsers = loadedRows("users") as Map<string, User>;
+  for (const u of toWrite.users) {
+    if (!u.householdPrimaryUserId) continue;
+    const before = loadedUsers.get(u.id);
+    if (before?.householdPrimaryUserId === u.householdPrimaryUserId) continue;
+    await db.user.update({
+      where: { id: u.id },
+      data: { householdPrimaryUserId: u.householdPrimaryUserId },
     });
   }
 
