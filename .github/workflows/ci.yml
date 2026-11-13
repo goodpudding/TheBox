@@ -40,11 +40,12 @@ jobs:
           # Build-time only. Real values live in the Cloudflare dashboard.
           AUTH_SECRET: ci-build-only-not-a-real-secret
           DATABASE_URL: file:./ci-build.db
-      - name: Production dependencies with known high-severity advisories
-        # Reported, not enforced: the open ones need major upgrades of
-        # next-auth and prisma. Drop continue-on-error once those land.
+      - name: No high-severity advisories in production dependencies
+        # Fails the build. npm also counts the Prisma CLI and nodemailer here,
+        # because production packages list them as optional peers, although
+        # neither is in the Worker bundle. Fix by upgrading or with an
+        # "overrides" entry in package.json rather than by silencing this step.
         run: npm audit --omit=dev --audit-level=high
-        continue-on-error: true
 
   e2e:
     runs-on: ubuntu-latest
