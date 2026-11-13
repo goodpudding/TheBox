@@ -1,9 +1,11 @@
 import { randomBytes } from "node:crypto";
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
 import {
   KIOSK_DEVICE_ID,
   KIOSK_MEMBER,
   KIOSK_PIN,
+  KIOSK_RESET_MEMBER,
+  KIOSK_STAFF,
   KIOSK_TYPO_MEMBER,
 } from "./kiosk-fixtures";
 
@@ -39,6 +41,25 @@ async function submitPin(page: Page, email: string, pin: string): Promise<number
   );
   await page.getByRole("button", { name: /^Sign in$/i }).click();
   return (await answered).status();
+}
+
+/** Desk sign-in for the member the reset tests use, without the page. */
+function signIn(request: APIRequestContext, pin: string) {
+  return request.post("/api/workstation/login", {
+    data: { workstationId: KIOSK_DEVICE_ID, email: KIOSK_RESET_MEMBER.email, pin },
+  });
+}
+
+/**
+ * Staff give the member a new PIN. The dev server takes the acting user from
+ * this header, as the staff pages do locally. The new PIN is the same one, so
+ * every run starts from the same member.
+ */
+function staffReset(request: APIRequestContext) {
+  return request.post(`/api/admin/members/${KIOSK_RESET_MEMBER.id}/kiosk-pin`, {
+    headers: { "x-box-user-id": KIOSK_STAFF.id },
+    data: { temporaryPin: KIOSK_PIN },
+  });
 }
 
 // Next adds its own role="alert" route announcer, so look inside the form.
@@ -138,5 +159,41 @@ test.describe("Workstation kiosk", () => {
     });
     expect(phone.status()).toBe(429);
     expect(((await phone.json()) as { error?: string }).error).toMatch(LOCKED);
+  });
+
+  test("a staff PIN reset lets a locked-out member sign in again", async ({ request }) => {
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      expect((await signIn(request, WRONG_PIN)).status(), `attempt ${attempt}`).toBe(401);
+    }
+    expect((await signIn(request, KIOSK_PIN)).status()).toBe(429);
+
+    expect((await staffReset(request)).status()).toBe(200);
+
+    const back = await signIn(request, KIOSK_PIN);
+    expect(back.status()).toBe(200);
+    expect(((await back.json()) as { mustChangePin?: boolean }).mustChangePin).toBe(true);
+    await request.post("/api/workstation/logout");
+  });
+
+  test("a sign-in at the desk clears wrong PINs typed on the phone page", async ({ request }) => {
+    // Start from a clean count whatever earlier runs left behind.
+    expect((await staffReset(request)).status()).toBe(200);
+
+    const qr = await request.post("/api/workstation/qr/start", {
+      data: { workstationId: KIOSK_DEVICE_ID },
+    });
+    const { challengeId } = (await qr.json()) as { challengeId: string };
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      const phone = await request.post("/api/workstation/qr/approve", {
+        data: { challengeId, email: KIOSK_RESET_MEMBER.email, pin: WRONG_PIN },
+      });
+      expect(phone.status(), `attempt ${attempt}`).toBe(401);
+    }
+
+    // Without the sign-in in between, this fifth wrong PIN would lock the email.
+    expect((await signIn(request, KIOSK_PIN)).status()).toBe(200);
+    expect((await signIn(request, WRONG_PIN)).status()).toBe(401);
+    expect((await signIn(request, KIOSK_PIN)).status()).toBe(200);
+    await request.post("/api/workstation/logout");
   });
 });

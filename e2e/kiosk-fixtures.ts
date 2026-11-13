@@ -27,3 +27,22 @@ export const KIOSK_TYPO_MEMBER = {
   firstName: "Jordan",
   lastName: "Lee",
 };
+
+/**
+ * Gets locked out, then let back in by a staff PIN reset. A third member, so
+ * the lock never touches the two sign-in tests.
+ */
+export const KIOSK_RESET_MEMBER = {
+  id: "u-sam",
+  email: "sam.patel@example.com",
+  firstName: "Sam",
+  lastName: "Patel",
+};
+
+/** Resets a member's PIN. Staff never sign in at the desk in these tests. */
+export const KIOSK_STAFF = {
+  id: "u-staff",
+  email: "staff@example.com",
+  firstName: "Sam",
+  lastName: "Stafford",
+};

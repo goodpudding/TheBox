@@ -6,9 +6,10 @@
  * `next dev` reaches the database through the D1 binding in wrangler.jsonc,
  * which Miniflare keeps as a SQLite file under .wrangler/state/v3/d1. This
  * script deletes that local database, applies migrations/*.sql in order the
- * way the deploy does, then adds one desk and two members. The rows go in
- * after the migrations because 0007 to 0009 delete example machines and
- * people, and through Prisma so dates are stored the way the app stores them.
+ * way the deploy does, then adds one desk, three members and one staff
+ * account. The rows go in after the migrations because 0007 to 0009 delete
+ * example machines and people, and through Prisma so dates are stored the way
+ * the app stores them.
  *
  * It must never reach the live database: test members with a known PIN do not
  * belong there. So Wrangler runs with --local, the seed uses a binding with
@@ -25,6 +26,8 @@ import {
   KIOSK_DEVICE_ID,
   KIOSK_MEMBER,
   KIOSK_PIN,
+  KIOSK_RESET_MEMBER,
+  KIOSK_STAFF,
   KIOSK_TYPO_MEMBER,
 } from "../e2e/kiosk-fixtures";
 import { hashKioskPin } from "../src/lib/workstation/pin";
@@ -105,7 +108,7 @@ async function seed(prisma: PrismaClient) {
     },
   });
 
-  for (const member of [KIOSK_MEMBER, KIOSK_TYPO_MEMBER]) {
+  for (const member of [KIOSK_MEMBER, KIOSK_TYPO_MEMBER, KIOSK_RESET_MEMBER]) {
     await prisma.user.create({
       data: {
         id: member.id,
@@ -134,6 +137,21 @@ async function seed(prisma: PrismaClient) {
       });
     }
   }
+
+  // Staff only reset a PIN in the tests, so no PIN and no certifications.
+  await prisma.user.create({
+    data: {
+      id: KIOSK_STAFF.id,
+      email: KIOSK_STAFF.email,
+      firstName: KIOSK_STAFF.firstName,
+      lastName: KIOSK_STAFF.lastName,
+      displayName: `${KIOSK_STAFF.firstName} ${KIOSK_STAFF.lastName}`,
+      role: "staff",
+      status: "active",
+      shopAccess: true,
+      profileComplete: true,
+    },
+  });
 }
 
 async function main() {
@@ -152,7 +170,7 @@ async function main() {
     await proxy.dispose();
   }
   console.log(
-    `\nKiosk test database ready: desk ${KIOSK_DEVICE_ID}, members ${KIOSK_MEMBER.email} and ${KIOSK_TYPO_MEMBER.email}.`,
+    `\nKiosk test database ready: desk ${KIOSK_DEVICE_ID}, members ${KIOSK_MEMBER.email}, ${KIOSK_TYPO_MEMBER.email} and ${KIOSK_RESET_MEMBER.email}, staff ${KIOSK_STAFF.email}.`,
   );
 }
 
