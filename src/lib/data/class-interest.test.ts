@@ -138,9 +138,16 @@ describe("class interest boards", () => {
 
   it("gates booking during priority window", async () => {
     const provider = createMockDataProvider("u-admin");
-    const classes = await provider.listClasses({ upcomingOnly: true });
-    const session = classes[0];
-    expect(session).toBeTruthy();
+    // Its own class, a week out. The first "upcoming" fixture class may have
+    // started a minute ago, and a started class cannot be booked at all.
+    const starts = Date.now() + 7 * 24 * 60 * 60 * 1000;
+    const session = await provider.adminUpsertClass({
+      title: "Priority window test class",
+      startsAt: new Date(starts).toISOString(),
+      endsAt: new Date(starts + 2 * 60 * 60 * 1000).toISOString(),
+      capacity: 8,
+      instructorId: "u-staff",
+    });
 
     await provider.adminLinkInterestBoardToClass(
       "interest-embroidery-intro",
