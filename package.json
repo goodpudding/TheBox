@@ -85,5 +85,10 @@
     "typescript": "^5",
     "vitest": "^3.2.7",
     "wrangler": "^4.152.0"
+  },
+  "overrides": {
+    "@prisma/config": {
+      "deepmerge-ts": "8.0.2"
+    }
   }
 }
