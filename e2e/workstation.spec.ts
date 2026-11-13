@@ -14,6 +14,8 @@ import {
 const mode = process.env.E2E_WORKSTATION;
 const NO_DATABASE =
   "No kiosk database. Stop the dev server, run `npm run e2e:db`, then run the tests again";
+const STALE_DATABASE =
+  "A 429 here means earlier runs today used up this member's wrong PINs. Stop the dev server and run `npm run e2e:db`";
 
 const WRONG_PIN = "9753";
 const MISMATCH = "Email or PIN didn't match";
@@ -83,7 +85,9 @@ test.describe("Workstation kiosk", () => {
   }) => {
     await openDesk(page);
 
-    expect(await submitPin(page, KIOSK_TYPO_MEMBER.email, WRONG_PIN)).toBe(401);
+    // Every run leaves one wrong PIN on this member, and 20 in a day lock the
+    // email whatever comes after. Say how to start clean, not just "429".
+    expect(await submitPin(page, KIOSK_TYPO_MEMBER.email, WRONG_PIN), STALE_DATABASE).toBe(401);
     await expect(formError(page)).toHaveText(MISMATCH);
     await expect(page.getByRole("heading", { name: /Sign in to this desk/i })).toBeVisible();
 

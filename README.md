@@ -219,7 +219,7 @@ npm run e2e:db     # rebuild the local database the kiosk browser tests use
 
 The kiosk tests (`e2e/workstation.spec.ts`) need a real database, because the kiosk APIs read it directly instead of fixtures. `npm run e2e:db` builds one: it deletes the local D1 that `next dev` uses (`.wrangler/state/v3/d1`), applies `migrations/*.sql` with `wrangler d1 migrations apply --local`, then adds the desk `BOX-PC-1` and two members whose demo PIN is stored as a hash. Stop `next dev` before you run it. It only touches the local database, never the live one.
 
-CI runs `npm run e2e:db` before the browser tests and sets `E2E_WORKSTATION=1`, which makes a missing database a failure. On your machine the kiosk tests run when that database is there and skip with a note when it is not. `E2E_WORKSTATION=0` skips them outright.
+CI runs `npm run e2e:db` before the browser tests and sets `E2E_WORKSTATION=1`, which makes a missing database a failure. On your machine the kiosk tests run when that database is there and skip with a note when it is not. `E2E_WORKSTATION=0` skips them outright. Each run leaves one wrong PIN on the second member, and 20 in a day lock that email, so after many runs the wrong-PIN test fails with a 429 until you run `npm run e2e:db` again.
 
 `e2e/live-auth.spec.ts` is skipped unless you set `E2E_LIVE=1` (needs a seeded session cookie). If Playwright cannot download its browser, point `PLAYWRIGHT_CHROMIUM_PATH` at a local Chromium.
 
