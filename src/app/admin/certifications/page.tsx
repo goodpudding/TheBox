@@ -35,10 +35,13 @@ export default function AdminCertificationsPage() {
       ]);
       setCerts(c);
       setMembers(m);
-      if (!checkCertId && c[0]) setCheckCertId(c[0].id);
-      if (!revokeCertId && c[0]) setRevokeCertId(c[0].id);
-      if (!checkMemberId && m[0]) setCheckMemberId(m[0].id);
-      if (!revokeMemberId && m[0]) setRevokeMemberId(m[0].id);
+      // Start each picker on the first entry; keep a choice already made.
+      const firstCert = c[0]?.id ?? "";
+      const firstMember = m[0]?.id ?? "";
+      setCheckCertId((picked) => picked || firstCert);
+      setRevokeCertId((picked) => picked || firstCert);
+      setCheckMemberId((picked) => picked || firstMember);
+      setRevokeMemberId((picked) => picked || firstMember);
     })();
   }, [provider, revision]);
 
