@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
+import { SECURITY_HEADERS } from "./src/lib/security-headers";
 
 const nextConfig: NextConfig = {
   // Required for Prisma on Cloudflare Workers: lets OpenNext replace the
@@ -7,6 +8,10 @@ const nextConfig: NextConfig = {
   // Node build, which would look for a native query-engine binary.
   // https://opennext.js.org/cloudflare/howtos/db
   serverExternalPackages: ["@prisma/client", ".prisma/client"],
+  poweredByHeader: false,
+  async headers() {
+    return [{ source: "/:path*", headers: SECURITY_HEADERS }];
+  },
 };
 
 export default nextConfig;
