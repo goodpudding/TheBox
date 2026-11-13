@@ -41,7 +41,7 @@ Live at `https://discoverburienmakerspace.com` (the Worker's default `thebox.jam
 
 **Seeding production once.** Add a build variable `SEED_D1=1` (Settings → Build → Variables), deploy, then remove it. `seed-data.sql` uses `INSERT OR IGNORE`, so it never overwrites edits made in the portal.
 
-**Sign-in email.** Workers have no SMTP, so production uses the Resend provider when `AUTH_RESEND_KEY` is set (`src/auth.ts`); locally it still uses Nodemailer/Mailpit.
+**Sign-in email.** Workers have no SMTP, so production uses the Resend provider when `AUTH_RESEND_KEY` is set (`src/lib/auth/email-provider.ts`). SMTP through Nodemailer/Mailpit is for `next dev` only: it is a dev dependency and is left out of production builds, where a missing key fails the sign-in with a clear error instead.
 
 ## Classes & calendar
 
