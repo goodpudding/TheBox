@@ -215,7 +215,7 @@ npm run test:e2e   # Playwright against `next dev` on fixtures
 npm run e2e:db     # rebuild the local database the kiosk browser tests use
 ```
 
-`.github/workflows/ci.yml` runs all of these, plus a production build, on every pull request and on pushes to `main`. Cloudflare deploys `main` on its own, so require the `check` and `e2e` jobs in the branch protection rule for `main` to keep a failing build off the live site. When the `db-artifacts` workflow adds a migration commit to a branch, GitHub does not start CI for that commit. Push again or re-run the jobs.
+`.github/workflows/ci.yml` runs all of these, plus a production build, on every pull request and on pushes to `main`. Cloudflare deploys `main` on its own, so require the `check` and `e2e` jobs in the branch protection rule for `main` to keep a failing build off the live site. A third job, `audit`, fails when a production dependency has a high-severity advisory; it runs on its own so that an advisory does not also switch off the browser tests. When the `db-artifacts` workflow adds a migration commit to a branch, GitHub does not start CI for that commit. Push again or re-run the jobs.
 
 The kiosk tests (`e2e/workstation.spec.ts`) need a real database, because the kiosk APIs read it directly instead of fixtures. `npm run e2e:db` builds one: it deletes the local D1 that `next dev` uses (`.wrangler/state/v3/d1`), applies `migrations/*.sql` with `wrangler d1 migrations apply --local`, then adds the desk `BOX-PC-1`, three members whose demo PIN is stored as a hash, and one staff account. Stop `next dev` before you run it. It only touches the local database, never the live one.
 

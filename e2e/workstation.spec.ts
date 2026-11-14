@@ -162,6 +162,10 @@ test.describe("Workstation kiosk", () => {
   });
 
   test("a staff PIN reset lets a locked-out member sign in again", async ({ request }) => {
+    // Start from a clean count: a retry after a half-finished attempt would
+    // otherwise meet the wrong PINs that attempt left behind.
+    expect((await staffReset(request)).status()).toBe(200);
+
     for (let attempt = 1; attempt <= 5; attempt++) {
       expect((await signIn(request, WRONG_PIN)).status(), `attempt ${attempt}`).toBe(401);
     }

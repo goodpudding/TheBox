@@ -4,7 +4,8 @@
 #
 # Cloudflare Workers Builds deploys main on its own. To keep a red build off
 # the live site, require the "check" and "e2e" jobs in the branch protection
-# rule for main (GitHub → Settings → Branches).
+# rule for main (GitHub → Settings → Branches). Whether to also require
+# "audit" is a judgement call: it can fail for reasons outside this repo.
 name: ci
 on:
   pull_request:
@@ -41,12 +42,6 @@ jobs:
           # Build-time only. Real values live in the Cloudflare dashboard.
           AUTH_SECRET: ci-build-only-not-a-real-secret
           DATABASE_URL: file:./ci-build.db
-      - name: No high-severity advisories in production dependencies
-        # Fails the build. npm also counts the Prisma CLI and nodemailer here,
-        # because production packages list them as optional peers, although
-        # neither is in the Worker bundle. Fix by upgrading or with an
-        # "overrides" entry in package.json rather than by silencing this step.
-        run: npm audit --omit=dev --audit-level=high
 
   e2e:
     runs-on: ubuntu-latest
@@ -76,3 +71,20 @@ jobs:
           name: playwright-results
           path: test-results/
           retention-days: 7
+
+  # On its own so an advisory, or the audit service being down, does not also
+  # switch off the browser tests. It counts everything a production package
+  # names, including optional peers that never ship in the Worker (nodemailer,
+  # the Prisma CLI, Playwright, TypeScript, sharp), so it errs on the safe side.
+  # Clear a failure by upgrading, or with an "overrides" entry in package.json,
+  # not by silencing this job.
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: No high-severity advisories in production dependencies
+        run: npm audit --omit=dev --audit-level=high
