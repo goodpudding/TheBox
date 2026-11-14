@@ -70,6 +70,16 @@ function formError(page: Page) {
 test.describe("Workstation kiosk", () => {
   test.skip(mode === "0", "Kiosk tests are switched off with E2E_WORKSTATION=0");
 
+  // PIN attempts are limited to 40 a minute per address, and a dev server
+  // that is still running keeps its count between runs. An address of its
+  // own for each run stops a second run in the same minute meeting the first
+  // run's attempts.
+  test.use({
+    extraHTTPHeaders: {
+      "cf-connecting-ip": `198.51.100.${1 + Math.floor(Math.random() * 250)}`,
+    },
+  });
+
   test.beforeAll(async ({ request }) => {
     const desk = await request.get(`/api/workstations/${KIOSK_DEVICE_ID}/config`);
     if (mode === "1") expect(desk.ok(), NO_DATABASE).toBe(true);
@@ -222,9 +232,20 @@ test.describe("Workstation kiosk", () => {
     await expect(
       page.getByRole("heading", { name: /Maya is still signed in/ }),
     ).toBeVisible();
+    // Enter pressed twice must send one unlock, not two: two at once would
+    // each count the other as a wrong PIN in progress.
+    let unlocks = 0;
+    await page.route("**/api/workstation/unlock", async (route) => {
+      unlocks += 1;
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      await route.continue();
+    });
     await page.locator("#lock-pin").fill(KIOSK_PIN);
-    await page.getByRole("button", { name: "Unlock" }).click();
+    await page.locator("#lock-pin").press("Enter");
+    await page.locator("#lock-pin").press("Enter");
+    await expect(page.getByRole("button", { name: "Unlock" })).toBeDisabled();
     await expect(page.getByText("Idle lock")).toHaveCount(0, { timeout: 15_000 });
+    expect(unlocks).toBe(1);
     await expect(page.getByRole("heading", { name: /Maya Chen/i })).toBeVisible();
 
     await page.clock.fastForward("30:01");

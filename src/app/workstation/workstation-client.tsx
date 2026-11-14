@@ -162,6 +162,8 @@ export function WorkstationClient() {
     expiresAt: string;
   } | null>(null);
   const [locked, setLocked] = useState(false);
+  const [unlocking, setUnlocking] = useState(false);
+  const unlockingRef = useRef(false);
   const [lockPin, setLockPin] = useState("");
   const [lockError, setLockError] = useState<string | null>(null);
   const [mustChangePin, setMustChangePin] = useState(false);
@@ -323,6 +325,11 @@ export function WorkstationClient() {
 
   async function unlock(e: React.FormEvent) {
     e.preventDefault();
+    // One request at a time. Two at once each count the other as a wrong PIN
+    // in progress, and after a few typos both would be refused.
+    if (unlockingRef.current) return;
+    unlockingRef.current = true;
+    setUnlocking(true);
     setLockError(null);
     try {
       const res = await apiFetch("/api/workstation/unlock", {
@@ -340,6 +347,9 @@ export function WorkstationClient() {
       markActive();
     } catch (err) {
       setLockError(err instanceof Error ? err.message : "PIN didn't match");
+    } finally {
+      unlockingRef.current = false;
+      setUnlocking(false);
     }
   }
 
@@ -594,7 +604,9 @@ export function WorkstationClient() {
               </p>
             ) : null}
             <div className="mt-6 flex gap-3">
-              <Button type="submit">Unlock</Button>
+              <Button type="submit" disabled={unlocking}>
+                Unlock
+              </Button>
               <Button type="button" variant="outline" onClick={() => void logout()}>
                 Log out
               </Button>
