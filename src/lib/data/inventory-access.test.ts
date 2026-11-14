@@ -139,6 +139,29 @@ describe("inventory fields stewards and staff still get", () => {
   });
 });
 
+describe("rejected items in the list", () => {
+  it("a steward does not get another area's rejected items", async () => {
+    // inv-heatpress is in sublimation. Maya stewards the woodshop only.
+    const provider = createMockDataProvider("u-staff");
+    await provider.reviewInventoryItem("u-staff", "inv-heatpress", "reject", "Duplicate");
+    await provider.setCurrentUserId("u-maya");
+    const listed = await provider.listInventoryItems("u-maya", {
+      includePending: true,
+      includeRetired: true,
+    });
+    expect(listed.map((item) => item.id)).not.toContain("inv-heatpress");
+  });
+
+  it("staff still get every rejected item", async () => {
+    const staff = createMockDataProvider("u-staff");
+    await staff.reviewInventoryItem("u-staff", "inv-heatpress", "reject", "Duplicate");
+    const listed = await staff.listInventoryItems("u-staff", { includePending: true });
+    expect(listed.find((item) => item.id === "inv-heatpress")?.reviewStatus).toBe(
+      "REJECTED",
+    );
+  });
+});
+
 describe("findInventoryBySerial", () => {
   // inv-heatpress (sublimation) and inv-jigsaw (woodshop) are both PENDING.
   it("hides items awaiting review from a plain member", async () => {
@@ -392,6 +415,60 @@ describe("photo keys on inventory writes", () => {
       type: "OTHER",
     });
     expect(noPhoto.photoId).toBeNull();
+  });
+
+  it("createInventoryItem refuses more photos than one item can carry", async () => {
+    const provider = createMockDataProvider("u-jordan");
+    const extra = Array.from({ length: 11 }, () => ({
+      storageKey: DRIVE,
+      kind: "OTHER" as const,
+      mimeType: "image/jpeg",
+    }));
+    await expect(
+      provider.createInventoryItem("u-jordan", {
+        name: "Shop vac",
+        condition: "GOOD",
+        noSerial: true,
+        photoKeys: [
+          { storageKey: FRONT, kind: "FRONT", mimeType: "image/jpeg" },
+          { storageKey: SIDE, kind: "SIDE", mimeType: "image/jpeg" },
+          ...extra,
+        ],
+      }),
+    ).rejects.toThrow(/too many photos/i);
+  });
+
+  it("addInventoryPhoto refuses a kind of photo the shop does not keep", async () => {
+    const provider = createMockDataProvider("u-jordan");
+    await expect(
+      provider.addInventoryPhoto("u-jordan", "inv-sander", {
+        storageKey: FRONT,
+        kind: "POSTER",
+        mimeType: "image/jpeg",
+      } as never),
+    ).rejects.toThrow(/unknown photo kind/i);
+  });
+
+  it("addInventoryPhoto keeps only sizes that are whole positive numbers", async () => {
+    const provider = createMockDataProvider("u-jordan");
+    const odd = await provider.addInventoryPhoto("u-jordan", "inv-sander", {
+      storageKey: FRONT,
+      kind: "OTHER",
+      mimeType: "image/jpeg",
+      width: -5,
+      height: "1e9",
+    } as never);
+    expect(odd.width).toBeNull();
+    expect(odd.height).toBeNull();
+    const mixed = await provider.addInventoryPhoto("u-jordan", "inv-sander", {
+      storageKey: SIDE,
+      kind: "OTHER",
+      mimeType: "image/jpeg",
+      width: 800,
+      height: 600.5,
+    });
+    expect(mixed.width).toBe(800);
+    expect(mixed.height).toBeNull();
   });
 
   it("staff CSV import still attaches its placeholder photos", async () => {

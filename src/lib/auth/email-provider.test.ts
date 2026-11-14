@@ -149,4 +149,15 @@ describe("sign-in email provider", () => {
     await expect(send(provider, "pat@example.com")).rejects.toThrow(/AUTH_RESEND_KEY/);
     expect(sink.connections()).toBe(0);
   });
+
+  it("takes one plain address on the local SMTP provider too", () => {
+    // The Resend provider is covered through the real sign-in route. This is
+    // the provider used when no Resend key is set.
+    const smtp = resolved(emailProvider({}));
+    expect(() => smtp.normalizeIdentifier!("Pat <pat@example.com>")).toThrow(
+      /invalid email/i,
+    );
+    expect(() => smtp.normalizeIdentifier!("x,pat@example.com")).toThrow(/invalid email/i);
+    expect(smtp.normalizeIdentifier!(" Pat@Example.com ")).toBe("pat@example.com");
+  });
 });

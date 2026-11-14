@@ -4548,6 +4548,8 @@ export class MockDataProvider implements DataProvider {
         if (!includeRetired && item.status === "RETIRED") return false;
         if (item.reviewStatus === "REJECTED") {
           if (!canPending) return false;
+          // Same rule as pending items: a steward's own areas only.
+          if (!staff && item.areaId && !areas.includes(item.areaId)) return false;
         }
         if (item.reviewStatus === "PENDING") {
           if (!includePending || !canPending) return false;
