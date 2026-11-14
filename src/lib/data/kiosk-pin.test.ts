@@ -30,7 +30,9 @@ describe("shop PIN provider", () => {
     const saved = provider.kioskPinRecord("u-maya");
     expect(await verifyKioskPin("4821", saved?.hash)).toBe(true);
     expect(await verifyKioskPin(reset.temporaryPin, saved?.hash)).toBe(false);
-    expect(saved?.hash).not.toContain("4821");
+    // Stored as a salted hash, never the PIN itself. (Searching the hash for
+    // the digits would fail now and then: random hex can spell them out.)
+    expect(saved?.hash).toMatch(/^scrypt:[0-9a-f]{32}:[0-9a-f]{64}$/);
   });
 
   it("rejects a trivial PIN and a member trying to reset one", async () => {

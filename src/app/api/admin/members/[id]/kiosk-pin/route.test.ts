@@ -84,8 +84,11 @@ describe("POST /api/admin/members/[id]/kiosk-pin", () => {
     const marker = rows.find((row) => row.action === PIN_SET_ACTION);
     expect(marker?.metadata).toContain(pinEmailHash(MAYA.email));
     // The audit rows never hold the email or the PIN.
-    expect(JSON.stringify(rows)).not.toContain(MAYA.email);
-    expect(JSON.stringify(rows)).not.toContain("482917");
+    // Everything the route chose to store. The row id is random hex and can
+    // spell out any digits by chance, so it is left out of the search.
+    const stored = JSON.stringify(rows.map((row) => ({ ...row, id: undefined })));
+    expect(stored).not.toContain(MAYA.email);
+    expect(stored).not.toContain("482917");
   });
 
   it("changes nothing for someone who is not staff", async () => {

@@ -78,8 +78,11 @@ describe("POST /api/account/kiosk-pin", () => {
     expect((await readPinThrottle(MAYA.email)).locked).toBe(false);
     const marker = rows.find((row) => row.action === PIN_SET_ACTION);
     expect(marker?.metadata).toContain(pinEmailHash(MAYA.email));
-    expect(JSON.stringify(rows)).not.toContain(MAYA.email);
-    expect(JSON.stringify(rows)).not.toContain("4821");
+    // Everything the route chose to store. The row id is random hex and can
+    // spell out any digits by chance, so it is left out of the search.
+    const stored = JSON.stringify(rows.map((row) => ({ ...row, id: undefined })));
+    expect(stored).not.toContain(MAYA.email);
+    expect(stored).not.toContain("4821");
   });
 
   it("changes nothing without a signed-in member", async () => {
