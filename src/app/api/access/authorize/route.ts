@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const provider = await getAccessDataProvider();
+  const provider = await getAccessDataProvider({ fresh: true });
   const result = await provider.authorizeAccess({ readerKey, badgeUid });
   return NextResponse.json(result, {
     headers: { "Cache-Control": "no-store" },

@@ -5,7 +5,11 @@ import {
   lastProviderLoad,
 } from "@/lib/data/factory";
 import { isStaffRole } from "@/lib/data/access";
-import { PUBLIC_WRITE_METHODS, handleDataRpc } from "@/lib/data/rpc-policy";
+import {
+  PUBLIC_WRITE_METHODS,
+  handleDataRpc,
+  needsFreshBundle,
+} from "@/lib/data/rpc-policy";
 import {
   RATE_LIMIT_MESSAGE,
   allowRequest,
@@ -84,14 +88,17 @@ export async function POST(request: Request) {
     const session = await auth();
     const userId = session?.user?.id ?? null;
     if (typeof body.method === "string" && PUBLIC_WRITE_METHODS.has(body.method)) {
-      // Before the provider: a refused call must not cost a database load.
+      // Before the provider: a refused call must not cost a database load,
+      // and a public write always loads fresh data.
       const limit = publicWriteLimit(request, session?.user);
       if (limit && !(await allowRequest(limit.name, limit.key))) {
         console.warn(JSON.stringify({ rpc: method, limited: limit.name }));
         return fail(429, RATE_LIMIT_MESSAGE, rateLimitHeaders(limit.name));
       }
     }
-    const provider = await createServerDataProvider(userId);
+    const provider = await createServerDataProvider(userId, {
+      fresh: needsFreshBundle(method, userId !== null),
+    });
     const sessionUser = userId ? await provider.getCurrentUser() : null;
     const response = await handleDataRpc({
       method: body.method,

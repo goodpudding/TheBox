@@ -34,7 +34,9 @@ export async function syncZeffyPurchasesForEmail(
   const mine = payments.filter(
     (payment) => extractBuyerEmail(payment) === email.trim().toLowerCase() && isPaid(payment),
   );
-  const provider = await createServerDataProvider(null);
+  if (mine.length === 0) return { checked: 0, applied: 0 };
+  // Applying a payment is a write: start from the database as it is now.
+  const provider = await createServerDataProvider(null, { fresh: true });
   let applied = 0;
   for (const payment of mine) {
     const normalized = await asMembershipPayment(payment);
