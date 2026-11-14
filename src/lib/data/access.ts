@@ -133,7 +133,9 @@ export const SHOP_LEAD_COMPLETED_TOOLS = 3;
 /** Default tool champion term length in months. */
 export const TOOL_CHAMPION_TERM_MONTHS = 2;
 
-export function isStaffRole(user: User | null | undefined): boolean {
+export function isStaffRole(
+  user: { role?: string | null } | null | undefined,
+): boolean {
   return user?.role === "staff" || user?.role === "admin";
 }
 

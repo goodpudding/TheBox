@@ -403,3 +403,116 @@ describe("createPrismaDataProvider", () => {
     expect(loads()).toBe(before + 1);
   });
 });
+
+describe("loadBundleFromPrisma", () => {
+  beforeEach(() => {
+    calls.length = 0;
+  });
+
+  it("leaves kiosk PIN bookkeeping for emails nobody has out of every request", async () => {
+    // Anyone can post a wrong PIN for a made-up email, and each one is a row.
+    // Loading them into the bundle would let a stranger grow every request.
+    const { loadBundleFromPrisma } = await import("./prisma-provider");
+    await loadBundleFromPrisma().catch(() => undefined);
+    const load = calls.find((c) => c.model === "auditEvent" && c.method === "findMany");
+    expect(load?.args).toEqual({
+      where: {
+        NOT: {
+          OR: [
+            { action: "workstation.pin_attempt" },
+            { action: "workstation.pin_failed", subjectUserId: null },
+          ],
+        },
+      },
+    });
+  });
+});
+
+describe("payments applied by the system", () => {
+  const payment = {
+    id: "pay-test-membership-1",
+    object: "payment",
+    created: 1_790_000_000,
+    amount: 7500,
+    currency: "usd",
+    status: "succeeded",
+    campaign_id: "camp-test-membership",
+    campaign_type: "ticketing",
+    campaign_category: "MembershipV2",
+    buyer: { email: "new.member@example.org", first_name: "New", last_name: "Member" },
+    items: [
+      { id: "i1", type: "ticket", amount: 7500, rate_id: "rate-plus", rate_title: "Maker Plus" },
+    ],
+  } as never;
+
+  it("saves the audit rows of a Zeffy membership payment without a made-up actor", async () => {
+    // AuditEvent.actorId points at a User row, and D1 enforces that. The
+    // payment code used "system:zeffy", which no user has, so every save of a
+    // payment failed after the member was already changed.
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const provider = await createPrismaDataProvider(null, { fresh: true });
+    const result = await provider.applyZeffyMembershipPayment(payment, undefined, {
+      createIfMissing: true,
+    });
+    expect(result.status).toBe("applied");
+
+    const saved = upserts("auditEvent");
+    expect(saved.map((row) => row.create.action)).toContain("membership_applied_zeffy");
+    for (const row of saved) {
+      const actor = row.create.actorId as string | null;
+      if (actor !== null) expect(table("user").has(actor), `actor ${actor}`).toBe(true);
+      expect(String(actor)).not.toMatch(/^system:/);
+    }
+  });
+
+  it("the same payment delivered again is a duplicate, not a second application", async () => {
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const first = await createPrismaDataProvider(null, { fresh: true });
+    await first.applyZeffyMembershipPayment(payment, undefined, { createIfMissing: true });
+    const second = await createPrismaDataProvider(null, { fresh: true });
+    const again = await second.applyZeffyMembershipPayment(payment, undefined, {
+      createIfMissing: true,
+    });
+    expect(again.status).toBe("duplicate");
+  });
+});
+
+describe("what the live site cannot store yet", () => {
+  it("refuses a wishlist purchase report instead of accepting and dropping it", async () => {
+    // These collections are not saved in the database yet. The pages hide the
+    // forms on the live site; a direct call must not be told it worked.
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const provider = await createPrismaDataProvider(null, { fresh: true });
+    const catalog = await provider.getWishlistCatalog();
+    const item = catalog.items.find((i) => i.status !== "fulfilled")!;
+    await expect(
+      provider.reportWishlistPurchase({
+        itemId: item.id,
+        name: "Pat",
+        email: "pat@example.com",
+      }),
+    ).rejects.toThrow(/not available on the live site/i);
+    expect(upserts("auditEvent")).toHaveLength(0);
+  });
+
+  it("refuses display settings, promo slides and tool champion requests the same way", async () => {
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    await expect(admin.saveDisplayConfig({ cadenceSeconds: 20 })).rejects.toThrow(
+      /not available on the live site/i,
+    );
+    await expect(admin.deletePromo("promo-welcome")).rejects.toThrow(
+      /not available on the live site/i,
+    );
+    await expect(
+      admin.requestToolChampionTerm({ userId: "u-maya", machineId: "m-sewing-1" }),
+    ).rejects.toThrow(/not available on the live site/i);
+    // Reading them still works.
+    expect((await admin.getDisplayConfig()).cadenceSeconds).toBeGreaterThan(0);
+    expect((await admin.listPromos()).length).toBeGreaterThan(0);
+  });
+});

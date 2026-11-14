@@ -51,17 +51,18 @@ function ModuleBody() {
   const [watchingId, setWatchingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function reload() {
-    const detail = await provider.getModule(params.module);
-    setMod(detail);
-    if (detail && !activeLessonId && detail.lessons[0]) {
-      setActiveLessonId(detail.lessons[0].id);
-    }
-  }
-
   useEffect(() => {
-    void reload();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let cancelled = false;
+    void provider.getModule(params.module).then((detail) => {
+      if (cancelled) return;
+      setMod(detail);
+      const first = detail?.lessons[0];
+      // Open on the first lesson unless the member already picked one.
+      if (first) setActiveLessonId((picked) => picked || first.id);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [provider, revision, params.module]);
 
   if (mod === undefined) {

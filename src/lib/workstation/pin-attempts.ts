@@ -1,8 +1,11 @@
 const WINDOW_MS = 10 * 60 * 1000;
 const MAX_FAILURES = 5;
 
+// The lock can last a day, so do not promise "a few minutes". Approving the
+// desk's QR code from a phone that is signed in to the website needs no PIN
+// and is never locked; a phone that is not signed in is asked for the PIN.
 export const PIN_LOCK_MESSAGE =
-  "Too many attempts. Try again in a few minutes or ask staff to reset your PIN.";
+  "Too many attempts. Ask staff to reset your PIN, or sign in to the website on your phone and then scan this desk's QR code.";
 
 export const PIN_MISMATCH_MESSAGE = "Email or PIN didn't match";
 
@@ -53,6 +56,23 @@ export function hasPinFailures(
   now = Date.now(),
 ): boolean {
   return bucket(workstationId, email, now).failures.length > 0;
+}
+
+/**
+ * Drop what this process counted up to `at`, the time of a success or PIN
+ * reset recorded in the database. Another route or another Worker may have
+ * taken it, so this process would otherwise keep counting, or keep a lock.
+ */
+export function forgetPinAttemptsBefore(
+  workstationId: string,
+  email: string,
+  at: number,
+  now = Date.now(),
+): void {
+  const current = bucket(workstationId, email, now);
+  current.failures = current.failures.filter((failedAt) => failedAt > at);
+  // The lock runs for one window from the failure that set it.
+  if (current.lockedUntil - WINDOW_MS <= at) current.lockedUntil = 0;
 }
 
 export function clearPinAttempts(workstationId: string, email: string): void {

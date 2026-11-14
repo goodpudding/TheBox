@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useData } from "@/components/providers";
 import { DisplayShell } from "@/components/display/display-shell";
@@ -17,6 +17,30 @@ import { laParts } from "@/lib/data/display-feed";
 const POLL_MS = 60_000;
 const FETCH_TIMEOUT_MS = 20_000;
 const NIGHTLY_RELOAD_HOUR = 4;
+
+type FeedResult =
+  | { status: "ok"; feed: DisplayFeed }
+  | { status: "denied" }
+  | { status: "failed" };
+
+/** One read of the feed. A timeout or a bad answer is "failed", not a throw. */
+async function fetchFeed(token: string): Promise<FeedResult> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(
+      `/api/display/feed?token=${encodeURIComponent(token)}`,
+      { cache: "no-store", signal: controller.signal },
+    );
+    if (res.status === 401) return { status: "denied" };
+    if (!res.ok) return { status: "failed" };
+    return { status: "ok", feed: (await res.json()) as DisplayFeed };
+  } catch {
+    return { status: "failed" };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 function panelHasContent(id: DisplayPanelId, feed: DisplayFeed): boolean {
   switch (id) {
@@ -62,55 +86,48 @@ export default function DisplayClient() {
   const { revision } = useData();
 
   const [feed, setFeed] = useState<DisplayFeed | null>(null);
-  const [denied, setDenied] = useState(false);
-  const [fetchedAt, setFetchedAt] = useState<number | null>(null);
+  const [feedDenied, setFeedDenied] = useState(false);
+  // When the feed last loaded. Read only to say how stale it is, never shown.
+  const fetchedAtRef = useRef<number | null>(null);
   const [staleMinutes, setStaleMinutes] = useState<number | null>(null);
   const [panelIndex, setPanelIndex] = useState(0);
   const [cycle, setCycle] = useState(0);
   const [promoIndex, setPromoIndex] = useState(0);
   const [nowTick, setNowTick] = useState(0);
 
-  const loadFeed = useCallback(async () => {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-    try {
-      const res = await fetch(
-        `/api/display/feed?token=${encodeURIComponent(token)}`,
-        { cache: "no-store", signal: controller.signal },
-      );
-      if (res.status === 401) {
-        setDenied(true);
-        return;
-      }
-      if (!res.ok) throw new Error(`Feed ${res.status}`);
-      const apiFeed = (await res.json()) as DisplayFeed;
-      setFeed(apiFeed);
-      setFetchedAt(Date.now());
-      setStaleMinutes(null);
-      setDenied(false);
-    } catch {
-      setFetchedAt((prev) => {
-        if (prev != null) {
-          setStaleMinutes(
-            Math.max(1, Math.round((Date.now() - prev) / 60_000)),
-          );
-        }
-        return prev;
-      });
-    } finally {
-      clearTimeout(timeout);
-    }
-  }, [token]);
+  // No token in the address is a refusal before any request is made.
+  const denied = !token || feedDenied;
 
   useEffect(() => {
-    if (!token) {
-      setDenied(true);
-      return;
-    }
-    void loadFeed();
-    const poll = setInterval(() => void loadFeed(), POLL_MS);
-    return () => clearInterval(poll);
-  }, [token, loadFeed, revision]);
+    if (!token) return;
+    let stopped = false;
+    const load = () =>
+      fetchFeed(token).then((result) => {
+        if (stopped) return;
+        if (result.status === "denied") {
+          setFeedDenied(true);
+        } else if (result.status === "ok") {
+          setFeed(result.feed);
+          fetchedAtRef.current = Date.now();
+          setStaleMinutes(null);
+          setFeedDenied(false);
+        } else {
+          // Keep the last feed on screen and say how old it is.
+          const fetchedAt = fetchedAtRef.current;
+          if (fetchedAt != null) {
+            setStaleMinutes(
+              Math.max(1, Math.round((Date.now() - fetchedAt) / 60_000)),
+            );
+          }
+        }
+      });
+    void load();
+    const poll = setInterval(() => void load(), POLL_MS);
+    return () => {
+      stopped = true;
+      clearInterval(poll);
+    };
+  }, [token, revision]);
 
   useEffect(() => {
     const t = setInterval(() => setNowTick((n) => n + 1), 30_000);

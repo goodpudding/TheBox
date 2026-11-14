@@ -16,6 +16,7 @@ import {
   settingsRow,
   type PersistTable,
 } from "./persist-rows";
+import { PIN_ATTEMPT_ACTION, PIN_FAILED_ACTION } from "@/lib/workstation/pin-throttle";
 import type {
   AccessLog,
   AuditEvent,
@@ -316,7 +317,19 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
   const [policyAcknowledgements, auditEvents, membershipProducts, settingsRow] =
     await Promise.all([
       prisma.policyAcknowledgement.findMany(),
-      prisma.auditEvent.findMany(),
+      // Kiosk PIN bookkeeping that no page shows and anyone can add to: PINs
+      // being checked, and wrong PINs for emails nobody has. Left in, a
+      // stranger could grow every request. Wrong PINs against a member stay.
+      prisma.auditEvent.findMany({
+        where: {
+          NOT: {
+            OR: [
+              { action: PIN_ATTEMPT_ACTION },
+              { action: PIN_FAILED_ACTION, subjectUserId: null },
+            ],
+          },
+        },
+      }),
       prisma.membershipProduct.findMany(),
       prisma.orgSettings.findUnique({ where: { id: "default" } }),
     ]);
@@ -1077,6 +1090,26 @@ export function invalidateBundleCache(): void {
   bundleInflight = null;
 }
 
+/**
+ * Writes to collections the database has no tables for yet (they are loaded
+ * from fixtures, or empty, on every request). The pages hide these on the
+ * live site. A direct call is refused too: answering "saved" and keeping
+ * nothing is worse than an error, and each one left an audit row pointing at
+ * a record that never existed.
+ */
+const NOT_STORED_YET: ReadonlySet<string> = new Set([
+  "reportWishlistPurchase",
+  "adminConfirmWishlistPurchase",
+  "adminDismissWishlistPurchase",
+  "adminMarkWishlistPurchased",
+  "requestToolChampionTerm",
+  "adminActivateToolChampionTerm",
+  "adminCompleteToolChampionTerm",
+  "savePromo",
+  "deletePromo",
+  "saveDisplayConfig",
+]);
+
 function createPersistingProxy(mock: MockDataProvider): DataProvider {
   let snapshot = cloneBundle(mock.getState());
   return new Proxy(mock, {
@@ -1085,6 +1118,9 @@ function createPersistingProxy(mock: MockDataProvider): DataProvider {
       if (typeof value !== "function") return value;
       const name = String(prop);
       return async (...args: unknown[]) => {
+        if (NOT_STORED_YET.has(name)) {
+          throw new Error("Not available on the live site yet.");
+        }
         const result = await (
           value as (...a: unknown[]) => Promise<unknown>
         ).apply(target, args);

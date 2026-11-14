@@ -1,31 +1,9 @@
 import NextAuth from "next-auth";
-import type { Provider } from "next-auth/providers";
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import Nodemailer from "next-auth/providers/nodemailer";
-import Resend from "next-auth/providers/resend";
+import { emailProvider } from "@/lib/auth/email-provider";
 import { prisma } from "@/lib/db";
-
-const from =
-  process.env.AUTH_EMAIL_FROM ?? "The Box <thebox@discoverburien.org>";
-
-/**
- * Magic-link email transport.
- * - Production (Cloudflare Workers): Resend over HTTPS. Set AUTH_RESEND_KEY.
- * - Local dev: SMTP via Nodemailer (Mailpit at 127.0.0.1:1025 by default).
- * Workers have no raw TCP sockets, so SMTP cannot run there.
- * Both are registered under the id "email" so the login page can call
- * signIn("email") regardless of which transport is active.
- */
-function emailProvider(): Provider {
-  if (process.env.AUTH_RESEND_KEY) {
-    return Resend({ id: "email", apiKey: process.env.AUTH_RESEND_KEY, from });
-  }
-  return Nodemailer({
-    id: "email",
-    server: process.env.AUTH_EMAIL_SERVER ?? "smtp://127.0.0.1:1025",
-    from,
-  });
-}
+import { allowRequest, emailLimitKey } from "@/lib/rate-limit";
+import { SIGN_IN_LIMITED_PATH } from "@/lib/sign-in-email";
 
 /**
  * Auth.js magic-link config.
@@ -34,13 +12,31 @@ function emailProvider(): Provider {
  */
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
-  providers: [emailProvider()],
+  providers: [
+    emailProvider({
+      AUTH_RESEND_KEY: process.env.AUTH_RESEND_KEY,
+      AUTH_EMAIL_SERVER: process.env.AUTH_EMAIL_SERVER,
+      AUTH_EMAIL_FROM: process.env.AUTH_EMAIL_FROM,
+    }),
+  ],
   pages: {
     signIn: "/login",
     verifyRequest: "/login/check-email",
     error: "/login",
   },
   callbacks: {
+    /**
+     * Auth.js asks this right before it sends a sign-in email, after it has
+     * checked the CSRF token and the address. Counting here means the count
+     * is for the address the email really goes to, and a request that sends
+     * nothing cannot use up someone else's share. A link being opened comes
+     * through here too (no `email`) and is never limited.
+     */
+    async signIn({ account, email }) {
+      if (!email?.verificationRequest || !account) return true;
+      const mailbox = emailLimitKey(account.providerAccountId);
+      return (await allowRequest("signInEmailAddress", mailbox)) || SIGN_IN_LIMITED_PATH;
+    },
     async session({ session, user }) {
       if (session.user) {
         session.user.id = user.id;

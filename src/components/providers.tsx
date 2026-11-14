@@ -74,11 +74,15 @@ function DataProviders({ children }: { children: ReactNode }) {
   }, [bump]);
 
   // A valid Auth.js session whose email has no member row: sign out instead of
-  // bouncing between /login and the member pages.
+  // bouncing between /login and the member pages. Auth.js ends the session and
+  // then loads the login page itself. It has to be a full page load: the page
+  // the visitor is on may already be redirecting somewhere else, and a
+  // client-side navigation loses that race.
   const endOrphanedSession = useCallback(async () => {
     setCurrentUser(null);
-    await signOut({ redirect: false }).catch(() => undefined);
-    window.location.assign("/login?error=NoAccount");
+    await signOut({ redirectTo: "/login?error=NoAccount" }).catch(
+      () => undefined,
+    );
   }, []);
 
   const refreshUser = useCallback(async () => {

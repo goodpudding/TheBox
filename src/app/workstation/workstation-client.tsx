@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { BrandMark } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { formatDateTime } from "@/lib/format";
 import { formatMoneyExact, formatTier } from "@/lib/utils";
 import { quoteMachineJob } from "@/lib/credits";
 import type { MachineArea, MembershipTier } from "@/lib/data/types";
+import { idleAction } from "@/lib/workstation/idle";
 import { isTauriShell, nativeInvoke } from "@/lib/workstation/native";
 import Link from "next/link";
 
@@ -161,13 +162,19 @@ export function WorkstationClient() {
     expiresAt: string;
   } | null>(null);
   const [locked, setLocked] = useState(false);
+  const [unlocking, setUnlocking] = useState(false);
+  const unlockingRef = useRef(false);
   const [lockPin, setLockPin] = useState("");
   const [lockError, setLockError] = useState<string | null>(null);
   const [mustChangePin, setMustChangePin] = useState(false);
   const [nextPin, setNextPin] = useState("");
   const [confirmNextPin, setConfirmNextPin] = useState("");
-  const [now, setNow] = useState(Date.now());
-  const [lastActivity, setLastActivity] = useState(Date.now());
+  // When the desk was last touched. Nothing on screen shows it, so it is a
+  // ref: a key press does not need to redraw the page.
+  const lastActivityRef = useRef(0);
+  const markActive = useCallback(() => {
+    lastActivityRef.current = Date.now();
+  }, []);
   const [launchNote, setLaunchNote] = useState<string | null>(null);
   const [grams, setGrams] = useState("");
   const [runtimeMinutes, setRuntimeMinutes] = useState("");
@@ -197,21 +204,17 @@ export function WorkstationClient() {
     })();
   }, [device, refreshMe]);
 
+  // Idle time counts from the last tap or key press, starting when the page
+  // opens.
   useEffect(() => {
-    const tick = () => setNow(Date.now());
-    const id = window.setInterval(tick, 1000);
-    return () => window.clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    const bump = () => setLastActivity(Date.now());
-    window.addEventListener("pointerdown", bump);
-    window.addEventListener("keydown", bump);
+    markActive();
+    window.addEventListener("pointerdown", markActive);
+    window.addEventListener("keydown", markActive);
     return () => {
-      window.removeEventListener("pointerdown", bump);
-      window.removeEventListener("keydown", bump);
+      window.removeEventListener("pointerdown", markActive);
+      window.removeEventListener("keydown", markActive);
     };
-  }, []);
+  }, [markActive]);
 
   const logout = useCallback(async (endedBy: "logout" | "idle" = "logout") => {
     await apiFetch("/api/workstation/logout", {
@@ -227,17 +230,17 @@ export function WorkstationClient() {
     setLaunchNote(null);
   }, []);
 
+  // Once a second, lock or log out a desk nobody has touched.
   useEffect(() => {
     if (!me || mustChangePin) return;
-    const idleMs = Date.now() - lastActivity;
-    const lockMs = me.session.idleLockMinutes * 60_000;
-    const logoutMs = me.session.idleLogoutMinutes * 60_000;
-    if (idleMs >= logoutMs) {
-      void logout("idle");
-    } else if (idleMs >= lockMs) {
-      setLocked(true);
-    }
-  }, [now, lastActivity, me, logout, mustChangePin]);
+    const limits = me.session;
+    const id = window.setInterval(() => {
+      const action = idleAction(Date.now() - lastActivityRef.current, limits);
+      if (action === "logout") void logout("idle");
+      else if (action === "lock") setLocked(true);
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [me, logout, mustChangePin]);
 
   useEffect(() => {
     if (!qr || me) return;
@@ -253,13 +256,13 @@ export function WorkstationClient() {
           await nativeStoreToken(body.token);
         }
         setMe(body.me);
-        setLastActivity(Date.now());
+        markActive();
         setQr(null);
       }
       if (body.status === "expired") setQr(null);
     }, 1500);
     return () => window.clearInterval(id);
-  }, [qr, me]);
+  }, [qr, me, markActive]);
 
   async function login(e: React.FormEvent) {
     e.preventDefault();
@@ -290,7 +293,7 @@ export function WorkstationClient() {
       setMustChangePin(
         Boolean(body.mustChangePin || body.me?.mustChangePin),
       );
-      setLastActivity(Date.now());
+      markActive();
       setPin("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not sign in");
@@ -322,6 +325,11 @@ export function WorkstationClient() {
 
   async function unlock(e: React.FormEvent) {
     e.preventDefault();
+    // One request at a time. Two at once each count the other as a wrong PIN
+    // in progress, and after a few typos both would be refused.
+    if (unlockingRef.current) return;
+    unlockingRef.current = true;
+    setUnlocking(true);
     setLockError(null);
     try {
       const res = await apiFetch("/api/workstation/unlock", {
@@ -336,9 +344,12 @@ export function WorkstationClient() {
       }
       setLocked(false);
       setLockPin("");
-      setLastActivity(Date.now());
+      markActive();
     } catch (err) {
       setLockError(err instanceof Error ? err.message : "PIN didn't match");
+    } finally {
+      unlockingRef.current = false;
+      setUnlocking(false);
     }
   }
 
@@ -361,7 +372,7 @@ export function WorkstationClient() {
       setMustChangePin(false);
       setNextPin("");
       setConfirmNextPin("");
-      setLastActivity(Date.now());
+      markActive();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save PIN");
     } finally {
@@ -453,9 +464,8 @@ export function WorkstationClient() {
   }
 
   const billing = me?.session.billing ?? config?.workstation.billing;
-  const printers = useMemo(
-    () => (config?.equipment ?? []).filter((eq) => eq.area === "3d_printing"),
-    [config],
+  const printers = (config?.equipment ?? []).filter(
+    (eq) => eq.area === "3d_printing",
   );
   const jobMachine =
     (config?.equipment ?? []).find(
@@ -594,7 +604,9 @@ export function WorkstationClient() {
               </p>
             ) : null}
             <div className="mt-6 flex gap-3">
-              <Button type="submit">Unlock</Button>
+              <Button type="submit" disabled={unlocking}>
+                Unlock
+              </Button>
               <Button type="button" variant="outline" onClick={() => void logout()}>
                 Log out
               </Button>

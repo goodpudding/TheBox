@@ -19,6 +19,8 @@ import "@schedule-x/theme-default/dist/index.css";
 import { useData } from "@/components/providers";
 import { StatusPill } from "@/components/status-pill";
 import { formatDateTime } from "@/lib/format";
+import { upcomingByStart } from "@/lib/time-window";
+import { useNow } from "@/lib/use-now";
 import { formatMoney, cn } from "@/lib/utils";
 import type { ClassCategory, ClassSessionView } from "@/lib/data";
 
@@ -139,6 +141,7 @@ export function EventsCalendar() {
   const [category, setCategory] = useState<ClassCategory | "all">("all");
   const [layout, setLayout] = useState<LayoutMode>("calendar");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const now = useNow();
 
   const eventModal = useMemo(() => createEventModalPlugin(), []);
   const monthGrid = useMemo(() => createViewMonthGrid(), []);
@@ -187,15 +190,10 @@ export function EventsCalendar() {
     return classes.filter((c) => c.category === category);
   }, [classes, category]);
 
-  const listSessions = useMemo(() => {
-    const now = Date.now();
-    return [...filtered]
-      .filter((s) => new Date(s.startsAt).getTime() >= now)
-      .sort(
-        (a, b) =>
-          new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
-      );
-  }, [filtered]);
+  const listSessions = useMemo(
+    () => upcomingByStart(filtered, now),
+    [filtered, now],
+  );
 
   useEffect(() => {
     if (!calendar) return;

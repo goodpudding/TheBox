@@ -7,6 +7,8 @@ import { StatusPill } from "@/components/status-pill";
 import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
+import { hasStarted } from "@/lib/time-window";
+import { useNow } from "@/lib/use-now";
 import { formatMoney } from "@/lib/utils";
 import type { ClassCategory, ClassSessionView } from "@/lib/data";
 
@@ -24,6 +26,7 @@ export default function AdminClassesPage() {
   const [syncing, setSyncing] = useState(false);
   const [syncNote, setSyncNote] = useState<string | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const now = useNow();
 
   useEffect(() => {
     void fetch("/api/sync/zeffy", { cache: "no-store" })
@@ -107,8 +110,6 @@ export default function AdminClassesPage() {
     }
   }
 
-  const now = Date.now();
-
   return (
     <AdminShell
       title="Classes"
@@ -147,7 +148,7 @@ export default function AdminClassesPage() {
       ) : (
         <ul className="mt-10 divide-y divide-border border-y border-border">
           {classes.map((session) => {
-            const past = new Date(session.startsAt).getTime() < now;
+            const past = hasStarted(session.startsAt, now);
             const price =
               session.priceCents <= 0
                 ? "Free"

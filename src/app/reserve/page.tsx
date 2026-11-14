@@ -9,6 +9,8 @@ import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
 import { formatDateTime } from "@/lib/format";
+import { isHappeningNow, isStillAhead } from "@/lib/time-window";
+import { useNow } from "@/lib/use-now";
 import type {
   DisplayMachineStatus,
   Machine,
@@ -80,6 +82,7 @@ function ReserveBody() {
   >([]);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const now = useNow();
 
   useEffect(() => {
     if (!currentUser) return;
@@ -170,9 +173,7 @@ function ReserveBody() {
         ) : (
           <ul className="mt-4 divide-y divide-border border-y border-border">
             {reservations.map((r) => {
-              const live =
-                new Date(r.startsAt).getTime() <= Date.now() &&
-                new Date(r.endsAt).getTime() > Date.now();
+              const live = isHappeningNow(r.startsAt, r.endsAt, now);
               return (
                 <li
                   key={r.id}
@@ -191,7 +192,7 @@ function ReserveBody() {
                       </div>
                     ) : null}
                   </div>
-                  {new Date(r.startsAt).getTime() > Date.now() ? (
+                  {isStillAhead(r.startsAt, now) ? (
                     <Button
                       type="button"
                       variant="secondary"

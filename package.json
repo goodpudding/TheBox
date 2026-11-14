@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint --max-warnings 0",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
@@ -19,6 +19,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "e2e:db": "tsx scripts/e2e-db.ts",
     "fixtures:learning": "node scripts/generate-learning-fixtures.mjs",
     "fixtures:learning:extend": "node scripts/patch-learning-resin-embroidery-sub.mjs && node scripts/generate-learning-fixtures.mjs",
     "docker:mail": "docker compose up mailpit",
@@ -57,7 +58,6 @@
     "marked": "^18.0.11",
     "next": "^16.4.3",
     "next-auth": "^5.0.0-beta.32",
-    "nodemailer": "^8.0.11",
     "preact": "^10.29.8",
     "qrcode": "^1.5.4",
     "react": "19.2.8",
@@ -72,18 +72,24 @@
     "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
-    "@types/nodemailer": "^8.0.1",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/sanitize-html": "^2.16.1",
     "eslint": "^9",
     "eslint-config-next": "^16.4.3",
+    "nodemailer": "^10.5.0",
     "prisma": "^6.19.3",
     "tailwindcss": "^4",
     "tsx": "^4.23.13",
     "typescript": "^5",
     "vitest": "^3.2.7",
     "wrangler": "^4.152.0"
+  },
+  "overrides": {
+    "@prisma/config": {
+      "deepmerge-ts": "8.0.2"
+    },
+    "nodemailer": "$nodemailer"
   }
 }

@@ -4,6 +4,10 @@ import { canInventory } from "./permissions";
 import { formatAssetTag, parseAssetTag } from "./tags";
 import { defaultColumnMapping, parseCsvText } from "./csv";
 
+/** Keys shaped like the ones the upload route hands back. */
+const photoKey = (n: number) =>
+  `local:temp/00000000-0000-4000-8000-${String(n).padStart(12, "0")}.jpg`;
+
 describe("asset tags", () => {
   it("formats sequential numbers as BX-00042", () => {
     expect(formatAssetTag(42)).toBe("BX-00042");
@@ -75,8 +79,8 @@ describe("inventory provider", () => {
       condition: "GOOD",
       noSerial: true,
       photoKeys: [
-        { storageKey: "fixture:vac-front", kind: "FRONT", mimeType: "image/svg+xml" },
-        { storageKey: "fixture:vac-side", kind: "SIDE", mimeType: "image/svg+xml" },
+        { storageKey: photoKey(1), kind: "FRONT", mimeType: "image/jpeg" },
+        { storageKey: photoKey(2), kind: "SIDE", mimeType: "image/jpeg" },
       ],
     });
     expect(created.reviewStatus).toBe("PENDING");
@@ -106,9 +110,9 @@ describe("inventory provider", () => {
         condition: "GOOD",
         serialNumber: "DW6423-88421",
         photoKeys: [
-          { storageKey: "fixture:a", kind: "FRONT", mimeType: "image/svg+xml" },
-          { storageKey: "fixture:b", kind: "SIDE", mimeType: "image/svg+xml" },
-          { storageKey: "fixture:c", kind: "SERIAL", mimeType: "image/svg+xml" },
+          { storageKey: photoKey(1), kind: "FRONT", mimeType: "image/jpeg" },
+          { storageKey: photoKey(2), kind: "SIDE", mimeType: "image/jpeg" },
+          { storageKey: photoKey(3), kind: "SERIAL", mimeType: "image/jpeg" },
         ],
       }),
     ).rejects.toThrow(/already be in inventory/i);

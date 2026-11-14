@@ -91,9 +91,12 @@ export function SiteHeader() {
   const isStaff =
     currentUser?.role === "staff" || currentUser?.role === "admin";
 
-  useEffect(() => {
+  // A new route closes the You menu, however the visitor got there.
+  const [menuPathname, setMenuPathname] = useState(pathname);
+  if (menuPathname !== pathname) {
+    setMenuPathname(pathname);
     setYouOpen(false);
-  }, [pathname]);
+  }
 
   useEffect(() => {
     if (!youOpen) return;

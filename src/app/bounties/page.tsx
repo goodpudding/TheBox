@@ -11,7 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { canClaimBounty, canCompleteBounty } from "@/lib/data";
 import { formatDate } from "@/lib/format";
-import type { BountyStatus, BountyView } from "@/lib/data";
+import { useLocationHash } from "@/lib/use-location-hash";
+import type { BountyStatus, BountyView, User } from "@/lib/data";
 
 function statusTone(
   status: BountyStatus,
@@ -54,11 +55,18 @@ export default function BountiesPage() {
     };
   }, [provider, revision, currentUser]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (window.location.hash === "#request") setShowForm(true);
-    if (!currentUser) setShowForm(true);
-  }, [currentUser]);
+  // Guests, and anyone following a #request link, get the form opened for
+  // them. Decided on arrival and again when the signed-in user or the link
+  // changes, so closing the form after a request sticks in between.
+  const hash = useLocationHash();
+  const [openedFor, setOpenedFor] = useState<{
+    user: User | null;
+    hash: string;
+  } | null>(null);
+  if (!openedFor || openedFor.user !== currentUser || openedFor.hash !== hash) {
+    setOpenedFor({ user: currentUser, hash });
+    if (!currentUser || hash === "#request") setShowForm(true);
+  }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

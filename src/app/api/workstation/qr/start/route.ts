@@ -2,11 +2,26 @@ import { NextRequest, NextResponse, connection } from "next/server";
 import QRCode from "qrcode";
 import { startQrChallenge } from "@/lib/workstation/server";
 import { jsonError } from "@/lib/workstation/errors";
+import {
+  RATE_LIMIT_MESSAGE,
+  allowRequest,
+  clientIp,
+  ipLimitKey,
+  rateLimitHeaders,
+} from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   await connection();
+  // No sign-in here and every start writes a row, so count per address first.
+  if (!(await allowRequest("qrStart", ipLimitKey(clientIp(request))))) {
+    console.warn(JSON.stringify({ route: "workstation/qr/start", limited: "qrStart" }));
+    return NextResponse.json(
+      { error: RATE_LIMIT_MESSAGE },
+      { status: 429, headers: rateLimitHeaders("qrStart") },
+    );
+  }
   try {
     const body = (await request.json()) as { workstationId?: string };
     if (!body.workstationId) {

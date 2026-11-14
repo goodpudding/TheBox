@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   MAX_PHOTO_BYTES,
+  isIssuedPhotoKey,
+  isPhotoMimeType,
   isServablePhotoType,
   sniffImageType,
   validatePhotoUpload,
@@ -69,5 +71,72 @@ describe("isServablePhotoType", () => {
     expect(isServablePhotoType("image/svg+xml")).toBe(false);
     expect(isServablePhotoType("text/html")).toBe(false);
     expect(isServablePhotoType("application/pdf")).toBe(false);
+  });
+});
+
+describe("isIssuedPhotoKey", () => {
+  const UUID = "3f2b1c1e-8a4d-4c57-9b1e-0d6a5c7e9f10";
+
+  it("accepts the two shapes storage hands out", () => {
+    expect(isIssuedPhotoKey("drive:1AbC_dEfGhIjKlMnOpQrStUvWxYz-012345")).toBe(true);
+    expect(isIssuedPhotoKey(`local:temp/${UUID}.jpg`)).toBe(true);
+    expect(isIssuedPhotoKey(`local:BX-00042/${UUID}.png`)).toBe(true);
+    expect(isIssuedPhotoKey(`local:temp/${UUID}.webp`)).toBe(true);
+  });
+
+  it("refuses paths, other schemes and anything that is not a string", () => {
+    for (const key of [
+      "",
+      "drive:",
+      "drive:short",
+      "drive:abc/def-0123456789",
+      "drive:abc..def0123456789",
+      "drive:abc def0123456789",
+      `drive:${"a".repeat(300)}`,
+      `local:${UUID}.jpg`,
+      `local:../${UUID}.jpg`,
+      `local:./${UUID}.jpg`,
+      `local:temp/../${UUID}.jpg`,
+      `local:a/b/${UUID}.jpg`,
+      `local:temp/${UUID}.svg`,
+      `local:temp/${UUID}.JPG`,
+      `local:temp/${UUID}`,
+      "local:temp/photo.jpg",
+      ` local:temp/${UUID}.jpg`,
+      `local:temp/${UUID}.jpg\n`,
+      `LOCAL:temp/${UUID}.jpg`,
+      "fixture:orbital-sander-front",
+      "https://example.com/a.jpg",
+    ]) {
+      expect(isIssuedPhotoKey(key), JSON.stringify(key)).toBe(false);
+    }
+    for (const key of [null, undefined, 42, {}, [`local:temp/${UUID}.jpg`]]) {
+      expect(isIssuedPhotoKey(key)).toBe(false);
+    }
+  });
+});
+
+describe("isPhotoMimeType", () => {
+  it("accepts exactly the three upload types", () => {
+    expect(isPhotoMimeType("image/jpeg")).toBe(true);
+    expect(isPhotoMimeType("image/png")).toBe(true);
+    expect(isPhotoMimeType("image/webp")).toBe(true);
+  });
+
+  it("refuses everything else, including padded or parameterised values", () => {
+    for (const type of [
+      "image/svg+xml",
+      "text/html",
+      "image/gif",
+      "IMAGE/JPEG",
+      "image/jpeg; charset=utf-8",
+      " image/jpeg",
+      "",
+      null,
+      undefined,
+      7,
+    ]) {
+      expect(isPhotoMimeType(type), JSON.stringify(type)).toBe(false);
+    }
   });
 });

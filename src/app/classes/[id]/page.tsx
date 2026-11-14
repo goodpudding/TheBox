@@ -9,6 +9,8 @@ import { StatusPill } from "@/components/status-pill";
 import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
+import { isStillAhead } from "@/lib/time-window";
+import { useNow } from "@/lib/use-now";
 import { formatMoney, formatMoneyExact } from "@/lib/utils";
 import { classCreditsShortfallMessage } from "@/lib/credits";
 import type {
@@ -76,6 +78,7 @@ function ClassDetailBody() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [wallet, setWallet] = useState<CreditWallet | null>(null);
+  const now = useNow();
 
   useEffect(() => {
     if (!id) return;
@@ -155,7 +158,7 @@ function ClassDetailBody() {
     session.priceCents <= 0 ? "Free" : formatMoney(session.priceCents);
   const priorityActive =
     interestBoard?.priorityBookingEndsAt != null &&
-    new Date(interestBoard.priorityBookingEndsAt).getTime() > Date.now();
+    isStillAhead(interestBoard.priorityBookingEndsAt, now);
 
   async function onBook() {
     if (!currentUser || !session) return;

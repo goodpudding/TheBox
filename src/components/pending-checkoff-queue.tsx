@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
-import type { PendingCheckoff } from "@/lib/data";
+import type { PendingCheckoff, User } from "@/lib/data";
 
 type Props = {
   /** Where the member profile link should point; omit to hide profile links. */
@@ -23,25 +23,31 @@ export function PendingCheckoffQueue({
   className,
 }: Props) {
   const { provider, currentUser, revision, bump } = useData();
-  const [rows, setRows] = useState<PendingCheckoff[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loaded, setLoaded] = useState<{
+    user: User;
+    revision: number;
+    rows: PendingCheckoff[];
+  } | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!currentUser) return;
     let cancelled = false;
-    setLoading(true);
-    void provider.listPendingCheckoffs(currentUser.id).then((list) => {
-      if (!cancelled) {
-        setRows(list);
-        setLoading(false);
-      }
+    void provider.listPendingCheckoffs(currentUser.id).then((rows) => {
+      if (!cancelled) setLoaded({ user: currentUser, revision, rows });
     });
     return () => {
       cancelled = true;
     };
   }, [provider, revision, currentUser]);
+
+  // A queue read for another viewer, or before the latest change, is not
+  // shown: it is loading until the current one arrives.
+  const current =
+    loaded?.user === currentUser && loaded.revision === revision ? loaded : null;
+  const loading = current === null;
+  const rows = current?.rows ?? [];
 
   async function checkOff(row: PendingCheckoff) {
     if (!currentUser) return;

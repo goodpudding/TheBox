@@ -18,16 +18,19 @@ import {
 import { hashKioskPin, isValidPinShape, verifyKioskPin } from "./pin";
 import {
   clearPinAttempts,
-  hasPinFailures,
+  forgetPinAttemptsBefore,
   isPinAttemptLocked,
   PIN_LOCK_MESSAGE,
   PIN_MISMATCH_MESSAGE,
   recordFailedPinAttempt,
 } from "@/lib/workstation/pin-attempts";
 import {
-  isPinLockedDurably,
+  readPinThrottle,
   recordPinFailure,
   recordPinSuccess,
+  removePinAttempt,
+  reservePinAttempt,
+  confirmPinFailure,
 } from "./pin-throttle";
 import {
   clearWorkstationCookie,
@@ -250,28 +253,43 @@ export async function verifyPinLogin(input: {
   scope: string;
 }) {
   const email = input.email.trim().toLowerCase();
-  if (
-    isPinAttemptLocked(input.scope, email) ||
-    (await isPinLockedDurably(email))
-  ) {
-    throw statusError(PIN_LOCK_MESSAGE, 429);
-  }
   const userRow = await prisma.user.findFirst({
     where: { email, deletedAt: null },
   });
+
+  // Write the attempt down before looking at the PIN, then count everyone
+  // else's. Checking first and writing after let a burst of requests all see
+  // "not locked" and each get a guess.
+  const who = { email, userId: userRow?.id ?? null, entityId: input.scope };
+  const attemptId = await reservePinAttempt(who);
+  const recorded = await readPinThrottle(email, { excludeId: attemptId });
+  if (recorded.clearedAt != null) {
+    forgetPinAttemptsBefore(input.scope, email, recorded.clearedAt);
+  }
+  if (isPinAttemptLocked(input.scope, email) || recorded.locked) {
+    // A refused attempt is not counted, so the lock cannot feed itself.
+    if (attemptId) await removePinAttempt(attemptId);
+    throw statusError(PIN_LOCK_MESSAGE, 429);
+  }
+  // Same order in this process: counted here, with no await before it, so
+  // requests in one Worker cannot slip past each other either.
+  recordFailedPinAttempt(input.scope, email);
+
   const matched =
     isValidPinShape(input.pin) &&
     Boolean(userRow && (await verifyKioskPin(input.pin, userRow.kioskPinHash)));
   if (!matched || !userRow) {
-    recordFailedPinAttempt(input.scope, email);
-    await recordPinFailure({
-      email,
-      userId: userRow?.id ?? null,
-      entityId: input.scope,
-    });
+    // The attempt becomes the failure record. If it could not be written
+    // before the check, write the failure now.
+    if (attemptId) await confirmPinFailure(attemptId);
+    else await recordPinFailure(who);
     throw statusError(PIN_MISMATCH_MESSAGE, 401);
   }
-  if (hasPinFailures(input.scope, email)) {
+  if (attemptId) await removePinAttempt(attemptId);
+  // Earlier typos, on any route or Worker, stop counting from here. Only the
+  // database can say whether there were any: this process's own count also
+  // holds requests that are still being checked.
+  if (recorded.pendingFailures) {
     await recordPinSuccess({ email, userId: userRow.id, entityId: input.scope });
   }
   clearPinAttempts(input.scope, email);
@@ -337,18 +355,22 @@ export async function startQrChallenge(workstationId: string) {
   return { challenge: row, workstation };
 }
 
+/** The challenge while it can still be approved, or a 410. */
+export async function requireOpenQrChallenge(challengeId: string) {
+  const row = await prisma.workstationLoginChallenge.findUnique({
+    where: { id: challengeId },
+  });
+  if (!row || row.consumedAt || row.expiresAt.getTime() < Date.now()) {
+    throw statusError("This QR code expired. Start again at the desk.", 410);
+  }
+  return row;
+}
+
 export async function approveQrChallenge(input: {
   challengeId: string;
   userId: string;
 }) {
-  const row = await prisma.workstationLoginChallenge.findUnique({
-    where: { id: input.challengeId },
-  });
-  if (!row || row.consumedAt || row.expiresAt.getTime() < Date.now()) {
-    const error = new Error("This QR code expired. Start again at the desk.");
-    (error as Error & { status: number }).status = 410;
-    throw error;
-  }
+  const row = await requireOpenQrChallenge(input.challengeId);
   return prisma.workstationLoginChallenge.update({
     where: { id: row.id },
     data: { approvedUserId: input.userId },

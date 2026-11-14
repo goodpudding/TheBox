@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { hashKioskPin } from "@/lib/workstation/pin";
 import { kioskPinPolicyError } from "@/lib/workstation/pin-policy";
+import { recordPinSet } from "@/lib/workstation/pin-throttle";
 import { jsonError } from "@/lib/workstation/errors";
 import { isStaffRequest } from "@/lib/workstation/server";
 
@@ -35,17 +36,38 @@ export async function POST(
         kioskPinMustChange: true,
       },
     });
-    await prisma.auditEvent.create({
-      data: {
-        id: `audit_${randomBytes(8).toString("hex")}`,
+    // The staff page resets the PIN through the data API first, which logs
+    // it, and then calls this route with the same PIN. Log it here only when
+    // that has not just happened.
+    const justLogged = await prisma.auditEvent.findFirst({
+      where: {
         action: "member.pin_reset",
-        actorId: staff.id,
         subjectUserId: id,
-        entityType: "user",
-        entityId: id,
-        metadata: JSON.stringify({ mustChange: true }),
-        occurredAt: new Date(),
+        actorId: staff.id,
+        occurredAt: { gte: new Date(Date.now() - 60_000) },
       },
+      select: { id: true },
+    });
+    if (!justLogged) {
+      await prisma.auditEvent.create({
+        data: {
+          id: `audit_${randomBytes(8).toString("hex")}`,
+          action: "member.pin_reset",
+          actorId: staff.id,
+          subjectUserId: id,
+          entityType: "user",
+          entityId: id,
+          metadata: JSON.stringify({ mustChange: true }),
+          occurredAt: new Date(),
+        },
+      });
+    }
+    // "Ask staff to reset your PIN" is what the lock screen says, so the
+    // reset has to end the lock as well as replace the PIN.
+    await recordPinSet({
+      email: member.email,
+      userId: id,
+      entityId: "staff-reset",
     });
     return NextResponse.json({ ok: true });
   } catch (err) {

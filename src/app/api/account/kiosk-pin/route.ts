@@ -2,6 +2,7 @@ import { NextRequest, NextResponse, connection } from "next/server";
 import { prisma } from "@/lib/db";
 import { hashKioskPin } from "@/lib/workstation/pin";
 import { kioskPinPolicyError } from "@/lib/workstation/pin-policy";
+import { recordPinSet } from "@/lib/workstation/pin-throttle";
 import { jsonError } from "@/lib/workstation/errors";
 import { memberActorId } from "@/lib/workstation/server";
 
@@ -39,12 +40,19 @@ export async function POST(request: NextRequest) {
     if (problem) {
       return NextResponse.json({ error: problem }, { status: 400 });
     }
-    await prisma.user.update({
+    const member = await prisma.user.update({
       where: { id: userId },
       data: {
         kioskPinHash: await hashKioskPin(body.pin ?? ""),
         kioskPinMustChange: false,
       },
+    });
+    // The member is signed in to their account here, so wrong PINs typed
+    // against their email before this stop counting toward a lock.
+    await recordPinSet({
+      email: member.email,
+      userId,
+      entityId: "account",
     });
     return NextResponse.json({ ok: true });
   } catch (err) {

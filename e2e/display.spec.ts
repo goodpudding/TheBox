@@ -33,10 +33,11 @@ test.describe("Lobby display", () => {
     );
     const feed = await ok.json();
     const ids = (feed.promos as { id: string }[]).map((p) => p.id);
+    // Only promos that ended in the past: these can never start failing as
+    // the calendar moves on. Start and end dates are checked with a pinned
+    // clock in src/lib/data/display-feed.test.ts.
     expect(ids).not.toContain("promo-expired-summer");
     expect(ids).not.toContain("promo-expired-old");
-    expect(ids).not.toContain("promo-future-holiday");
-    expect(ids).toContain("promo-welcome");
   });
 
   test("display page renders with token", async ({ page }) => {

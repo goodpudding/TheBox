@@ -98,6 +98,9 @@ function ItemBody() {
   const canRetire = canInventory(currentUser, "retire", opts);
   const canPhoto = canInventory(currentUser, "addPhoto", opts);
   const canIssue = canInventory(currentUser, "reportIssue");
+  // The serial number and notes are sent only to stewards of this area and
+  // staff. For everyone else there is nothing to show, so leave the rows out.
+  const seesPrivate = canInventory(currentUser, "viewPending", opts);
   const canApprove =
     item.reviewStatus === "PENDING" &&
     canInventory(currentUser, "approve", opts);
@@ -154,10 +157,17 @@ function ItemBody() {
 
       <dl className="mt-8 grid gap-4 sm:grid-cols-2">
         <Info label="Location" value={item.location ?? "—"} />
-        <Info label="Serial" value={item.noSerial ? "None" : item.serialNumber ?? "—"} />
+        {seesPrivate ? (
+          <Info
+            label="Serial"
+            value={item.noSerial ? "None" : item.serialNumber ?? "—"}
+          />
+        ) : null}
         <Info label="Quantity" value={String(item.quantity)} />
         <Info label="Submitted by" value={item.createdByName ?? "—"} />
-        {item.notes ? <Info label="Notes" value={item.notes} /> : null}
+        {seesPrivate && item.notes ? (
+          <Info label="Notes" value={item.notes} />
+        ) : null}
         {item.retiredReason ? (
           <Info label="Retired" value={item.retiredReason} />
         ) : null}

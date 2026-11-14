@@ -46,8 +46,11 @@ export default function DevReaderPage() {
       ]);
       setMachines(m.filter((x) => x.active));
       setBadges(b);
-      if (!machineId && m[0]) setMachineId(m[0].id);
-      if (!badgeUid && b[0]) setBadgeUid(b[0].uid);
+      // Start each picker on the first entry; keep a choice already made.
+      const firstMachine = m[0]?.id ?? "";
+      const firstBadge = b[0]?.uid ?? "";
+      setMachineId((picked) => picked || firstMachine);
+      setBadgeUid((picked) => picked || firstBadge);
     })();
   }, [provider, revision]);
 

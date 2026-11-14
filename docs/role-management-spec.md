@@ -30,7 +30,7 @@ Follow the existing status pattern exactly (`onStatusChange` → `provider.admin
 
 Auth.js matches users by exact `email`. Lowercase and trim the email at the two entry points so `ED@discoverburien.org` and `ed@discoverburien.org` are the same person:
 - the login form before calling `signIn("email", …)` (`src/app/login/page.tsx`);
-- `normalizeIdentifier` on the email provider in `src/auth.ts` (both the Resend and Nodemailer branches share the config object — set it once).
+- `normalizeIdentifier` on the email provider in `src/lib/auth/email-provider.ts` (set it on both the Resend and the local SMTP branch).
 Do not change existing stored emails in a migration; the seed data is already lowercase.
 
 ## 4. Pre-created admins (one-off, not code)

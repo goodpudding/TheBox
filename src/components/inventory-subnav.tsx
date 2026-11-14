@@ -35,11 +35,11 @@ export function InventorySubnav() {
     ? canInventory(currentUser, "submit", { stewards })
     : false;
 
+  // Someone who cannot review has no count; forget the last reviewer's.
+  if (!(currentUser && reviewer) && pending !== 0) setPending(0);
+
   useEffect(() => {
-    if (!currentUser || !reviewer) {
-      setPending(0);
-      return;
-    }
+    if (!currentUser || !reviewer) return;
     let cancelled = false;
     void provider.pendingInventoryCount(currentUser.id).then((n) => {
       if (!cancelled) setPending(n);

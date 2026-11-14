@@ -60,25 +60,40 @@ export default function AdminWorkstationsPage() {
     };
   }
 
-  async function load() {
+  /** Reads the three lists. One the server refused comes back as null. */
+  async function fetchLists() {
     const [ws, sm, m] = await Promise.all([
       fetch("/api/admin/workstations", { headers: headers() }),
       fetch("/api/admin/software-maps", { headers: headers() }),
       provider.listMachines(),
     ]);
-    if (ws.ok) {
-      const body = (await ws.json()) as { workstations: Row[] };
-      setRows(body.workstations);
-    }
-    if (sm.ok) {
-      const body = (await sm.json()) as { maps: MapRow[] };
-      setMaps(body.maps);
-    }
-    setMachines(m);
+    return {
+      rows: ws.ok
+        ? ((await ws.json()) as { workstations: Row[] }).workstations
+        : null,
+      maps: sm.ok ? ((await sm.json()) as { maps: MapRow[] }).maps : null,
+      machines: m,
+    };
+  }
+
+  function showLists(lists: Awaited<ReturnType<typeof fetchLists>>) {
+    if (lists.rows) setRows(lists.rows);
+    if (lists.maps) setMaps(lists.maps);
+    setMachines(lists.machines);
+  }
+
+  async function load() {
+    showLists(await fetchLists());
   }
 
   useEffect(() => {
-    void load();
+    let cancelled = false;
+    void fetchLists().then((lists) => {
+      if (!cancelled) showLists(lists);
+    });
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, revision]);
 

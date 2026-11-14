@@ -58,8 +58,6 @@ const lessonVideos = [];
 const questions = [];
 const youtubeToVideoId = new Map();
 
-let videoSeq = 0;
-
 for (const [mi, mod] of videosSrc.modules.entries()) {
   const equipmentStatus = normalizeEquipmentStatus(mod.equipmentStatus);
   modules.push({
@@ -100,7 +98,6 @@ for (const [mi, mod] of videosSrc.modules.entries()) {
     });
 
     for (const [vi, vid] of (les.videos ?? []).entries()) {
-      videoSeq += 1;
       const id = `vid-${mod.slug}-${String(vi + 1).padStart(2, "0")}-${vid.youtubeId.slice(0, 6)}`;
       youtubeToVideoId.set(vid.youtubeId, id);
       lessonVideos.push({
@@ -126,10 +123,6 @@ for (const [mi, mod] of videosSrc.modules.entries()) {
     }
   }
 }
-
-const moduleIdByBank = new Map(
-  questionsSrc.banks.map((b) => [b.moduleId, b.moduleId]),
-);
 
 for (const bank of questionsSrc.banks) {
   const moduleId = bank.moduleId;
