@@ -8,6 +8,17 @@ import type { MockFixtureBundle, OrgSettings } from "./types";
  * columns that differ.
  */
 
+/**
+ * Who did it, as a value the database will take. Actor columns point at a
+ * User row and D1 enforces that. Work done by the site itself is recorded in
+ * memory as "system:zeffy" and the like, which is no user: saved as is, the
+ * row is refused and the whole save fails after the member was already
+ * changed. Those are stored with no actor; the action name says what did it.
+ */
+function storedActorId(actorId: string | null | undefined): string | null {
+  return actorId && !actorId.startsWith("system:") ? actorId : null;
+}
+
 /** A database row as the Prisma client takes it: scalars, nulls and Dates. */
 export type PersistRow = { id: string } & Record<string, unknown>;
 
@@ -563,7 +574,7 @@ export const PERSIST_TABLES: PersistTable[] = [
       workstationSessionId: e.workstationSessionId ?? null,
       equipmentJobId: e.equipmentJobId ?? null,
       bookingId: e.bookingId ?? null,
-      actorId: e.actorId ?? null,
+      actorId: storedActorId(e.actorId),
       note: e.note ?? null,
       occurredAt: asDate(e.occurredAt)!,
       createdAt: asDate(e.createdAt) ?? now,
@@ -733,7 +744,7 @@ export const PERSIST_TABLES: PersistTable[] = [
       ({
         id: e.id,
         action: e.action,
-        actorId: e.actorId,
+        actorId: storedActorId(e.actorId),
         subjectUserId: e.subjectUserId ?? null,
         entityType: e.entityType,
         entityId: e.entityId,

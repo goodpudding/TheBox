@@ -32,7 +32,11 @@ export async function POST() {
     const result = await syncZeffyPurchasesForEmail(email);
     return NextResponse.json(result);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Could not sync Zeffy";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // The reason stays in the Worker log. It can be database error text.
+    console.error(JSON.stringify({ route: "account/sync-membership", error: String(err) }));
+    return NextResponse.json(
+      { error: "Could not check your Zeffy purchases. Try again later." },
+      { status: 500 },
+    );
   }
 }

@@ -223,7 +223,8 @@ async function syncMembersFromPayments(
       create: {
         id: `audit-zeffy-${payment.id}`,
         action: "membership_applied_zeffy",
-        actorId: "system:zeffy",
+        // No actor: the column points at a User row and the site is not one.
+        actorId: null,
         entityType: "User",
         entityId: email,
         metadata: JSON.stringify({

@@ -89,4 +89,17 @@ describe("/api/account/sync-membership", () => {
     spy.mockRestore();
     expect(syncZeffyPurchasesForEmail).toHaveBeenCalledTimes(5);
   });
+
+  it("does not show a member database error text when the sync fails", async () => {
+    signedIn("member-1");
+    syncZeffyPurchasesForEmail.mockRejectedValue(
+      new Error("Invalid `prisma.auditEvent.upsert()` invocation: Foreign key constraint violated"),
+    );
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = await post();
+    spy.mockRestore();
+    expect(res.status).toBe(500);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).not.toMatch(/prisma|foreign key|auditEvent/i);
+  });
 });
