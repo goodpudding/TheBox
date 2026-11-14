@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { hashKioskPin } from "@/lib/workstation/pin";
 import { resetPinAttemptStore } from "@/lib/workstation/pin-attempts";
+import { RATE_LIMITS, resetRateLimitStore } from "@/lib/rate-limit";
 
 type Challenge = {
   id: string;
@@ -35,6 +36,12 @@ vi.mock("@/lib/db", () => ({
         auditRows.push(args.data);
         return args.data;
       },
+      delete: async (args: { where: { id: string } }) => {
+        const index = auditRows.findIndex(
+          (row) => (row as { id?: string }).id === args.where.id,
+        );
+        if (index >= 0) auditRows.splice(index, 1);
+      },
       findMany: async () => [],
     },
   },
@@ -55,6 +62,7 @@ describe("POST /api/workstation/qr/approve", () => {
     challenges.clear();
     auditRows.length = 0;
     resetPinAttemptStore();
+    resetRateLimitStore();
     findFirstUser.mockReset();
     findFirstUser.mockResolvedValue({
       id: "u-maya",
@@ -94,5 +102,21 @@ describe("POST /api/workstation/qr/approve", () => {
     const res = await approve("wqc_live", RIGHT_PIN);
     expect(res.status).toBe(200);
     expect(challenges.get("wqc_live")?.approvedUserId).toBe("u-maya");
+  });
+
+  it("stops taking PINs from one address after a minute's allowance", async () => {
+    const allowance = RATE_LIMITS.pinAttempt.limit;
+    for (let i = 0; i < allowance; i += 1) {
+      // A made-up code: refused, but it still uses up the address's allowance.
+      expect((await approve("made-up", "0001")).status, `call ${i + 1}`).toBe(410);
+    }
+    const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const res = await approve("wqc_live", RIGHT_PIN);
+    spy.mockRestore();
+    expect(res.status).toBe(429);
+    expect(res.headers.get("Retry-After")).toBe("60");
+    expect(findFirstUser).not.toHaveBeenCalled();
+    expect(auditRows).toHaveLength(0);
+    expect(challenges.get("wqc_live")?.approvedUserId).toBeUndefined();
   });
 });

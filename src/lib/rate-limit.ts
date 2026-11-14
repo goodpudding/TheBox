@@ -23,6 +23,10 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
  *   one address and each press writes a row that lives five minutes.
  * - Membership sync: 3 a minute per member. Each run pulls 90 days of Zeffy
  *   payments; the account page asks once per visit.
+ * - Desk PIN attempts: 40 a minute per address. Every desk shares the shop's
+ *   address, so this has to clear a whole class sitting down at once. It
+ *   caps how many members one address can lock out, or how many emails it
+ *   can try a common PIN against; the per-email lock is what stops guessing.
  */
 export const RATE_LIMITS = {
   publicWriteAnonymous: { binding: "RL_PUBLIC_WRITE_ANON", limit: 5, periodSeconds: 60 },
@@ -31,6 +35,7 @@ export const RATE_LIMITS = {
   signInEmailAddress: { binding: "RL_SIGNIN_ADDRESS", limit: 3, periodSeconds: 60 },
   qrStart: { binding: "RL_QR_START", limit: 10, periodSeconds: 60 },
   syncMembership: { binding: "RL_SYNC_MEMBERSHIP", limit: 3, periodSeconds: 60 },
+  pinAttempt: { binding: "RL_PIN_ATTEMPT", limit: 40, periodSeconds: 60 },
 } as const;
 
 export type RateLimitName = keyof typeof RATE_LIMITS;

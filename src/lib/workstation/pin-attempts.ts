@@ -1,8 +1,10 @@
 const WINDOW_MS = 10 * 60 * 1000;
 const MAX_FAILURES = 5;
 
+// The lock can last a day, so do not promise "a few minutes". Signing in from
+// a phone that is already signed in needs no PIN and is never locked.
 export const PIN_LOCK_MESSAGE =
-  "Too many attempts. Try again in a few minutes or ask staff to reset your PIN.";
+  "Too many attempts. Use the QR code to sign in from your phone, or ask staff to reset your PIN.";
 
 export const PIN_MISMATCH_MESSAGE = "Email or PIN didn't match";
 

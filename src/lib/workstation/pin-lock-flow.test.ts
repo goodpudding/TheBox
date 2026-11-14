@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * with only the database and the PIN hash check replaced.
  */
 
-type Row = { action: string; occurredAt: Date; metadata: string };
+type Row = { id: string; action: string; occurredAt: Date; metadata: string };
 const rows: Row[] = [];
 const RIGHT_PIN = "4821";
 const JORDAN = {
@@ -26,8 +26,13 @@ vi.mock("@/lib/db", () => ({
         rows.push(args.data);
         return args.data;
       },
+      delete: async (args: { where: { id: string } }) => {
+        const index = rows.findIndex((row) => row.id === args.where.id);
+        if (index >= 0) rows.splice(index, 1);
+      },
       findMany: async (args: {
         where: {
+          id?: { not: string };
           action: { in: string[] };
           occurredAt: { gte: Date };
           metadata: { contains: string };
@@ -40,6 +45,7 @@ vi.mock("@/lib/db", () => ({
         return rows
           .filter(
             (row) =>
+              row.id !== args.where.id?.not &&
               args.where.action.in.includes(row.action) &&
               row.occurredAt >= args.where.occurredAt.gte &&
               row.metadata.includes(args.where.metadata.contains),
@@ -132,5 +138,52 @@ describe("PIN lock across routes and resets", () => {
       expect(await attempt("ws-pc-1", "0001")).toBe(401);
     }
     expect(await attempt("ws-pc-1", RIGHT_PIN)).toBe(429);
+  });
+
+  /** Many guesses sent at the same moment, the right PIN among them. */
+  async function burst(scopeFor: (i: number) => string): Promise<number[]> {
+    vi.setSystemTime(clock + 1000);
+    const { verifyPinLogin } = await import("./server");
+    const pins = Array.from({ length: 49 }, (_, i) => String(1000 + i));
+    pins.push(RIGHT_PIN);
+    return Promise.all(
+      pins.map((pin, i) =>
+        verifyPinLogin({ email: JORDAN.email, pin, scope: scopeFor(i) }).then(
+          () => 200,
+          (err: { status?: number }) => err.status ?? -1,
+        ),
+      ),
+    );
+  }
+
+  it("guesses sent all at once still get five tries at most", async () => {
+    const results = await burst(() => "qr-approve");
+    expect(results.filter((status) => status === 401).length).toBeLessThanOrEqual(5);
+    expect(results).not.toContain(200);
+    expect(results.every((status) => status === 401 || status === 429)).toBe(true);
+    expect(
+      rows.filter((row) => row.action === "workstation.pin_failed").length,
+    ).toBeLessThanOrEqual(5);
+  });
+
+  it("the same holds when every guess lands on a different desk or Worker", async () => {
+    // A scope of its own per request means this process's counter cannot
+    // help: only the database count stands between the burst and the PIN.
+    const results = await burst((i) => `ws-${i}`);
+    expect(results.filter((status) => status === 401).length).toBeLessThanOrEqual(5);
+    expect(results).not.toContain(200);
+    expect(
+      rows.filter((row) => row.action === "workstation.pin_failed").length,
+    ).toBeLessThanOrEqual(5);
+  });
+
+  it("a refused attempt is not counted, so the lock does not feed itself", async () => {
+    for (let i = 0; i < 5; i++) {
+      expect(await attempt("ws-pc-1", "0001")).toBe(401);
+    }
+    for (let i = 0; i < 10; i++) {
+      expect(await attempt("ws-pc-1", "0001")).toBe(429);
+    }
+    expect(rows.filter((row) => row.action === "workstation.pin_failed")).toHaveLength(5);
   });
 });

@@ -4,6 +4,7 @@ const findFirstUser = vi.fn();
 const readPinThrottle = vi.fn();
 const recordPinFailure = vi.fn();
 const recordPinSuccess = vi.fn();
+const removePinAttempt = vi.fn();
 const verifyKioskPin = vi.fn();
 
 vi.mock("@/auth", () => ({ auth: async () => null }));
@@ -16,6 +17,7 @@ vi.mock("./pin-throttle", () => ({
   readPinThrottle: (...args: unknown[]) => readPinThrottle(...args),
   recordPinFailure: (...args: unknown[]) => recordPinFailure(...args),
   recordPinSuccess: (...args: unknown[]) => recordPinSuccess(...args),
+  removePinAttempt: (...args: unknown[]) => removePinAttempt(...args),
 }));
 vi.mock("./pin", async () => {
   const actual = await vi.importActual<typeof import("./pin")>("./pin");
@@ -43,8 +45,11 @@ describe("verifyPinLogin", () => {
     readPinThrottle.mockReset();
     recordPinFailure.mockReset();
     recordPinSuccess.mockReset();
+    removePinAttempt.mockReset();
     verifyKioskPin.mockReset();
     readPinThrottle.mockResolvedValue(CLEAN);
+    // The attempt is written down before the PIN is looked at.
+    recordPinFailure.mockResolvedValue("audit_reserved");
     const { resetPinAttemptStore } = await import("./pin-attempts");
     resetPinAttemptStore();
   });
@@ -59,8 +64,13 @@ describe("verifyPinLogin", () => {
       scope: "qr-approve",
     });
     expect(user.id).toBe("u-maya");
-    expect(recordPinFailure).not.toHaveBeenCalled();
-    // A clean sign-in costs no extra write.
+    // The attempt was written down first, then taken back: nothing is left.
+    expect(recordPinFailure).toHaveBeenCalledTimes(1);
+    expect(removePinAttempt).toHaveBeenCalledWith("audit_reserved");
+    expect(readPinThrottle).toHaveBeenCalledWith("maya@example.com", {
+      excludeId: "audit_reserved",
+    });
+    // A clean sign-in leaves no success marker either.
     expect(recordPinSuccess).not.toHaveBeenCalled();
   });
 
@@ -91,6 +101,38 @@ describe("verifyPinLogin", () => {
         entityId: "qr-approve",
       }),
     );
+    // A wrong PIN keeps the row: it is the failure record.
+    expect(removePinAttempt).not.toHaveBeenCalled();
+  });
+
+  it("writes the attempt down before it looks at the PIN", async () => {
+    const { verifyPinLogin } = await import("./server");
+    const order: string[] = [];
+    findFirstUser.mockResolvedValue(MAYA);
+    recordPinFailure.mockImplementation(async () => {
+      order.push("record");
+      return "audit_reserved";
+    });
+    readPinThrottle.mockImplementation(async () => {
+      order.push("read");
+      return CLEAN;
+    });
+    verifyKioskPin.mockImplementation(async () => {
+      order.push("verify");
+      return false;
+    });
+    await status(() => verifyPinLogin({ email: MAYA.email, pin: "0001", scope: "ws-pc-1" }));
+    expect(order).toEqual(["record", "read", "verify"]);
+  });
+
+  it("still checks the PIN when the attempt could not be written", async () => {
+    const { verifyPinLogin } = await import("./server");
+    recordPinFailure.mockResolvedValue(null);
+    findFirstUser.mockResolvedValue(MAYA);
+    verifyKioskPin.mockResolvedValue(true);
+    const user = await verifyPinLogin({ email: MAYA.email, pin: "4821", scope: "ws-pc-1" });
+    expect(user.id).toBe("u-maya");
+    expect(removePinAttempt).not.toHaveBeenCalled();
   });
 
   it("gives an unknown email the same 401 and still counts the attempt", async () => {
@@ -117,6 +159,8 @@ describe("verifyPinLogin", () => {
       ),
     ).toBe(429);
     expect(verifyKioskPin).not.toHaveBeenCalled();
+    // A refused attempt is not counted.
+    expect(removePinAttempt).toHaveBeenCalledWith("audit_reserved");
   });
 
   it("locks the phone-approval path after five wrong PINs in this process", async () => {

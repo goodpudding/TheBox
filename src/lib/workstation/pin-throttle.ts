@@ -78,11 +78,15 @@ const UNKNOWN: PinThrottleState = {
 
 export async function readPinThrottle(
   email: string,
-  now = Date.now(),
+  /** A time, or options. `excludeId` leaves the caller's own attempt out. */
+  at: number | { excludeId?: string | null; now?: number } = {},
 ): Promise<PinThrottleState> {
+  const options = typeof at === "number" ? { now: at } : at;
+  const now = options.now ?? Date.now();
   try {
     const rows = await prisma.auditEvent.findMany({
       where: {
+        ...(options.excludeId ? { id: { not: options.excludeId } } : {}),
         action: { in: [PIN_FAILED_ACTION, PIN_OK_ACTION, PIN_SET_ACTION] },
         occurredAt: { gte: new Date(now - DAY_MS) },
         metadata: {
@@ -129,11 +133,12 @@ async function record(
     entityId: string;
     now?: number;
   },
-): Promise<void> {
+): Promise<string | null> {
+  const id = `audit_${randomBytes(8).toString("hex")}`;
   try {
     await prisma.auditEvent.create({
       data: {
-        id: `audit_${randomBytes(8).toString("hex")}`,
+        id,
         action,
         actorId: null,
         subjectUserId: input.userId,
@@ -146,29 +151,49 @@ async function record(
         occurredAt: new Date(input.now ?? Date.now()),
       },
     });
+    return id;
   } catch (err) {
     console.error("workstation pin throttle write", err);
+    return null;
   }
 }
 
-/** One wrong PIN. Never stores the email or the attempted PIN. */
+/**
+ * One wrong PIN. Never stores the email or the attempted PIN.
+ *
+ * The sign-in check writes this row before it looks at the PIN and takes it
+ * back if the PIN was right or the email was already locked. Writing first is
+ * what stops a burst: requests sent together each see the others' rows, so
+ * five at most get their PIN checked. Returns the row id, or null when the
+ * write failed.
+ */
 export function recordPinFailure(input: {
   email: string;
   userId: string | null;
   entityId: string;
   now?: number;
-}): Promise<void> {
+}): Promise<string | null> {
   return record(PIN_FAILED_ACTION, input);
 }
 
+/** Take back an attempt that turned out not to be a wrong PIN. */
+export async function removePinAttempt(id: string): Promise<void> {
+  try {
+    await prisma.auditEvent.delete({ where: { id } });
+  } catch (err) {
+    // Left behind, it counts as one wrong PIN: the safe direction.
+    console.error("workstation pin throttle remove", err);
+  }
+}
+
 /** Marks a correct PIN so earlier typos stop counting toward the short lock. */
-export function recordPinSuccess(input: {
+export async function recordPinSuccess(input: {
   email: string;
   userId: string | null;
   entityId: string;
   now?: number;
 }): Promise<void> {
-  return record(PIN_OK_ACTION, input);
+  await record(PIN_OK_ACTION, input);
 }
 
 /**
@@ -176,12 +201,12 @@ export function recordPinSuccess(input: {
  * a member who was locked out, by their own typos or by someone guessing at
  * their email, stayed locked after staff gave them a new PIN.
  */
-export function recordPinSet(input: {
+export async function recordPinSet(input: {
   email: string;
   userId: string | null;
   /** Which route set the PIN. */
   entityId: string;
   now?: number;
 }): Promise<void> {
-  return record(PIN_SET_ACTION, input);
+  await record(PIN_SET_ACTION, input);
 }

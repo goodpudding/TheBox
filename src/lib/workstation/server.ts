@@ -29,6 +29,7 @@ import {
   readPinThrottle,
   recordPinFailure,
   recordPinSuccess,
+  removePinAttempt,
 } from "./pin-throttle";
 import {
   clearWorkstationCookie,
@@ -251,31 +252,43 @@ export async function verifyPinLogin(input: {
   scope: string;
 }) {
   const email = input.email.trim().toLowerCase();
-  const recorded = await readPinThrottle(email);
+  const userRow = await prisma.user.findFirst({
+    where: { email, deletedAt: null },
+  });
+
+  // Write the attempt down before looking at the PIN, then count everyone
+  // else's. Checking first and writing after let a burst of requests all see
+  // "not locked" and each get a guess.
+  const attemptId = await recordPinFailure({
+    email,
+    userId: userRow?.id ?? null,
+    entityId: input.scope,
+  });
+  const recorded = await readPinThrottle(email, { excludeId: attemptId });
   if (recorded.clearedAt != null) {
     forgetPinAttemptsBefore(input.scope, email, recorded.clearedAt);
   }
   if (isPinAttemptLocked(input.scope, email) || recorded.locked) {
+    // A refused attempt is not counted, so the lock cannot feed itself.
+    if (attemptId) await removePinAttempt(attemptId);
     throw statusError(PIN_LOCK_MESSAGE, 429);
   }
-  const userRow = await prisma.user.findFirst({
-    where: { email, deletedAt: null },
-  });
+  // Same order in this process: counted here, with no await before it, so
+  // requests in one Worker cannot slip past each other either.
+  const failedHereBefore = hasPinFailures(input.scope, email);
+  recordFailedPinAttempt(input.scope, email);
+
   const matched =
     isValidPinShape(input.pin) &&
     Boolean(userRow && (await verifyKioskPin(input.pin, userRow.kioskPinHash)));
   if (!matched || !userRow) {
-    recordFailedPinAttempt(input.scope, email);
-    await recordPinFailure({
-      email,
-      userId: userRow?.id ?? null,
-      entityId: input.scope,
-    });
+    // The row written above is the failure record.
     throw statusError(PIN_MISMATCH_MESSAGE, 401);
   }
+  if (attemptId) await removePinAttempt(attemptId);
   // The database knows about wrong PINs on other routes and other Workers.
   // This process only knows its own, and is the fallback when the read fails.
-  if (recorded.pendingFailures || hasPinFailures(input.scope, email)) {
+  if (recorded.pendingFailures || failedHereBefore) {
     await recordPinSuccess({ email, userId: userRow.id, entityId: input.scope });
   }
   clearPinAttempts(input.scope, email);

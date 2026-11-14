@@ -6,6 +6,13 @@ import {
   requireOpenQrChallenge,
 } from "@/lib/workstation/server";
 import { jsonError } from "@/lib/workstation/errors";
+import {
+  RATE_LIMIT_MESSAGE,
+  allowRequest,
+  clientIp,
+  ipLimitKey,
+  rateLimitHeaders,
+} from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -27,6 +34,16 @@ export async function POST(request: NextRequest) {
     const session = await auth();
     let userId = session?.user?.id ?? null;
     if (!userId && body.email && body.pin) {
+      // Same allowance as the desk sign-in: this is the other way to try a PIN.
+      if (!(await allowRequest("pinAttempt", ipLimitKey(clientIp(request))))) {
+        console.warn(
+          JSON.stringify({ route: "workstation/qr/approve", limited: "pinAttempt" }),
+        );
+        return NextResponse.json(
+          { error: RATE_LIMIT_MESSAGE },
+          { status: 429, headers: rateLimitHeaders("pinAttempt") },
+        );
+      }
       // This route needs no sign-in, and wrong PINs lock the email at every
       // desk. Only take a PIN against a QR code a desk is showing right now.
       await requireOpenQrChallenge(body.challengeId);
