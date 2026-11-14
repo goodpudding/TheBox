@@ -478,3 +478,41 @@ describe("payments applied by the system", () => {
     expect(again.status).toBe("duplicate");
   });
 });
+
+describe("what the live site cannot store yet", () => {
+  it("refuses a wishlist purchase report instead of accepting and dropping it", async () => {
+    // These collections are not saved in the database yet. The pages hide the
+    // forms on the live site; a direct call must not be told it worked.
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const provider = await createPrismaDataProvider(null, { fresh: true });
+    const catalog = await provider.getWishlistCatalog();
+    const item = catalog.items.find((i) => i.status !== "fulfilled")!;
+    await expect(
+      provider.reportWishlistPurchase({
+        itemId: item.id,
+        name: "Pat",
+        email: "pat@example.com",
+      }),
+    ).rejects.toThrow(/not available on the live site/i);
+    expect(upserts("auditEvent")).toHaveLength(0);
+  });
+
+  it("refuses display settings, promo slides and tool champion requests the same way", async () => {
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    await expect(admin.saveDisplayConfig({ cadenceSeconds: 20 })).rejects.toThrow(
+      /not available on the live site/i,
+    );
+    await expect(admin.deletePromo("promo-welcome")).rejects.toThrow(
+      /not available on the live site/i,
+    );
+    await expect(
+      admin.requestToolChampionTerm({ userId: "u-maya", machineId: "m-sewing-1" }),
+    ).rejects.toThrow(/not available on the live site/i);
+    // Reading them still works.
+    expect((await admin.getDisplayConfig()).cadenceSeconds).toBeGreaterThan(0);
+    expect((await admin.listPromos()).length).toBeGreaterThan(0);
+  });
+});
