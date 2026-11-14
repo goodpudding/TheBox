@@ -3,7 +3,19 @@ import { prisma } from "@/lib/db";
 import { loadFixtures } from "./load-fixtures";
 import { MockDataProvider } from "./mock-provider";
 import type { DataProvider } from "./provider";
-import { cloneBundle, sliceChangedBundle } from "./persist-delta";
+import {
+  changedColumns,
+  cloneBundle,
+  shouldPersistAfter,
+  sliceChangedBundle,
+  type ArrayKey,
+} from "./persist-delta";
+import {
+  PERSIST_TABLES,
+  USERS_TABLE,
+  settingsRow,
+  type PersistTable,
+} from "./persist-rows";
 import type {
   AccessLog,
   AuditEvent,
@@ -109,15 +121,6 @@ function toIso(date: Date | null | undefined): string | null {
 
 function toIsoRequired(date: Date): string {
   return date.toISOString();
-}
-
-function jsonArr(value: unknown): string {
-  return JSON.stringify(value ?? []);
-}
-
-function asDate(iso: string | null | undefined): Date | null {
-  if (!iso) return null;
-  return new Date(iso);
 }
 
 function mapOrgSettings(row: {
@@ -246,24 +249,6 @@ function mapUser(row: {
   }
   if (row.notes) user._notes = row.notes;
   return user;
-}
-
-async function upsertManyIfAny<T extends { id: string }>(
-  upsert: (args: {
-    where: { id: string };
-    create: T;
-    update: Omit<T, "id">;
-  }) => Promise<unknown>,
-  data: T[],
-): Promise<void> {
-  for (const row of data) {
-    const { id, ...update } = row;
-    await upsert({
-      where: { id },
-      create: row,
-      update: update as Omit<T, "id">,
-    });
-  }
 }
 
 /**
@@ -958,10 +943,14 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
 }
 
 /**
- * Incremental upsert of an in-memory fixture bundle.
+ * Incremental save of an in-memory fixture bundle.
  * Does not wipe tables. Does not touch Workstation* rows, EquipmentJob,
  * or User.kioskPinHash.
- * When `previous` is passed, only mutated rows are written.
+ *
+ * When `previous` is passed, only mutated rows are written, and a row that was
+ * already in `previous` gets only the columns this request changed. Another
+ * request may have changed the rest since `previous` was loaded.
+ * Without `previous`, every row is written with every column.
  */
 export async function persistBundleToPrisma(
   bundle: MockFixtureBundle,
@@ -979,825 +968,113 @@ export async function persistBundleToPrisma(
     removed = sliced.removed;
     settingsChanged = sliced.settingsChanged;
   }
-  bundle = toWrite;
-  const defaultInstructorId =
-    bundle.settings.defaultInstructorId &&
-    knownUserIds.has(bundle.settings.defaultInstructorId)
-      ? bundle.settings.defaultInstructorId
+  const instructorOf = (settings: OrgSettings): string | null =>
+    settings.defaultInstructorId && knownUserIds.has(settings.defaultInstructorId)
+      ? settings.defaultInstructorId
       : null;
 
   // D1 rejects interactive prisma.$transaction(async () => ...).
   // These upserts run one after another on the root client.
-  const tx = prisma as unknown as Prisma.TransactionClient;
-  const db = prismaTx(tx);
+  const db = prismaTx(prisma as unknown as Prisma.TransactionClient);
+  const now = new Date();
 
-    // Parents first — users without household links
-    await upsertManyIfAny(
-      (args) => db.user.upsert(args),
-      bundle.users.map((u) => ({
-        id: u.id,
-        email: u.email,
-        firstName: u.firstName,
-        lastName: u.lastName,
-        displayName: u.displayName,
-        phone: u.phone ?? null,
-        role: u.role,
-        status: u.status,
-        tier: u.tier,
-        billingInterval: u.billingInterval ?? null,
-        shopAccess: u.shopAccess,
-        isTeacher: u.isTeacher ?? false,
-        dayPassCreditExpiresAt: asDate(u.dayPassCreditExpiresAt),
-        scholarshipExpiresAt: asDate(u.scholarshipExpiresAt),
-        emergencyContactName: u.emergencyContactName ?? null,
-        emergencyContactPhone: u.emergencyContactPhone ?? null,
-        emergencyContactRelation: u.emergencyContactRelation ?? null,
-        profileComplete: u.profileComplete,
-        notes: u._notes ?? null,
-        createdAt: asDate(u.createdAt) ?? new Date(),
-        updatedAt: asDate(u.updatedAt) ?? new Date(),
-        deletedAt: asDate(u.deletedAt),
-      })),
+  const loadedRows = (key: ArrayKey): Map<string, { id: string }> =>
+    new Map(
+      ((previous?.[key] ?? []) as { id: string }[]).map((row) => [row.id, row]),
     );
 
-    for (const u of bundle.users) {
-      if (u.householdPrimaryUserId) {
-        await tx.user.update({
-          where: { id: u.id },
-          data: { householdPrimaryUserId: u.householdPrimaryUserId },
-        });
-      }
+  const saveTable = async (spec: PersistTable): Promise<void> => {
+    const rows = (toWrite[spec.key] ?? []) as { id: string }[];
+    if (rows.length === 0) return;
+    if (spec.onlyIf && !db[spec.onlyIf]) return;
+    const loaded = loadedRows(spec.key);
+    for (const row of rows) {
+      const create = spec.toRow(row as never, now);
+      const { id, ...columns } = create;
+      const before = loaded.get(id);
+      const update = before
+        ? changedColumns(spec.toRow(before as never, now), create)
+        : columns;
+      if (Object.keys(update).length === 0) continue;
+      await db[spec.model].upsert({ where: { id }, create, update });
     }
+  };
 
-    await upsertManyIfAny(
-      (args) => tx.certification.upsert(args),
-      bundle.certifications.map((c) => ({
-        id: c.id,
-        slug: c.slug,
-        name: c.name,
-        description: c.description,
-        knowledgeOnly: c.knowledgeOnly,
-        requiresCertificationIds: jsonArr(c.requiresCertificationIds),
-        expiryMonths: c.expiryMonths,
-        sortOrder: c.sortOrder,
-        active: c.active,
-        createdAt: asDate(c.createdAt) ?? new Date(),
-        updatedAt: asDate(c.updatedAt) ?? new Date(),
-        deletedAt: asDate(c.deletedAt),
-      })),
-    );
+  // Parents first — users without household links
+  await saveTable(USERS_TABLE);
 
-    await upsertManyIfAny(
-      (args) => tx.machine.upsert(args),
-      bundle.machines.map((m) =>
-        ({
-          id: m.id,
-          name: m.name,
-          area: m.area,
-          requiredCertificationIds: jsonArr(m.requiredCertificationIds),
-          readerKey: m.readerKey,
-          active: m.active,
-          reservationRecommended: m.reservationRecommended,
-          reservationRequired: m.reservationRequired,
-          attendedOperationRequired: m.attendedOperationRequired ?? false,
-          locationLabel: m.locationLabel,
-          gettingStartedVideoUrl: m.gettingStartedVideoUrl,
-          maxReservationHours: m.maxReservationHours ?? null,
-          hourlyRateCents: m.hourlyRateCents ?? null,
-          sortOrder: m.sortOrder,
-          createdAt: asDate(m.createdAt) ?? new Date(),
-          updatedAt: asDate(m.updatedAt) ?? new Date(),
-          deletedAt: asDate(m.deletedAt),
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        }) as any,
-      ),
-    );
-
-    await upsertManyIfAny(
-      (args) => tx.contentPage.upsert(args),
-      bundle.contentPages.map((p) => ({
-        id: p.id,
-        notionId: p.notionId ?? null,
-        googleFileId: p.googleFileId ?? null,
-        slug: p.slug,
-        title: p.title,
-        html: p.html,
-        markdownPath: p.markdownPath ?? null,
-        category: p.category,
-        version: p.version,
-        syncedAt: asDate(p.syncedAt),
-        published: p.published,
-        createdAt: asDate(p.createdAt) ?? new Date(),
-        updatedAt: asDate(p.updatedAt) ?? new Date(),
-        deletedAt: asDate(p.deletedAt),
-      })),
-    );
-
-    if (settingsChanged) await tx.orgSettings.upsert({
-      where: { id: "default" },
-      // Cast: client may lag schema until `prisma generate`.
-      create: {
-        id: "default",
-        orgName: bundle.settings.orgName,
-        paymentUrl: bundle.settings.paymentUrl,
-        donationUrl: bundle.settings.donationUrl,
-        scholarshipDonationUrl: bundle.settings.scholarshipDonationUrl,
-        contactEmail: bundle.settings.contactEmail,
-        hoursContentSlug: bundle.settings.hoursContentSlug,
-        currentWaiverVersion: bundle.settings.currentWaiverVersion,
-        memberExpectationsPolicySlug:
-          bundle.settings.memberExpectationsPolicySlug,
-        quizPassThresholdPercent: bundle.settings.quizPassThresholdPercent,
-        quizAttemptLimit: bundle.settings.quizAttemptLimit,
-        quizQuestionCount: bundle.settings.quizQuestionCount,
-        requireSafetyCriticalAll:
-          bundle.settings.requireSafetyCriticalAll ?? true,
-        classCancellationCutoffHours:
-          bundle.settings.classCancellationCutoffHours,
-        paymentHoldHours: bundle.settings.paymentHoldHours,
-        reservationHorizonDays: bundle.settings.reservationHorizonDays,
-        maxHoursPerDay: bundle.settings.maxHoursPerDay,
-        maxOpenReservations: bundle.settings.maxOpenReservations,
-        reservationSlotMinutes: bundle.settings.reservationSlotMinutes,
-        communitySeatCap: bundle.settings.communitySeatCap,
-        makerMonthlyCents: bundle.settings.makerMonthlyCents,
-        patronScholarshipSurchargeCents:
-          bundle.settings.patronScholarshipSurchargeCents,
-        scholarshipFundBalanceCents:
-          bundle.settings.scholarshipFundBalanceCents,
-        scholarshipSeatsAwarded: bundle.settings.scholarshipSeatsAwarded,
-        showPhase3Tiers: bundle.settings.showPhase3Tiers,
-        defaultInstructorId,
-        defaultClassCapacity: bundle.settings.defaultClassCapacity ?? 8,
-        updatedAt: asDate(bundle.settings.updatedAt) ?? new Date(),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any,
-      update: {
-        orgName: bundle.settings.orgName,
-        paymentUrl: bundle.settings.paymentUrl,
-        donationUrl: bundle.settings.donationUrl,
-        scholarshipDonationUrl: bundle.settings.scholarshipDonationUrl,
-        contactEmail: bundle.settings.contactEmail,
-        hoursContentSlug: bundle.settings.hoursContentSlug,
-        currentWaiverVersion: bundle.settings.currentWaiverVersion,
-        memberExpectationsPolicySlug:
-          bundle.settings.memberExpectationsPolicySlug,
-        quizPassThresholdPercent: bundle.settings.quizPassThresholdPercent,
-        quizAttemptLimit: bundle.settings.quizAttemptLimit,
-        quizQuestionCount: bundle.settings.quizQuestionCount,
-        requireSafetyCriticalAll:
-          bundle.settings.requireSafetyCriticalAll ?? true,
-        classCancellationCutoffHours:
-          bundle.settings.classCancellationCutoffHours,
-        paymentHoldHours: bundle.settings.paymentHoldHours,
-        reservationHorizonDays: bundle.settings.reservationHorizonDays,
-        maxHoursPerDay: bundle.settings.maxHoursPerDay,
-        maxOpenReservations: bundle.settings.maxOpenReservations,
-        reservationSlotMinutes: bundle.settings.reservationSlotMinutes,
-        communitySeatCap: bundle.settings.communitySeatCap,
-        makerMonthlyCents: bundle.settings.makerMonthlyCents,
-        patronScholarshipSurchargeCents:
-          bundle.settings.patronScholarshipSurchargeCents,
-        scholarshipFundBalanceCents:
-          bundle.settings.scholarshipFundBalanceCents,
-        scholarshipSeatsAwarded: bundle.settings.scholarshipSeatsAwarded,
-        showPhase3Tiers: bundle.settings.showPhase3Tiers,
-        defaultInstructorId,
-        defaultClassCapacity: bundle.settings.defaultClassCapacity ?? 8,
-        updatedAt: asDate(bundle.settings.updatedAt) ?? new Date(),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any,
+  const loadedUsers = loadedRows("users") as Map<string, User>;
+  for (const u of toWrite.users) {
+    if (!u.householdPrimaryUserId) continue;
+    const before = loadedUsers.get(u.id);
+    if (before?.householdPrimaryUserId === u.householdPrimaryUserId) continue;
+    await db.user.update({
+      where: { id: u.id },
+      data: { householdPrimaryUserId: u.householdPrimaryUserId },
     });
+  }
 
-    await upsertManyIfAny(
-      (args) => tx.membershipProduct.upsert(args),
-      bundle.membershipProducts.map((p) => ({
-        id: p.id,
-        tier: p.tier,
-        name: p.name,
-        summary: p.summary,
-        priceCents: p.priceCents,
-        billingInterval: p.billingInterval,
-        annualPriceCents: p.annualPriceCents ?? null,
-        shopAccess: p.shopAccess,
-        phase: p.phase,
-        visibleOnJoin: p.visibleOnJoin,
-        joinable: p.joinable,
-        highlight: Boolean(p.highlight),
-        sortOrder: p.sortOrder,
-        isAddOn: Boolean(p.isAddOn),
-        cappedSeats: p.cappedSeats ?? null,
-        zeffyCampaignId: p.zeffyCampaignId ?? null,
-        zeffyRateId: p.zeffyRateId ?? null,
-        zeffyUrl: p.zeffyUrl ?? null,
-        creditGrantCents: p.creditGrantCents ?? 0,
-        createdAt: asDate(p.createdAt) ?? new Date(),
-        updatedAt: asDate(p.updatedAt) ?? new Date(),
-        deletedAt: asDate(p.deletedAt),
-      })),
-    );
-
-    await upsertManyIfAny(
-      (args) => tx.volunteerRole.upsert(args),
-      bundle.volunteerRoles.map((r) => ({
-        id: r.id,
-        slug: r.slug,
-        title: r.title,
-        contentSlug: r.contentSlug,
-        active: r.active,
-        sortOrder: r.sortOrder,
-        createdAt: asDate(r.createdAt) ?? new Date(),
-        updatedAt: asDate(r.updatedAt) ?? new Date(),
-        deletedAt: asDate(r.deletedAt),
-      })),
-    );
-
-    await upsertManyIfAny(
-      (args) => tx.learningModule.upsert(args),
-      bundle.learningModules.map(
-        (m) =>
-          ({
-            id: m.id,
-            slug: m.slug,
-            title: m.title,
-            summary: m.summary,
-            certificationId: m.certificationId,
-            knowledgeOnly: m.knowledgeOnly,
-            published: m.published,
-            equipmentStatus: m.equipmentStatus ?? "confirmed",
-            passThresholdPercent: m.passThresholdPercent,
-            attemptLimit: m.attemptLimit,
-            sortOrder: m.sortOrder,
-            createdAt: asDate(m.createdAt) ?? new Date(),
-            updatedAt: asDate(m.updatedAt) ?? new Date(),
-            deletedAt: asDate(m.deletedAt),
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          }) as any,
-      ),
-    );
-
-    await upsertManyIfAny(
-      (args) => tx.classSession.upsert(args),
-      bundle.classSessions.map((c) => ({
-        id: c.id,
-        title: c.title,
-        slug: c.slug,
-        descriptionSlug: c.descriptionSlug,
-        category: c.category,
-        instructorId: c.instructorId,
-        startsAt: asDate(c.startsAt)!,
-        endsAt: asDate(c.endsAt)!,
-        capacity: c.capacity,
-        priceCents: c.priceCents,
-        zeffyUrl: c.zeffyUrl ?? null,
-        zeffyCampaignId: c.zeffyCampaignId ?? null,
-        zeffyOccurrenceId: c.zeffyOccurrenceId ?? null,
-        source: c.source ?? "admin",
-        googleEventId: c.googleEventId ?? null,
-        googleCalendarId: c.googleCalendarId ?? null,
-        syncedAt: asDate(c.syncedAt),
-        cancelledAt: asDate(c.cancelledAt),
-        staffEditedFields: c.staffEditedFields
-          ? JSON.stringify(c.staffEditedFields)
-          : null,
-        prerequisiteCertificationIds: jsonArr(c.prerequisiteCertificationIds),
-        location: c.location,
-        cancellationCutoffHours: c.cancellationCutoffHours,
-        published: c.published,
-        createdAt: asDate(c.createdAt) ?? new Date(),
-        updatedAt: asDate(c.updatedAt) ?? new Date(),
-        deletedAt: asDate(c.deletedAt),
-      })),
-    );
-
-    if (db.classInterestBoard) {
-      await upsertManyIfAny(
-        (args) => db.classInterestBoard.upsert(args),
-        (bundle.classInterestBoards ?? []).map((b) => ({
-          id: b.id,
-          title: b.title,
-          summary: b.summary,
-          category: b.category,
-          status: b.status,
-          threshold: b.threshold,
-          proposedByUserId: b.proposedByUserId ?? null,
-          contactName: b.contactName,
-          contactEmail: b.contactEmail,
-          instructorHintUserId: b.instructorHintUserId ?? null,
-          opensAt: asDate(b.opensAt),
-          closesAt: asDate(b.closesAt),
-          scheduledClassSessionId: b.scheduledClassSessionId ?? null,
-          priorityBookingEndsAt: asDate(b.priorityBookingEndsAt),
-          resuggestedFromId: b.resuggestedFromId ?? null,
-          reviewedById: b.reviewedById ?? null,
-          reviewedAt: asDate(b.reviewedAt),
-          staffNotes: b.staffNotes ?? null,
-          createdAt: asDate(b.createdAt) ?? new Date(),
-          updatedAt: asDate(b.updatedAt) ?? new Date(),
-          deletedAt: asDate(b.deletedAt),
-        })),
-      );
+  if (settingsChanged) {
+    const create = settingsRow(bundle.settings, instructorOf(bundle.settings), now);
+    const update = previous
+      ? changedColumns(
+          settingsRow(previous.settings, instructorOf(previous.settings), now),
+          create,
+        )
+      : create;
+    if (Object.keys(update).length > 0) {
+      await db.orgSettings.upsert({
+        where: { id: "default" },
+        create: { id: "default", ...create },
+        update,
+      });
     }
-    if (db.classInterestSignup) {
-      await upsertManyIfAny(
-        (args) => db.classInterestSignup.upsert(args),
-        (bundle.classInterestSignups ?? []).map((s) => ({
-          id: s.id,
-          boardId: s.boardId,
-          userId: s.userId ?? null,
-          email: s.email,
-          displayName: s.displayName,
-          createdAt: asDate(s.createdAt) ?? new Date(),
-          updatedAt: asDate(s.updatedAt) ?? new Date(),
-          deletedAt: asDate(s.deletedAt),
-        })),
-      );
+  }
+
+  for (const spec of PERSIST_TABLES) {
+    await saveTable(spec);
+  }
+
+  // Only these collections are hard-deleted by the mock; everything else
+  // uses deletedAt. Children before parents (VideoWatch -> LessonVideo).
+  const hardDeletes: Array<[keyof typeof removed, string]> = [
+    ["videoWatches", "videoWatch"],
+    ["lessonVideos", "lessonVideo"],
+    ["questions", "question"],
+    ["itemPhotos", "itemPhoto"],
+  ];
+  for (const [key, model] of hardDeletes) {
+    const ids = removed[key];
+    if (ids && ids.length > 0 && db[model]) {
+      await db[model].deleteMany({ where: { id: { in: ids } } });
     }
-
-    await upsertManyIfAny(
-      (args) => tx.badge.upsert(args),
-      bundle.badges.map((b) => ({
-        id: b.id,
-        uid: b.uid,
-        label: b.label ?? null,
-        userId: b.userId,
-        active: b.active,
-        createdAt: asDate(b.createdAt) ?? new Date(),
-        updatedAt: asDate(b.updatedAt) ?? new Date(),
-        deletedAt: asDate(b.deletedAt),
-      })),
-    );
-
-    await upsertManyIfAny(
-      (args) => tx.waiverSignature.upsert(args),
-      bundle.waiverSignatures.map((w) => ({
-        id: w.id,
-        userId: w.userId,
-        version: w.version,
-        signedAt: asDate(w.signedAt)!,
-        fullNameTyped: w.fullNameTyped,
-        ip: w.ip,
-        userAgent: w.userAgent ?? null,
-        createdAt: asDate(w.createdAt) ?? new Date(),
-        updatedAt: asDate(w.updatedAt) ?? new Date(),
-        deletedAt: asDate(w.deletedAt),
-      })),
-    );
-
-    await upsertManyIfAny(
-      (args) => tx.policyAcknowledgement.upsert(args),
-      bundle.policyAcknowledgements.map((a) => ({
-        id: a.id,
-        userId: a.userId,
-        policySlug: a.policySlug,
-        version: a.version,
-        acknowledgedAt: asDate(a.acknowledgedAt)!,
-        createdAt: asDate(a.createdAt) ?? new Date(),
-        updatedAt: asDate(a.updatedAt) ?? new Date(),
-        deletedAt: asDate(a.deletedAt),
-      })),
-    );
-
-    await upsertManyIfAny(
-      (args) => tx.userCertification.upsert(args),
-      bundle.userCertifications.map((uc) => ({
-        id: uc.id,
-        userId: uc.userId,
-        certificationId: uc.certificationId,
-        status: uc.status,
-        knowledgePassedAt: asDate(uc.knowledgePassedAt),
-        checkedOffAt: asDate(uc.checkedOffAt),
-        checkedOffById: uc.checkedOffById ?? null,
-        expiresAt: asDate(uc.expiresAt),
-        revokedAt: asDate(uc.revokedAt),
-        revokedById: uc.revokedById ?? null,
-        revokeReason: uc.revokeReason ?? null,
-        createdAt: asDate(uc.createdAt) ?? new Date(),
-        updatedAt: asDate(uc.updatedAt) ?? new Date(),
-        deletedAt: asDate(uc.deletedAt),
-      })),
-    );
-
-    await upsertManyIfAny(
-      (args) => tx.maintenanceBlock.upsert(args),
-      bundle.maintenanceBlocks.map((m) => ({
-        id: m.id,
-        machineId: m.machineId,
-        startsAt: asDate(m.startsAt)!,
-        endsAt: asDate(m.endsAt)!,
-        reason: m.reason,
-        createdById: m.createdById,
-        createdAt: asDate(m.createdAt) ?? new Date(),
-        updatedAt: asDate(m.updatedAt) ?? new Date(),
-        deletedAt: asDate(m.deletedAt),
-      })),
-    );
-
-    await upsertManyIfAny(
-      (args) => tx.reservation.upsert(args),
-      bundle.reservations.map((r) => ({
-        id: r.id,
-        userId: r.userId,
-        machineId: r.machineId,
-        startsAt: asDate(r.startsAt)!,
-        endsAt: asDate(r.endsAt)!,
-        status: r.status,
-        createdById: r.createdById,
-        cancelledAt: asDate(r.cancelledAt),
-        cancelReason: r.cancelReason ?? null,
-        createdAt: asDate(r.createdAt) ?? new Date(),
-        updatedAt: asDate(r.updatedAt) ?? new Date(),
-        deletedAt: asDate(r.deletedAt),
-      })),
-    );
-
-    await upsertManyIfAny(
-      (args) => tx.booking.upsert(args),
-      bundle.bookings.map((b) => ({
-        id: b.id,
-        classSessionId: b.classSessionId,
-        userId: b.userId,
-        status: b.status,
-        waitlistPosition: b.waitlistPosition ?? null,
-        paidAt: asDate(b.paidAt),
-        paidMarkedById: b.paidMarkedById ?? null,
-        zeffyPaymentId: b.zeffyPaymentId ?? null,
-        paymentHoldExpiresAt: asDate(b.paymentHoldExpiresAt),
-        cancelledAt: asDate(b.cancelledAt),
-        attendedAt: asDate(b.attendedAt),
-        createdAt: asDate(b.createdAt) ?? new Date(),
-        updatedAt: asDate(b.updatedAt) ?? new Date(),
-        deletedAt: asDate(b.deletedAt),
-      })),
-    );
-
-    await upsertManyIfAny(
-      (args) => tx.lesson.upsert(args),
-      bundle.lessons.map(
-        (l) =>
-          ({
-            id: l.id,
-            moduleId: l.moduleId,
-            slug: l.slug,
-            title: l.title,
-            contentSlug: l.contentSlug,
-            sortOrder: l.sortOrder,
-            estimatedMinutes: l.estimatedMinutes,
-            gap: l.gap ?? false,
-            createdAt: asDate(l.createdAt) ?? new Date(),
-            updatedAt: asDate(l.updatedAt) ?? new Date(),
-            deletedAt: asDate(l.deletedAt),
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          }) as any,
-      ),
-    );
-
-    if (db.lessonVideo) {
-      await upsertManyIfAny(
-        (args) => db.lessonVideo.upsert(args),
-        (bundle.lessonVideos ?? []).map((v) => ({
-          id: v.id,
-          lessonId: v.lessonId,
-          order: v.order,
-          provider: v.provider,
-          youtubeId: v.youtubeId,
-          url: v.url,
-          title: v.title,
-          channel: v.channel,
-          role: v.role,
-          condition: v.condition ?? null,
-          durationSeconds: v.durationSeconds ?? null,
-          verifiedAt: asDate(v.verifiedAt),
-          staffReviewed: v.staffReviewed,
-          notes: v.notes ?? null,
-          createdAt: asDate(v.createdAt) ?? new Date(),
-          updatedAt: asDate(v.updatedAt) ?? new Date(),
-          deletedAt: asDate(v.deletedAt),
-        })),
-      );
-    }
-
-    await upsertManyIfAny(
-      (args) => tx.question.upsert(args),
-      bundle.questions.map(
-        (q) =>
-          ({
-            id: q.id,
-            moduleId: q.moduleId,
-            prompt: q.prompt,
-            choices: jsonArr(q.choices),
-            correctIndex: q.correctIndex,
-            correctIndexes: jsonArr(q.correctIndexes ?? [q.correctIndex]),
-            explanation: q.explanation ?? null,
-            active: q.active,
-            safetyCritical: q.safetyCritical ?? false,
-            source: q.source ?? "video",
-            sourceVideoId: q.sourceVideoId ?? null,
-            verifyAgainstVideo: q.verifyAgainstVideo ?? true,
-            answerPending: q.answerPending ?? false,
-            createdAt: asDate(q.createdAt) ?? new Date(),
-            updatedAt: asDate(q.updatedAt) ?? new Date(),
-            deletedAt: asDate(q.deletedAt),
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          }) as any,
-      ),
-    );
-
-    await upsertManyIfAny(
-      (args) => tx.quizAttempt.upsert(args),
-      bundle.quizAttempts.map(
-        (a) =>
-          ({
-            id: a.id,
-            userId: a.userId,
-            moduleId: a.moduleId,
-            questionIds: jsonArr(a.questionIds),
-            answers: jsonArr(a.answers),
-            scorePercent: a.scorePercent,
-            passed: a.passed,
-            thresholdMet: a.thresholdMet ?? false,
-            safetyCriticalMissedIds: a.safetyCriticalMissedIds
-              ? jsonArr(a.safetyCriticalMissedIds)
-              : null,
-            startedAt: asDate(a.startedAt)!,
-            submittedAt: asDate(a.submittedAt)!,
-            createdAt: asDate(a.createdAt) ?? new Date(),
-            updatedAt: asDate(a.updatedAt) ?? new Date(),
-            deletedAt: asDate(a.deletedAt),
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          }) as any,
-      ),
-    );
-
-    await upsertManyIfAny(
-      (args) => tx.lessonProgress.upsert(args),
-      bundle.lessonProgress.map((p) => ({
-        id: p.id,
-        userId: p.userId,
-        lessonId: p.lessonId,
-        completedAt: asDate(p.completedAt)!,
-        createdAt: asDate(p.createdAt) ?? new Date(),
-        updatedAt: asDate(p.updatedAt) ?? new Date(),
-        deletedAt: asDate(p.deletedAt),
-      })),
-    );
-
-    if (db.videoWatch) {
-      await upsertManyIfAny(
-        (args) => db.videoWatch.upsert(args),
-        (bundle.videoWatches ?? []).map((w) => ({
-          id: w.id,
-          userId: w.userId,
-          videoId: w.videoId,
-          watchedAt: asDate(w.watchedAt)!,
-          createdAt: asDate(w.createdAt) ?? new Date(),
-          updatedAt: asDate(w.updatedAt) ?? new Date(),
-          deletedAt: asDate(w.deletedAt),
-        })),
-      );
-    }
-
-    await upsertManyIfAny(
-      (args) => tx.usageSession.upsert(args),
-      bundle.usageSessions.map((s) => ({
-        id: s.id,
-        userId: s.userId,
-        machineId: s.machineId,
-        badgeId: s.badgeId,
-        startedAt: asDate(s.startedAt)!,
-        endedAt: asDate(s.endedAt),
-        reservationId: s.reservationId ?? null,
-        endedBy: s.endedBy,
-        createdAt: asDate(s.createdAt) ?? new Date(),
-        updatedAt: asDate(s.updatedAt) ?? new Date(),
-        deletedAt: asDate(s.deletedAt),
-      })),
-    );
-
-    if (db.creditLedgerEntry) {
-      await upsertManyIfAny(
-        (args) => db.creditLedgerEntry.upsert(args),
-        (bundle.creditLedgerEntries ?? []).map((e) => ({
-          id: e.id,
-          userId: e.userId,
-          kind: e.kind,
-          amountCents: e.amountCents,
-          sourcePaymentId: e.sourcePaymentId ?? null,
-          usageSessionId: e.usageSessionId ?? null,
-          workstationSessionId: e.workstationSessionId ?? null,
-          equipmentJobId: e.equipmentJobId ?? null,
-          bookingId: e.bookingId ?? null,
-          actorId: e.actorId ?? null,
-          note: e.note ?? null,
-          occurredAt: asDate(e.occurredAt)!,
-          createdAt: asDate(e.createdAt) ?? new Date(),
-          updatedAt: asDate(e.updatedAt) ?? new Date(),
-          deletedAt: asDate(e.deletedAt),
-        })),
-      );
-    }
-
-    if (db.inventoryArea) {
-      await upsertManyIfAny(
-        (args) => db.inventoryArea.upsert(args),
-        (bundle.inventoryAreas ?? []).map((a) => ({
-          id: a.id,
-          slug: a.slug,
-          name: a.name,
-          sortOrder: a.sortOrder,
-          active: a.active,
-          createdAt: asDate(a.createdAt) ?? new Date(),
-          updatedAt: asDate(a.updatedAt) ?? new Date(),
-        })),
-      );
-      await upsertManyIfAny(
-        (args) => db.areaSteward.upsert(args),
-        (bundle.areaStewards ?? []).map((s) => ({
-          id: s.id,
-          areaId: s.areaId,
-          userId: s.userId,
-          createdAt: asDate(s.createdAt) ?? new Date(),
-        })),
-      );
-      await upsertManyIfAny(
-        (args) => db.inventoryItem.upsert(args),
-        (bundle.inventoryItems ?? []).map((i) => ({
-          id: i.id,
-          tagNumber: i.tagNumber,
-          name: i.name,
-          model: i.model ?? null,
-          manufacturer: i.manufacturer ?? null,
-          serialNumber: i.serialNumber ?? null,
-          noSerial: i.noSerial,
-          quantity: i.quantity,
-          isMachine: i.isMachine,
-          areaId: i.areaId ?? null,
-          location: i.location ?? null,
-          condition: i.condition,
-          status: i.status,
-          notes: i.notes ?? null,
-          reviewStatus: i.reviewStatus,
-          reviewedById: i.reviewedById ?? null,
-          reviewedAt: asDate(i.reviewedAt),
-          rejectReason: i.rejectReason ?? null,
-          acquisitionSource: i.acquisitionSource ?? null,
-          acquiredAt: asDate(i.acquiredAt),
-          donorName: i.donorName ?? null,
-          estimatedValue: i.estimatedValue ?? null,
-          labelPrintedAt: asDate(i.labelPrintedAt),
-          retiredAt: asDate(i.retiredAt),
-          retiredReason: i.retiredReason ?? null,
-          createdById: i.createdById,
-          createdAt: asDate(i.createdAt) ?? new Date(),
-          updatedAt: asDate(i.updatedAt) ?? new Date(),
-        })),
-      );
-      await upsertManyIfAny(
-        (args) => db.itemPhoto.upsert(args),
-        (bundle.itemPhotos ?? []).map((p) => ({
-          id: p.id,
-          itemId: p.itemId ?? null,
-          kind: p.kind,
-          storageKey: p.storageKey,
-          thumbKey: p.thumbKey ?? null,
-          mimeType: p.mimeType,
-          width: p.width ?? null,
-          height: p.height ?? null,
-          uploadedById: p.uploadedById,
-          createdAt: asDate(p.createdAt) ?? new Date(),
-        })),
-      );
-      await upsertManyIfAny(
-        (args) => db.itemEvent.upsert(args),
-        (bundle.itemEvents ?? []).map((e) => ({
-          id: e.id,
-          itemId: e.itemId,
-          type: e.type,
-          actorId: e.actorId,
-          changes: e.changes ? JSON.stringify(e.changes) : null,
-          note: e.note ?? null,
-          photoId: e.photoId ?? null,
-          createdAt: asDate(e.createdAt) ?? new Date(),
-        })),
-      );
-    }
-
-    await upsertManyIfAny(
-      (args) => tx.accessLog.upsert(args),
-      bundle.accessLogs.map((l) => ({
-        id: l.id,
-        readerKey: l.readerKey,
-        machineId: l.machineId ?? null,
-        badgeUid: l.badgeUid,
-        userId: l.userId ?? null,
-        allow: l.allow,
-        reason: l.reason ?? null,
-        reservationNotice: l.reservationNotice ?? null,
-        sessionId: l.sessionId ?? null,
-        requestedAt: asDate(l.requestedAt)!,
-        createdAt: asDate(l.createdAt) ?? new Date(),
-        updatedAt: asDate(l.updatedAt) ?? new Date(),
-        deletedAt: asDate(l.deletedAt),
-      })),
-    );
-
-    await upsertManyIfAny(
-      (args) => tx.volunteerInterest.upsert(args),
-      bundle.volunteerInterests.map((v) => ({
-        id: v.id,
-        name: v.name,
-        email: v.email,
-        phone: v.phone ?? null,
-        roleId: v.roleId ?? null,
-        message: v.message,
-        status: v.status,
-        userId: v.userId ?? null,
-        reviewedById: v.reviewedById ?? null,
-        reviewedAt: asDate(v.reviewedAt),
-        notes: v.notes ?? null,
-        createdAt: asDate(v.createdAt) ?? new Date(),
-        updatedAt: asDate(v.updatedAt) ?? new Date(),
-        deletedAt: asDate(v.deletedAt),
-      })),
-    );
-
-    if (db.bounty) {
-      await upsertManyIfAny(
-        (args) => db.bounty.upsert(args),
-        (bundle.bounties ?? []).map((b) => ({
-          id: b.id,
-          title: b.title,
-          description: b.description,
-          requesterName: b.requesterName,
-          requesterEmail: b.requesterEmail,
-          businessName: b.businessName ?? null,
-          userId: b.userId ?? null,
-          status: b.status,
-          claimedByUserId: b.claimedByUserId ?? null,
-          claimedAt: asDate(b.claimedAt),
-          completedAt: asDate(b.completedAt),
-          createdAt: asDate(b.createdAt) ?? new Date(),
-          updatedAt: asDate(b.updatedAt) ?? new Date(),
-          deletedAt: asDate(b.deletedAt),
-        })),
-      );
-    }
-
-    await upsertManyIfAny(
-      (args) => tx.auditEvent.upsert(args),
-      bundle.auditEvents.map((e) => ({
-        id: e.id,
-        action: e.action,
-        actorId: e.actorId,
-        subjectUserId: e.subjectUserId ?? null,
-        entityType: e.entityType,
-        entityId: e.entityId,
-        metadata: e.metadata ? JSON.stringify(e.metadata) : null,
-        occurredAt: asDate(e.occurredAt)!,
-        createdAt: asDate(e.createdAt) ?? new Date(),
-        updatedAt: asDate(e.updatedAt) ?? new Date(),
-        deletedAt: asDate(e.deletedAt),
-      })),
-    );
-
-    // Only these collections are hard-deleted by the mock; everything else
-    // uses deletedAt. Children before parents (VideoWatch -> LessonVideo).
-    const hardDeletes: Array<[keyof typeof removed, string]> = [
-      ["videoWatches", "videoWatch"],
-      ["lessonVideos", "lessonVideo"],
-      ["questions", "question"],
-      ["itemPhotos", "itemPhoto"],
-    ];
-    for (const [key, model] of hardDeletes) {
-      const ids = removed[key];
-      if (ids && ids.length > 0 && db[model]) {
-        await db[model].deleteMany({ where: { id: { in: ids } } });
-      }
-    }
-}
-
-function shouldPersistAfter(methodName: string): boolean {
-  if (methodName === "setCurrentUserId") return false;
-  if (methodName === "getState") return false;
-  if (methodName === "setMyKioskPin") return false;
-  if (methodName === "adminResetMemberKioskPin") return false;
-  if (methodName.startsWith("get")) return false;
-  if (methodName.startsWith("list")) return false;
-  if (methodName.startsWith("adminList")) return false;
-  return true;
+  }
 }
 
 const BUNDLE_TTL_MS = 5_000;
-let bundleCache: { at: number; bundle: MockFixtureBundle } | null = null;
+let bundleCache: { at: number; seq: number; bundle: MockFixtureBundle } | null =
+  null;
 let bundleInflight: Promise<MockFixtureBundle> | null = null;
-let lastBundleLoad: "bundle" | "cache" = "bundle";
+/** Bumped by every save. A load that began before the bump may predate it. */
+let cacheEpoch = 0;
+let loadSeq = 0;
 
-export function takeBundleLoad(): "bundle" | "cache" {
+/**
+ * What the last createPrismaDataProvider call cost. "fresh" is a load a write
+ * forced although a cached or in-flight bundle would have served a read.
+ */
+export type BundleLoad = "bundle" | "cache" | "fresh";
+let lastBundleLoad: BundleLoad = "bundle";
+
+export function takeBundleLoad(): BundleLoad {
   return lastBundleLoad;
 }
 
+/** Forget the cached bundle and any load that started before this call. */
 export function invalidateBundleCache(): void {
+  cacheEpoch += 1;
   bundleCache = null;
+  bundleInflight = null;
 }
 
 function createPersistingProxy(mock: MockDataProvider): DataProvider {
@@ -1843,9 +1120,13 @@ function createPersistingProxy(mock: MockDataProvider): DataProvider {
         }
         if (shouldPersistAfter(name)) {
           const next = target.getState();
-          await persistBundleToPrisma(next, snapshot);
+          try {
+            await persistBundleToPrisma(next, snapshot);
+          } finally {
+            // Also after a failure: some rows may already be written.
+            invalidateBundleCache();
+          }
           snapshot = cloneBundle(next);
-          invalidateBundleCache();
         }
         return result;
       };
@@ -1853,37 +1134,61 @@ function createPersistingProxy(mock: MockDataProvider): DataProvider {
   }) as unknown as DataProvider;
 }
 
-/**
- * Prisma-backed DataProvider: load DB → MockDataProvider, persist after writes.
- * The loaded bundle is reused for 5 seconds. Writes drop the cache.
- * TODO(perf): replace this full-bundle load with per-method Prisma queries.
- */
-async function loadSharedBundle(): Promise<MockFixtureBundle> {
-  const now = Date.now();
-  if (bundleCache && now - bundleCache.at < BUNDLE_TTL_MS) {
-    lastBundleLoad = "cache";
-    return bundleCache.bundle;
-  }
-  if (!bundleInflight) {
-    lastBundleLoad = "bundle";
-    bundleInflight = loadBundleFromPrisma()
-      .then((bundle) => {
-        bundleCache = { at: Date.now(), bundle };
-        return bundle;
-      })
-      .finally(() => {
-        bundleInflight = null;
-      });
-  } else {
-    lastBundleLoad = "cache";
-  }
-  return bundleInflight;
+/** One full read of the database. The newest finished load fills the cache. */
+function startBundleLoad(): Promise<MockFixtureBundle> {
+  const epoch = cacheEpoch;
+  const seq = ++loadSeq;
+  const load: Promise<MockFixtureBundle> = loadBundleFromPrisma()
+    .then((bundle) => {
+      if (epoch === cacheEpoch && (!bundleCache || bundleCache.seq < seq)) {
+        bundleCache = { at: Date.now(), seq, bundle };
+      }
+      return bundle;
+    })
+    .finally(() => {
+      if (bundleInflight === load) bundleInflight = null;
+    });
+  bundleInflight = load;
+  return load;
 }
 
+/**
+ * Reads reuse a bundle for 5 seconds and join a load already in flight.
+ * `fresh` always reads the database again, so the caller sees every save that
+ * finished before it asked. Saves drop the cache.
+ * TODO(perf): replace this full-bundle load with per-method Prisma queries.
+ */
+async function loadSharedBundle(fresh: boolean): Promise<MockFixtureBundle> {
+  const cached =
+    bundleCache && Date.now() - bundleCache.at < BUNDLE_TTL_MS
+      ? bundleCache.bundle
+      : null;
+  if (fresh) {
+    lastBundleLoad = cached || bundleInflight ? "fresh" : "bundle";
+    return startBundleLoad();
+  }
+  if (cached) {
+    lastBundleLoad = "cache";
+    return cached;
+  }
+  if (bundleInflight) {
+    lastBundleLoad = "cache";
+    return bundleInflight;
+  }
+  lastBundleLoad = "bundle";
+  return startBundleLoad();
+}
+
+/**
+ * Prisma-backed DataProvider: load DB → MockDataProvider, persist after writes.
+ * Pass `fresh` for a request that is going to write, so its checks and its
+ * saved rows start from the current database and not from a cached copy.
+ */
 export async function createPrismaDataProvider(
   initialUserId?: string | null,
+  options: { fresh?: boolean } = {},
 ): Promise<DataProvider> {
-  const bundle = await loadSharedBundle();
+  const bundle = await loadSharedBundle(options.fresh === true);
   const mock = new MockDataProvider(bundle, initialUserId);
   return createPersistingProxy(mock);
 }

@@ -14,10 +14,14 @@ const globalForAccess = globalThis as unknown as {
  * Long-lived provider for machine readers.
  * Mock mode keeps one in-memory instance so authorize/end sessions survive
  * across requests during `next dev`. Prisma mode creates a fresh bridge each call.
+ * Pass `fresh` for a call that writes (authorize, end), so it starts from the
+ * database as it is now instead of a bundle cached up to 5 seconds ago.
  */
-export async function getAccessDataProvider(): Promise<DataProvider> {
+export async function getAccessDataProvider(
+  options: { fresh?: boolean } = {},
+): Promise<DataProvider> {
   if (getDataProviderMode() === "prisma") {
-    return createServerDataProvider(null);
+    return createServerDataProvider(null, options);
   }
   if (!globalForAccess.__boxAccessProvider) {
     globalForAccess.__boxAccessProvider = createMockDataProvider(null);

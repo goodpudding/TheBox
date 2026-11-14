@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const provider = await getAccessDataProvider();
+    const provider = await getAccessDataProvider({ fresh: true });
     const session = await provider.endAccess({ readerKey, sessionId });
     return NextResponse.json(
       { ok: true, sessionId: session.id, endedAt: session.endedAt },

@@ -1,6 +1,7 @@
 import type { DataProvider } from "./provider";
 import type { User } from "./types";
 import { isStaffRole } from "./access";
+import { shouldPersistAfter } from "./persist-delta";
 
 export type DataMethod = keyof DataProvider;
 
@@ -184,6 +185,20 @@ export function devToolsLocked(
   env: { NODE_ENV?: string; NEXT_PUBLIC_DEMO_MODE?: string } = process.env,
 ): boolean {
   return env.NODE_ENV === "production" && env.NEXT_PUBLIC_DEMO_MODE !== "true";
+}
+
+/**
+ * Whether the provider for this call must start from a fresh database load.
+ * True for a write the caller can get as far as running. A write that will be
+ * refused for lack of a session keeps the cached bundle, so an anonymous
+ * caller cannot force a full load per request by naming a write method.
+ */
+export function needsFreshBundle(method: string, signedIn: boolean): boolean {
+  if (!Object.hasOwn(RPC_RULES, method)) return false;
+  if (!shouldPersistAfter(method)) return false;
+  const rule = RPC_RULES[method as DataMethod];
+  const open = rule.access === "public" && !method.startsWith("admin");
+  return open || signedIn;
 }
 
 export type RpcSuccess = { status: 200; body: { ok: true; result: unknown } };
