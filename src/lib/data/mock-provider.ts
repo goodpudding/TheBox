@@ -496,6 +496,8 @@ export class MockDataProvider implements DataProvider {
   }
 
   private appendLedger(input: {
+    /** Set when a repeat of the same action must land on the same row. */
+    id?: string;
     userId: string;
     kind: CreditLedgerKind;
     amountCents: number;
@@ -508,7 +510,7 @@ export class MockDataProvider implements DataProvider {
   }): CreditLedgerEntry {
     const now = input.occurredAt ?? this.now();
     const entry: CreditLedgerEntry = {
-      id: this.id("cl"),
+      id: input.id ?? this.id("cl"),
       userId: input.userId,
       kind: input.kind,
       amountCents: input.amountCents,
@@ -549,6 +551,20 @@ export class MockDataProvider implements DataProvider {
     });
   }
 
+  /**
+   * An id for a booking's payment or refund that two requests sent together
+   * will both arrive at. On the live site each request loads the database for
+   * itself, so a button pressed twice passes every check twice. With the same
+   * id the second save lands on the first row and the member is charged, or
+   * refunded, once. The count keeps a later, separate payment on its own row.
+   */
+  private repeatSafeId(prefix: string, bookingId: string, kind: CreditLedgerKind): string {
+    const earlier = this.state.creditLedgerEntries.filter(
+      (e) => e.bookingId === bookingId && e.kind === kind,
+    ).length;
+    return `${prefix}-${bookingId}-${earlier + 1}`;
+  }
+
   private refundClassCredits(booking: Booking): void {
     const spent = this.state.creditLedgerEntries
       .filter((e) => e.bookingId === booking.id && e.kind === "class")
@@ -562,6 +578,7 @@ export class MockDataProvider implements DataProvider {
       (c) => c.id === booking.classSessionId,
     );
     this.appendLedger({
+      id: this.repeatSafeId("cl-refund", booking.id, "class_refund"),
       userId: booking.userId,
       kind: "class_refund",
       amountCents: -net,
@@ -1626,8 +1643,13 @@ export class MockDataProvider implements DataProvider {
       status = "booked";
     }
 
+    // Same reasoning as repeatSafeId: a double press books one seat. The
+    // count makes a rebooking after a cancel a booking of its own.
+    const earlierBookings = this.state.bookings.filter(
+      (b) => b.classSessionId === classSessionId && b.userId === userId,
+    ).length;
     const booking: Booking = {
-      id: this.id("bk"),
+      id: `bk-${classSessionId}-${userId}-${earlierBookings + 1}`,
       classSessionId,
       userId,
       status,
@@ -1684,6 +1706,7 @@ export class MockDataProvider implements DataProvider {
     }
     const now = this.now();
     this.appendLedger({
+      id: this.repeatSafeId("cl-pay", booking.id, "class"),
       userId,
       kind: "class",
       amountCents: -session.priceCents,
