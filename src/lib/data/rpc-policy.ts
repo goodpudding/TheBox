@@ -247,12 +247,6 @@ function pinArgs(
 /** Facts about the HTTP request that the browser must not be able to choose. */
 export type RpcRequestMeta = { ip: string; userAgent: string };
 
-const SELF_USER_METHODS = new Set<string>([
-  "getCurrentUser",
-  "getMember",
-  "updateMemberProfile",
-]);
-
 /** Staff notes on a member row are for staff. Drop them for everyone else. */
 function withoutStaffNotes(result: unknown): unknown {
   if (!result || typeof result !== "object" || !("_notes" in result)) {
@@ -337,8 +331,8 @@ export async function handleDataRpc(input: {
   const fn = input.provider[name] as (...a: unknown[]) => Promise<unknown>;
   try {
     const raw = await fn.apply(input.provider, pinned);
-    const result =
-      !staff && SELF_USER_METHODS.has(name) ? withoutStaffNotes(raw) : raw;
+    // Any method can answer with the caller's own member row.
+    const result = staff ? raw : withoutStaffNotes(raw);
     return { status: 200, body: { ok: true, result } };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Request failed";

@@ -377,6 +377,18 @@ describe("/api/data", () => {
     expect(JSON.stringify(await row.json())).not.toContain("watch this one");
   });
 
+  it("keeps staff notes out of every answer a member gets, not only the profile ones", async () => {
+    // Saving a shop PIN also answers with the member's own row.
+    const member = { ...user("member-1", "member"), _notes: "watch this one" };
+    auth.mockResolvedValue({ user: { id: member.id } });
+    createServerDataProvider.mockResolvedValue(
+      provider(member, { setMyKioskPin: async () => member }),
+    );
+    const pin = await post({ method: "setMyKioskPin", args: ["member-1", "7391"] });
+    expect(pin.status).toBe(200);
+    expect(JSON.stringify(await pin.json())).not.toContain("watch this one");
+  });
+
   it("still sends staff notes to staff", async () => {
     const staff = user("staff-1", "staff");
     const member = { ...user("member-1", "member"), _notes: "watch this one" };

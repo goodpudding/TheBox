@@ -6,7 +6,13 @@ import {
   recordPinFailure,
 } from "@/lib/workstation/pin-throttle";
 
-type Row = { action: string; occurredAt: Date; metadata: string };
+type Row = {
+  action: string;
+  occurredAt: Date;
+  metadata: string;
+  actorId?: string | null;
+  subjectUserId?: string | null;
+};
 const rows: Row[] = [];
 const isStaffRequest = vi.fn();
 const updateUser = vi.fn();
@@ -31,6 +37,21 @@ vi.mock("@/lib/db", () => ({
         rows.push(args.data);
         return args.data;
       },
+      findFirst: async (args: {
+        where: {
+          action: string;
+          subjectUserId: string;
+          actorId: string;
+          occurredAt: { gte: Date };
+        };
+      }) =>
+        rows.find(
+          (row) =>
+            row.action === args.where.action &&
+            row.subjectUserId === args.where.subjectUserId &&
+            row.actorId === args.where.actorId &&
+            row.occurredAt >= args.where.occurredAt.gte,
+        ) ?? null,
       findMany: async (args: {
         where: { action: { in: string[] }; metadata: { contains: string } };
       }) =>
@@ -97,5 +118,29 @@ describe("POST /api/admin/members/[id]/kiosk-pin", () => {
     expect(res.status).toBe(401);
     expect(updateUser).not.toHaveBeenCalled();
     expect(rows).toHaveLength(0);
+  });
+
+  it("writes the reset into the audit log once", async () => {
+    isStaffRequest.mockResolvedValue({ id: "u-staff" });
+    expect((await reset(MAYA.id)).status).toBe(200);
+    expect(rows.filter((row) => row.action === "member.pin_reset")).toHaveLength(1);
+  });
+
+  it("does not log it a second time when the member page has just logged it", async () => {
+    // The staff page resets the PIN through the data API, which writes the
+    // audit row, and then calls this route with the same PIN.
+    rows.push({
+      action: "member.pin_reset",
+      actorId: "u-staff",
+      subjectUserId: MAYA.id,
+      occurredAt: new Date(Date.now() - 2000),
+      metadata: JSON.stringify({ mustChange: true }),
+    });
+    isStaffRequest.mockResolvedValue({ id: "u-staff" });
+    expect((await reset(MAYA.id)).status).toBe(200);
+    expect(rows.filter((row) => row.action === "member.pin_reset")).toHaveLength(1);
+    // It still ends the lock and stores the new PIN.
+    expect(rows.filter((row) => row.action === PIN_SET_ACTION)).toHaveLength(1);
+    expect(updateUser).toHaveBeenCalledTimes(1);
   });
 });
