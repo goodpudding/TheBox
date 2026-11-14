@@ -65,3 +65,27 @@ describe("persistBundleToPrisma", () => {
     ]);
   });
 });
+
+describe("loadBundleFromPrisma", () => {
+  beforeEach(() => {
+    calls.length = 0;
+  });
+
+  it("leaves kiosk PIN bookkeeping for emails nobody has out of every request", async () => {
+    // Anyone can post a wrong PIN for a made-up email, and each one is a row.
+    // Loading them into the bundle would let a stranger grow every request.
+    const { loadBundleFromPrisma } = await import("./prisma-provider");
+    await loadBundleFromPrisma().catch(() => undefined);
+    const load = calls.find((c) => c.model === "auditEvent" && c.method === "findMany");
+    expect(load?.args).toEqual({
+      where: {
+        NOT: {
+          OR: [
+            { action: "workstation.pin_attempt" },
+            { action: "workstation.pin_failed", subjectUserId: null },
+          ],
+        },
+      },
+    });
+  });
+});

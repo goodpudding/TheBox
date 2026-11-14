@@ -14,6 +14,18 @@ export const PIN_FAILED_ACTION = "workstation.pin_failed";
 export const PIN_OK_ACTION = "workstation.pin_ok";
 /** A new PIN was set, by staff or by the signed-in member. */
 export const PIN_SET_ACTION = "workstation.pin_set";
+/**
+ * A PIN is being checked right now. Written before the check so requests
+ * sent together can see each other, then confirmed as a failure or removed.
+ */
+export const PIN_ATTEMPT_ACTION = "workstation.pin_attempt";
+
+/**
+ * How long an unconfirmed attempt counts. A check takes well under a second.
+ * A row still here after this was left by a request that died or whose
+ * clean-up failed, and must not sit in the count as a wrong PIN.
+ */
+const ATTEMPT_COUNTS_FOR_MS = 30_000;
 
 const WINDOW_MS = 10 * 60 * 1000;
 const MAX_FAILURES = 5;
@@ -78,7 +90,10 @@ const UNKNOWN: PinThrottleState = {
 
 export async function readPinThrottle(
   email: string,
-  /** A time, or options. `excludeId` leaves the caller's own attempt out. */
+  /**
+   * A time, or options. `excludeId` leaves the caller's own attempt out.
+   * Other requests' attempts still being checked count toward the lock.
+   */
   at: number | { excludeId?: string | null; now?: number } = {},
 ): Promise<PinThrottleState> {
   const options = typeof at === "number" ? { now: at } : at;
@@ -87,7 +102,9 @@ export async function readPinThrottle(
     const rows = await prisma.auditEvent.findMany({
       where: {
         ...(options.excludeId ? { id: { not: options.excludeId } } : {}),
-        action: { in: [PIN_FAILED_ACTION, PIN_OK_ACTION, PIN_SET_ACTION] },
+        action: {
+          in: [PIN_FAILED_ACTION, PIN_ATTEMPT_ACTION, PIN_OK_ACTION, PIN_SET_ACTION],
+        },
         occurredAt: { gte: new Date(now - DAY_MS) },
         metadata: {
           contains: pinEmailHash(email).slice(0, HASH_MATCH_CHARS),
@@ -98,12 +115,15 @@ export async function readPinThrottle(
       take: 100,
     });
     const failures: number[] = [];
+    const inFlight: number[] = [];
     let lastSuccessAt: number | null = null;
     let resetAt: number | null = null;
     for (const row of rows) {
       const at = row.occurredAt.getTime();
       if (row.action === PIN_FAILED_ACTION) failures.push(at);
-      else if (row.action === PIN_SET_ACTION) resetAt = Math.max(resetAt ?? 0, at);
+      else if (row.action === PIN_ATTEMPT_ACTION) {
+        if (now - at < ATTEMPT_COUNTS_FOR_MS) inFlight.push(at);
+      } else if (row.action === PIN_SET_ACTION) resetAt = Math.max(resetAt ?? 0, at);
       else lastSuccessAt = Math.max(lastSuccessAt ?? 0, at);
     }
     const clearedAt =
@@ -112,7 +132,12 @@ export async function readPinThrottle(
         : Math.max(lastSuccessAt ?? 0, resetAt ?? 0);
     const floor = Math.max(now - WINDOW_MS, clearedAt ?? 0);
     return {
-      locked: pinLockDecision({ failures, lastSuccessAt, resetAt, now }),
+      locked: pinLockDecision({
+        failures: [...failures, ...inFlight],
+        lastSuccessAt,
+        resetAt,
+        now,
+      }),
       pendingFailures: failures.some((at) => at > floor),
       clearedAt,
     };
@@ -158,15 +183,7 @@ async function record(
   }
 }
 
-/**
- * One wrong PIN. Never stores the email or the attempted PIN.
- *
- * The sign-in check writes this row before it looks at the PIN and takes it
- * back if the PIN was right or the email was already locked. Writing first is
- * what stops a burst: requests sent together each see the others' rows, so
- * five at most get their PIN checked. Returns the row id, or null when the
- * write failed.
- */
+/** One wrong PIN. Never stores the email or the attempted PIN. */
 export function recordPinFailure(input: {
   email: string;
   userId: string | null;
@@ -176,13 +193,66 @@ export function recordPinFailure(input: {
   return record(PIN_FAILED_ACTION, input);
 }
 
-/** Take back an attempt that turned out not to be a wrong PIN. */
+/**
+ * Note that a PIN is about to be checked. The sign-in check writes this
+ * before it looks at the PIN. Writing first is what stops a burst: requests
+ * sent together each see the others' rows, so five at most get their PIN
+ * checked. Returns the row id, or null when the write failed.
+ */
+export function reservePinAttempt(input: {
+  email: string;
+  userId: string | null;
+  entityId: string;
+  now?: number;
+}): Promise<string | null> {
+  return record(PIN_ATTEMPT_ACTION, input);
+}
+
+/** The PIN was wrong: the attempt becomes the failure record. */
+export async function confirmPinFailure(id: string): Promise<void> {
+  try {
+    await prisma.auditEvent.update({
+      where: { id },
+      data: { action: PIN_FAILED_ACTION },
+    });
+  } catch (err) {
+    // This process's own counter still has the attempt.
+    console.error("workstation pin throttle confirm", err);
+  }
+}
+
+/** Take back an attempt that was refused, or whose PIN was right. */
 export async function removePinAttempt(id: string): Promise<void> {
   try {
     await prisma.auditEvent.delete({ where: { id } });
   } catch (err) {
-    // Left behind, it counts as one wrong PIN: the safe direction.
+    // Left behind, it stops counting after a few seconds and is pruned later.
     console.error("workstation pin throttle remove", err);
+  }
+}
+
+/**
+ * Housekeeping for the hourly cron. Anyone can post a wrong PIN for an email
+ * nobody has, and each one is a row. Those tell staff nothing after a day (no
+ * member to show them against, and the lock only looks back a day), so they
+ * go, along with attempts that were never confirmed or removed. Wrong PINs
+ * against a real member stay as the audit trail.
+ */
+export async function prunePinRows(now = Date.now()): Promise<number> {
+  const before = new Date(now - DAY_MS);
+  try {
+    const { count } = await prisma.auditEvent.deleteMany({
+      where: {
+        OR: [
+          { action: PIN_FAILED_ACTION, subjectUserId: null, occurredAt: { lt: before } },
+          { action: PIN_ATTEMPT_ACTION, occurredAt: { lt: before } },
+        ],
+      },
+    });
+    return count;
+  } catch (err) {
+    console.error("workstation pin throttle prune", err);
+    return 0;
   }
 }
 

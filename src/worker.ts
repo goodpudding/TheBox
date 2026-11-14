@@ -6,6 +6,7 @@
 import { default as handler } from "../.open-next/worker.js";
 import { useScheduledD1 } from "./lib/db";
 import { runClassSync } from "./lib/sync/run";
+import { prunePinRows } from "./lib/workstation/pin-throttle";
 
 type WorkerEnv = { DB?: Parameters<typeof useScheduledD1>[0] };
 
@@ -21,6 +22,9 @@ const worker = {
       (async () => {
         useScheduledD1(env.DB ?? null);
         try {
+          // Never throws: a failed prune must not stop the class sync.
+          const pruned = await prunePinRows();
+          if (pruned > 0) console.info(JSON.stringify({ cron: "pin-rows", pruned }));
           const result = await runClassSync();
           console.info(JSON.stringify({ cron: "zeffy-classes", ...result }));
         } finally {

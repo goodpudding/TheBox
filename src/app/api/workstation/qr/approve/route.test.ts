@@ -10,7 +10,9 @@ type Challenge = {
   approvedUserId?: string;
 };
 const challenges = new Map<string, Challenge>();
-const auditRows: { action: string }[] = [];
+type AuditRow = { id?: string; action: string; occurredAt: Date; metadata: string };
+const auditRows: AuditRow[] = [];
+const session = vi.fn<() => Promise<{ user: { id: string } } | null>>();
 const findFirstUser = vi.fn();
 const RIGHT_PIN = "4821";
 
@@ -18,7 +20,7 @@ vi.mock("next/server", async () => {
   const actual = await vi.importActual<typeof import("next/server")>("next/server");
   return { ...actual, connection: async () => {} };
 });
-vi.mock("@/auth", () => ({ auth: async () => null }));
+vi.mock("@/auth", () => ({ auth: () => session() }));
 vi.mock("@/lib/db", () => ({
   prisma: {
     user: { findFirst: (args: unknown) => findFirstUser(args) },
@@ -32,17 +34,25 @@ vi.mock("@/lib/db", () => ({
       },
     },
     auditEvent: {
-      create: async (args: { data: { action: string } }) => {
+      create: async (args: { data: AuditRow }) => {
         auditRows.push(args.data);
         return args.data;
       },
+      update: async (args: { where: { id: string }; data: { action: string } }) => {
+        const row = auditRows.find((r) => r.id === args.where.id);
+        if (row) row.action = args.data.action;
+        return row;
+      },
       delete: async (args: { where: { id: string } }) => {
         const index = auditRows.findIndex(
-          (row) => (row as { id?: string }).id === args.where.id,
+          (row) => row.id === args.where.id,
         );
         if (index >= 0) auditRows.splice(index, 1);
       },
-      findMany: async () => [],
+      findMany: async (args: { where: { id?: { not: string }; action: { in: string[] } } }) =>
+        auditRows.filter(
+          (row) => row.id !== args.where.id?.not && args.where.action.in.includes(row.action),
+        ),
     },
   },
 }));
@@ -61,6 +71,8 @@ describe("POST /api/workstation/qr/approve", () => {
   beforeEach(async () => {
     challenges.clear();
     auditRows.length = 0;
+    session.mockReset();
+    session.mockResolvedValue(null);
     resetPinAttemptStore();
     resetRateLimitStore();
     findFirstUser.mockReset();
@@ -118,5 +130,24 @@ describe("POST /api/workstation/qr/approve", () => {
     expect(findFirstUser).not.toHaveBeenCalled();
     expect(auditRows).toHaveLength(0);
     expect(challenges.get("wqc_live")?.approvedUserId).toBeUndefined();
+  });
+
+  it("a locked-out member can still approve from a phone that is signed in to the website", async () => {
+    // What the lock message tells them to do, so it has to work.
+    for (let i = 0; i < 5; i += 1) {
+      expect((await approve("wqc_live", "0001")).status).toBe(401);
+    }
+    const locked = await approve("wqc_live", RIGHT_PIN);
+    expect(locked.status).toBe(429);
+    const { error } = (await locked.json()) as { error: string };
+    expect(error).toMatch(/^Too many attempts/);
+    expect(error).toMatch(/sign in to the website on your phone/i);
+    expect(error).toMatch(/staff/i);
+    expect(challenges.get("wqc_live")?.approvedUserId).toBeUndefined();
+
+    session.mockResolvedValue({ user: { id: "u-maya" } });
+    const res = await approve("wqc_live", "anything");
+    expect(res.status).toBe(200);
+    expect(challenges.get("wqc_live")?.approvedUserId).toBe("u-maya");
   });
 });

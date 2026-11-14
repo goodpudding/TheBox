@@ -19,7 +19,6 @@ import { hashKioskPin, isValidPinShape, verifyKioskPin } from "./pin";
 import {
   clearPinAttempts,
   forgetPinAttemptsBefore,
-  hasPinFailures,
   isPinAttemptLocked,
   PIN_LOCK_MESSAGE,
   PIN_MISMATCH_MESSAGE,
@@ -30,6 +29,8 @@ import {
   recordPinFailure,
   recordPinSuccess,
   removePinAttempt,
+  reservePinAttempt,
+  confirmPinFailure,
 } from "./pin-throttle";
 import {
   clearWorkstationCookie,
@@ -259,11 +260,8 @@ export async function verifyPinLogin(input: {
   // Write the attempt down before looking at the PIN, then count everyone
   // else's. Checking first and writing after let a burst of requests all see
   // "not locked" and each get a guess.
-  const attemptId = await recordPinFailure({
-    email,
-    userId: userRow?.id ?? null,
-    entityId: input.scope,
-  });
+  const who = { email, userId: userRow?.id ?? null, entityId: input.scope };
+  const attemptId = await reservePinAttempt(who);
   const recorded = await readPinThrottle(email, { excludeId: attemptId });
   if (recorded.clearedAt != null) {
     forgetPinAttemptsBefore(input.scope, email, recorded.clearedAt);
@@ -275,20 +273,23 @@ export async function verifyPinLogin(input: {
   }
   // Same order in this process: counted here, with no await before it, so
   // requests in one Worker cannot slip past each other either.
-  const failedHereBefore = hasPinFailures(input.scope, email);
   recordFailedPinAttempt(input.scope, email);
 
   const matched =
     isValidPinShape(input.pin) &&
     Boolean(userRow && (await verifyKioskPin(input.pin, userRow.kioskPinHash)));
   if (!matched || !userRow) {
-    // The row written above is the failure record.
+    // The attempt becomes the failure record. If it could not be written
+    // before the check, write the failure now.
+    if (attemptId) await confirmPinFailure(attemptId);
+    else await recordPinFailure(who);
     throw statusError(PIN_MISMATCH_MESSAGE, 401);
   }
   if (attemptId) await removePinAttempt(attemptId);
-  // The database knows about wrong PINs on other routes and other Workers.
-  // This process only knows its own, and is the fallback when the read fails.
-  if (recorded.pendingFailures || failedHereBefore) {
+  // Earlier typos, on any route or Worker, stop counting from here. Only the
+  // database can say whether there were any: this process's own count also
+  // holds requests that are still being checked.
+  if (recorded.pendingFailures) {
     await recordPinSuccess({ email, userId: userRow.id, entityId: input.scope });
   }
   clearPinAttempts(input.scope, email);

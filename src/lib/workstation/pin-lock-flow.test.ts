@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 type Row = { id: string; action: string; occurredAt: Date; metadata: string };
 const rows: Row[] = [];
 const RIGHT_PIN = "4821";
+let deleteFails = false;
 const JORDAN = {
   id: "u-jordan",
   email: "jordan@example.com",
@@ -27,8 +28,14 @@ vi.mock("@/lib/db", () => ({
         return args.data;
       },
       delete: async (args: { where: { id: string } }) => {
+        if (deleteFails) throw new Error("D1_ERROR: delete refused");
         const index = rows.findIndex((row) => row.id === args.where.id);
         if (index >= 0) rows.splice(index, 1);
+      },
+      update: async (args: { where: { id: string }; data: { action: string } }) => {
+        const row = rows.find((r) => r.id === args.where.id);
+        if (row) row.action = args.data.action;
+        return row;
       },
       findMany: async (args: {
         where: {
@@ -87,6 +94,7 @@ async function setNewPin() {
 describe("PIN lock across routes and resets", () => {
   beforeEach(async () => {
     rows.length = 0;
+    deleteFails = false;
     clock = START;
     vi.useFakeTimers({ toFake: ["Date"] });
     const { resetPinAttemptStore } = await import("./pin-attempts");
@@ -185,5 +193,38 @@ describe("PIN lock across routes and resets", () => {
       expect(await attempt("ws-pc-1", "0001")).toBe(429);
     }
     expect(rows.filter((row) => row.action === "workstation.pin_failed")).toHaveLength(5);
+  });
+
+  it("refusals do not add up to the day-long lock even when their clean-up fails", async () => {
+    for (let i = 0; i < 5; i++) {
+      expect(await attempt("ws-pc-1", "0001")).toBe(401);
+    }
+    deleteFails = true;
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    // A locked-out member keeps trying. Every refusal's row is left behind.
+    for (let i = 0; i < 20; i++) {
+      expect(await attempt("ws-pc-1", RIGHT_PIN)).toBe(429);
+    }
+    spy.mockRestore();
+    deleteFails = false;
+    // Ten minutes on, the short lock has passed. Only five PINs were ever
+    // wrong, so the day-long lock must not have been reached.
+    clock += 11 * MIN;
+    expect(await attempt("ws-pc-1", RIGHT_PIN)).toBe(200);
+  });
+
+  it("the right PIN sent twice at once on a clean slate leaves nothing behind", async () => {
+    vi.setSystemTime(clock + 1000);
+    const { verifyPinLogin } = await import("./server");
+    const results = await Promise.all(
+      [1, 2].map(() =>
+        verifyPinLogin({ email: JORDAN.email, pin: RIGHT_PIN, scope: "ws-pc-1" }).then(
+          () => 200,
+          (err: { status?: number }) => err.status ?? -1,
+        ),
+      ),
+    );
+    expect(results).toEqual([200, 200]);
+    expect(rows).toHaveLength(0);
   });
 });
