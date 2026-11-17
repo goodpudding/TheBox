@@ -83,18 +83,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const mailbox = emailLimitKey(account.providerAccountId);
       return (await allowRequest("signInEmailAddress", mailbox)) || SIGN_IN_LIMITED_PATH;
     },
+    /**
+     * What this returns is what /api/auth/session sends to the browser, and
+     * with database sessions Auth.js starts it off as the whole session row
+     * and the whole member row: the session key that the cookie keeps away
+     * from scripts, staff notes, the shop PIN hash. So build the answer from
+     * the few fields the site uses, and nothing else.
+     */
     async session({ session, user }) {
-      if (session.user) {
-        session.user.id = user.id;
-        const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-        if (dbUser) {
-          session.user.name = dbUser.displayName || session.user.name;
-          session.user.email = dbUser.email;
-          session.user.role = dbUser.role;
-          session.user.status = dbUser.status;
-        }
-      }
-      return session;
+      const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+      return {
+        expires: session.expires,
+        user: {
+          id: user.id,
+          name: dbUser?.displayName || user.name || null,
+          email: dbUser?.email ?? user.email,
+          image: user.image ?? null,
+          role: dbUser?.role,
+          status: dbUser?.status,
+        },
+      };
     },
   },
   trustHost: true,

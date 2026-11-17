@@ -227,6 +227,35 @@ describe("password sign-in with the real Auth.js", () => {
     expect(JSON.stringify(session)).not.toContain("scrypt");
   });
 
+  it("tells the browser who is signed in and nothing else from their row", async () => {
+    Object.assign(db.users[0], {
+      notes: "Staff only: owes for a broken bit",
+      kioskPinHash: "scrypt:aabb:ccdd",
+      phone: "206-555-0100",
+      emergencyContactName: "Lee Chen",
+    });
+    const res = await signIn({ email: MAYA.email, password: PASSWORD });
+    const token = res.cookies.get("authjs.session-token") ?? "";
+    const session = (await whoAmI(res.cookies)) as Record<string, unknown> | null;
+    expect(Object.keys(session ?? {}).sort()).toEqual(["expires", "user"]);
+    expect(session?.user).toEqual({
+      id: MAYA.id,
+      name: "Maya Chen",
+      email: MAYA.email,
+      image: null,
+      role: "member",
+      status: "active",
+    });
+    const sent = JSON.stringify(session);
+    // The cookie is HttpOnly so scripts cannot read the key. Not here either.
+    expect(token.length).toBeGreaterThan(10);
+    expect(sent).not.toContain(token);
+    for (const secret of ["Staff only", "scrypt", "206-555-0100", "Lee Chen"]) {
+      expect(sent, secret).not.toContain(secret);
+    }
+    expect(new Date(String(session?.expires)).getTime()).toBeGreaterThan(Date.now());
+  });
+
   it("uses the secure cookie behind the site's own https address", async () => {
     vi.stubEnv("AUTH_URL", "https://portal.example");
     const res = await signIn({ email: MAYA.email, password: PASSWORD }, "https://portal.example");
