@@ -19,6 +19,10 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
  *   Staff are not limited.
  * - Sign-in email: 5 a minute per address the request came from and 3 a
  *   minute per mailbox, so one mailbox cannot be flooded from many places.
+ * - Password sign-in: 10 a minute per address the request came from. Each
+ *   one costs a slow password check. Wrong passwords for one account are
+ *   counted with the password (src/lib/auth/password-sign-in.ts), because
+ *   that count has to be exact and last longer than a minute.
  * - Desk QR sign-in: 10 a minute per address. Every desk in the shop shares
  *   one address and each press writes a row that lives five minutes.
  * - Membership sync: 3 a minute per member. Each run pulls 90 days of Zeffy
@@ -33,6 +37,7 @@ export const RATE_LIMITS = {
   publicWriteMember: { binding: "RL_PUBLIC_WRITE_MEMBER", limit: 20, periodSeconds: 60 },
   signInEmailIp: { binding: "RL_SIGNIN_IP", limit: 5, periodSeconds: 60 },
   signInEmailAddress: { binding: "RL_SIGNIN_ADDRESS", limit: 3, periodSeconds: 60 },
+  signInPasswordIp: { binding: "RL_SIGNIN_PASSWORD_IP", limit: 10, periodSeconds: 60 },
   qrStart: { binding: "RL_QR_START", limit: 10, periodSeconds: 60 },
   syncMembership: { binding: "RL_SYNC_MEMBERSHIP", limit: 3, periodSeconds: 60 },
   pinAttempt: { binding: "RL_PIN_ATTEMPT", limit: 40, periodSeconds: 60 },

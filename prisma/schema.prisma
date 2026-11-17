@@ -48,6 +48,23 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+/// Website password sign-in (src/lib/auth/password-sign-in.ts). A member has
+/// a row once they choose a password; the emailed link works with or without.
+/// Kept off User so the hash is not read with every member list, and so a
+/// wrong password does not touch the member's own row.
+model UserPassword {
+  userId          String    @id
+  /// scrypt, with its settings (src/lib/auth/password.ts). Never plaintext.
+  hash            String
+  /// Wrong passwords in the current window, and when that window began.
+  failedCount     Int       @default(0)
+  windowStartedAt DateTime?
+  setAt           DateTime
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 // ── Domain ───────────────────────────────────────────────────────────────────
 
 model User {
@@ -87,6 +104,7 @@ model User {
 
   accounts               Account[]
   sessions               Session[]
+  password               UserPassword?
   badges                 Badge[]
   waiverSignatures       WaiverSignature[]
   policyAcknowledgements PolicyAcknowledgement[]

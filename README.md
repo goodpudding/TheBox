@@ -83,7 +83,7 @@ npm run db:seed
 
 ## Workstation (shared Windows PCs)
 
-`/workstation?device=BOX-PC-1` is the kiosk UI (no public header/footer/Dev toolbar). PIN or phone QR logs in the same `User` row. Magic links stay for home use.
+`/workstation?device=BOX-PC-1` is the kiosk UI (no public header/footer/Dev toolbar). PIN or phone QR logs in the same `User` row. Magic links and the website password stay for home use; the shop PIN and the website password are separate.
 
 Login is **identity + which software you may open**. Sitting at a desk URL does not start a clock or debit credits. Charge when a **job is sent** (estimate shown first). 3D: grams × (filament $/kg × 1.30 / 1000), default ~$12/kg PLA → ~1.56¢/g, min $1 member / $5 nonmember. Laser/CNC: estimated run time rounded up 5 min (member/nonmember rates). Vinyl, woodshop, sewing, hand tools: included. Sublimation $1/$2 per print. Unlimited: log the job at $0 machine time. Prints and spooler jobs are not cancelled on logout.
 
@@ -91,16 +91,24 @@ Tauri 2 shell: `apps/workstation-shell/` (autostart, Credential Manager, launch 
 
 Seeded demo PIN for active fixture members: **2468**. Maya: `maya.chen@example.com`.
 
-## Auth.js magic links
+## Auth.js sign-in: magic link or password
 
 ```bash
 npm run docker:mail          # Mailpit UI http://localhost:8025  SMTP :1025
 # AUTH_EMAIL_SERVER=smtp://127.0.0.1:1025 in .env
 ```
 
-- `/login` — request magic link  
+- `/login` — email and password, or request a magic link  
 - Fixture emails (e.g. `maya.chen@example.com`) match seeded users after `db:seed`  
 - Dev toolbar still works without Auth for UI review  
+
+**Password sign-in.** Optional, next to the magic link. A member has no password until they choose one under **Account → Password** (live site only), so the first sign-in is always by link, and the link is also how a forgotten password is replaced: sign in by link, then choose a new one. Nothing is emailed for a reset and staff never see or set a password.
+
+- Stored in its own table, `UserPassword`, as a salted scrypt hash (`src/lib/auth/password.ts`). At least 10 characters; the most common passwords and ones built on the member's email are refused.
+- Five wrong passwords for one account stop password sign-in for that account for 15 minutes (`src/lib/auth/password-sign-in.ts`). The magic link still works during that time. Separately, one network address gets 10 password tries a minute (`RL_SIGNIN_PASSWORD_IP` in `wrangler.jsonc`).
+- The login page gives one answer for a wrong password, an unknown email, an account with no password and a locked one, so it cannot be used to find out who is a member.
+- Choosing, changing or removing a password signs the member out everywhere except the browser they did it in.
+- A password sign-in leaves the same kind of session as a magic link: a row in `Session`. Auth.js does not do that for passwords on its own; `jwt.encode` in `src/auth.ts` is where the row is made.
 
 ## Content sources (who owns what)
 

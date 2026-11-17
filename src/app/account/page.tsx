@@ -18,6 +18,8 @@ import {
   upgradeDifferenceCents,
 } from "@/lib/zeffy/upgrade";
 import { CreditWalletPanel } from "@/components/credit-wallet";
+import { isLiveDataMode } from "@/lib/data/mode";
+import { PasswordSection } from "./password-section";
 
 export default function AccountPage() {
   return (
@@ -272,6 +274,8 @@ function AccountBody() {
           {pending ? "Saving…" : "Save profile"}
         </Button>
       </form>
+
+      {isLiveDataMode() ? <PasswordSection email={currentUser.email} /> : null}
 
       <section className="mt-16 max-w-xl">
         <p className="eyebrow">Shop PIN</p>

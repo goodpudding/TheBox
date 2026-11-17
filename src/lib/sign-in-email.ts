@@ -4,6 +4,12 @@
  */
 export const SIGN_IN_LIMITED_PATH = "/login?error=RateLimit";
 
+/**
+ * The Auth.js provider that takes an email and a password. The login page
+ * signs in with it by this name, next to "email" for the emailed link.
+ */
+export const PASSWORD_PROVIDER_ID = "password";
+
 /** Longest address the mail standards allow. */
 const MAX_ADDRESS_LENGTH = 254;
 
