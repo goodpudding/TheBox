@@ -41,6 +41,10 @@ Live at `https://discoverburienmakerspace.com` (the Worker's default `thebox.jam
 
 **Seeding production once.** Add a build variable `SEED_D1=1` (Settings → Build → Variables), deploy, then remove it. `seed-data.sql` uses `INSERT OR IGNORE`, so it never overwrites edits made in the portal.
 
+**Static pages.** Most pages are rendered once at build time (the member's data arrives afterwards from `/api/data`). `open-next.config.ts` stores those pages with the static files, so the Worker hands them out instead of rendering them again per visit. `opennextjs-cloudflare deploy` copies them into place; nothing revalidates them, so a page that needs `revalidate` needs an R2 cache.
+
+**"Worker exceeded resource limits" (error 1102, a 503).** Cloudflare stops a request that uses more CPU or memory than the plan allows: 10 ms of CPU per request on Workers Free, 30 s on Workers Paid, 128 MB of memory on both. A page render, a session check and above all a full database load in `/api/data` each take more than 10 ms. Which limit was hit is in the dashboard: Workers & Pages → thebox → Observability, filter on the outcome (`exceededCpu` or `exceededMemory`).
+
 **Sign-in email.** Workers have no SMTP, so production uses the Resend provider when `AUTH_RESEND_KEY` is set (`src/lib/auth/email-provider.ts`). SMTP through Nodemailer/Mailpit is for `next dev` only: it is a dev dependency and is left out of production builds, where a missing key fails the sign-in with a clear error instead.
 
 ## Classes & calendar
