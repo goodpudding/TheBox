@@ -16,8 +16,7 @@ import { getDataProviderMode } from "@/lib/data/factory";
 import { prisma } from "@/lib/db";
 import { sniffImageType, type PhotoMimeType } from "@/lib/inventory/upload-policy";
 
-/** 1,400,000 bytes is 1,866,668 characters of base64: under D1's limit. */
-export const MAX_DISPLAY_PHOTO_BYTES = 1_400_000;
+export { MAX_DISPLAY_PHOTO_BYTES } from "./limits";
 
 const LOCAL_DIR = path.join(process.cwd(), ".data", "display-photos");
 

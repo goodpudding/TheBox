@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import { DisplayPhotos } from "@/components/admin/display-photos";
 import { AdminShell } from "@/components/admin-shell";
 import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { isLiveDataMode } from "@/lib/data/mode";
+import { uploadDisplayPicture } from "@/lib/display/compress-client";
 import type {
   DisplayConfig,
+  DisplayMotion,
   DisplayPanelId,
   NameDisplayMode,
   PromoSlide,
@@ -96,7 +98,6 @@ export default function AdminDisplayPage() {
   const [error, setError] = useState<string | null>(null);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const [kioskError, setKioskError] = useState<string | null>(null);
-  const live = isLiveDataMode();
 
   useEffect(() => {
     let cancelled = false;
@@ -168,15 +169,13 @@ export default function AdminDisplayPage() {
   }
 
   async function onUpload(file: File) {
-    const body = new FormData();
-    body.set("file", file);
-    const res = await fetch("/api/display/upload", { method: "POST", body });
-    if (!res.ok) {
-      const data = (await res.json().catch(() => null)) as { error?: string } | null;
-      throw new Error(data?.error ?? "Upload failed");
+    try {
+      const picture = await uploadDisplayPicture(file);
+      setForm((f) => ({ ...f, imageUrl: picture.url }));
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : "could not be added";
+      throw new Error(/^[A-Z]/.test(reason) ? reason : `${file.name} ${reason}.`);
     }
-    const data = (await res.json()) as { url: string };
-    setForm((f) => ({ ...f, imageUrl: data.url }));
   }
 
   function movePanel(id: DisplayPanelId, dir: -1 | 1) {
@@ -203,7 +202,7 @@ export default function AdminDisplayPage() {
   return (
     <AdminShell
       title="Lobby display"
-      description="Promos, panel rotation, and the kiosk URL for the front-of-shop TV."
+      description="Photos, promo slides, panel rotation, and the kiosk URL for the front-of-shop TV."
     >
       {error ? (
         <p className="mb-4 text-sm text-brown" role="alert">
@@ -211,14 +210,6 @@ export default function AdminDisplayPage() {
         </p>
       ) : null}
       {message ? <p className="mb-4 text-sm text-secondary">{message}</p> : null}
-      {live ? (
-        <p
-          className="mb-6 rounded-2xl border border-border bg-surface/60 px-4 py-3 text-sm text-brown"
-          role="status"
-        >
-          Display settings and promos are not saved on the live site yet.
-        </p>
-      ) : null}
 
       <section className="max-w-3xl">
         <h2 className="font-display text-xl font-semibold text-brown">
@@ -253,7 +244,7 @@ export default function AdminDisplayPage() {
       </section>
 
       {config ? (
-        <fieldset disabled={live} className="mt-12 max-w-xl space-y-4">
+        <fieldset className="mt-12 max-w-xl space-y-4">
           <h2 className="font-display text-xl font-semibold text-brown">
             Panels
           </h2>
@@ -317,6 +308,24 @@ export default function AdminDisplayPage() {
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="motion">Motion</Label>
+            <select
+              id="motion"
+              className="flex h-11 w-full rounded-full border border-border bg-surface px-4 font-display text-sm"
+              value={config.motion}
+              onChange={(e) =>
+                void saveConfig({ motion: e.target.value as DisplayMotion })
+              }
+            >
+              <option value="full">Full: photos zoom slowly, progress bar</option>
+              <option value="calm">Calm: fades only, for a slow kiosk</option>
+            </select>
+            <p className="text-sm text-secondary">
+              Choose Calm if the TV looks choppy.
+            </p>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="nameMode">Name on in-use machines</Label>
             <select
               id="nameMode"
@@ -374,12 +383,14 @@ export default function AdminDisplayPage() {
         </fieldset>
       ) : null}
 
+      <DisplayPhotos />
+
       <section className="mt-12 max-w-xl">
         <h2 className="font-display text-xl font-semibold text-brown">
           {form.id ? "Edit promo" : "New promo"}
         </h2>
         <form onSubmit={onSavePromo} className="mt-4">
-          <fieldset disabled={live} className="space-y-4">
+          <fieldset className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="title">Title</Label>
               <Input
@@ -412,7 +423,13 @@ export default function AdminDisplayPage() {
                 accept="image/*"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
-                  if (file) void onUpload(file).catch((err) => setError(String(err)));
+                  if (file) {
+                    void onUpload(file).catch((err: unknown) =>
+                      setError(
+                        err instanceof Error ? err.message : "Upload failed",
+                      ),
+                    );
+                  }
                 }}
               />
             </div>
@@ -497,7 +514,7 @@ export default function AdminDisplayPage() {
                   {p.active ? "" : " · inactive"}
                 </p>
               </div>
-              <fieldset disabled={live} className="flex gap-2">
+              <fieldset className="flex gap-2">
                 <Button
                   type="button"
                   size="sm"

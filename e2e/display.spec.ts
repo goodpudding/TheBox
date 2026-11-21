@@ -1,3 +1,4 @@
+import path from "node:path";
 import { test, expect } from "@playwright/test";
 import { switchUser } from "./helpers";
 
@@ -271,3 +272,76 @@ test.describe("Lobby display", () => {
     });
   }
 });
+
+test.describe("Admin → Display", () => {
+  test("staff add a photo, caption it and delete it", async ({ page }) => {
+    await page.goto("/join");
+    await switchUser(page, "Avery Admin");
+    await page.goto("/admin/display");
+    const photos = page.getByRole("region", { name: "Photos" });
+    await expect(photos).toBeVisible({ timeout: 15_000 });
+    const before = await photos.getByRole("listitem").count();
+
+    await photos
+      .getByLabel("Add photos")
+      .setInputFiles(path.join(__dirname, "fixtures", "display-photo.jpg"));
+    await expect(page.getByText("1 photo added.")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(photos.getByRole("listitem")).toHaveCount(before + 1);
+
+    // The new photo is last. Its picture is the one the upload stored, and it
+    // was shrunk on the way: the file chosen is 2400 px wide.
+    const added = photos.getByRole("listitem").last();
+    const thumb = added.getByRole("img");
+    await expect(thumb).toHaveAttribute("src", /^\/api\/display\/photos\/[0-9a-f-]{36}$/);
+    const src = await thumb.getAttribute("src");
+    const stored = await page.request.get(src!);
+    expect(stored.status()).toBe(200);
+    expect(stored.headers()["content-type"]).toBe("image/jpeg");
+    await expect
+      .poll(() => thumb.evaluate((img: HTMLImageElement) => img.naturalWidth))
+      .toBe(1600);
+
+    const caption = added.getByLabel("Caption");
+    await caption.fill("Dovetail class, November");
+    await caption.blur();
+    await expect(page.getByText("Caption saved.")).toBeVisible();
+
+    await added.getByRole("button", { name: "Hide" }).click();
+    await expect(added.getByRole("button", { name: "Show" })).toBeVisible();
+
+    await added.getByRole("button", { name: "Delete" }).click();
+    await expect(photos.getByRole("listitem")).toHaveCount(before);
+    expect((await page.request.get(src!)).status()).toBe(404);
+  });
+
+  test("a file that is not a picture is refused with a reason", async ({
+    page,
+  }) => {
+    await page.goto("/join");
+    await switchUser(page, "Avery Admin");
+    await page.goto("/admin/display");
+    const photos = page.getByRole("region", { name: "Photos" });
+    await photos.getByLabel("Add photos").setInputFiles({
+      name: "notes.jpg",
+      mimeType: "image/jpeg",
+      buffer: Buffer.from("these are not the bytes of a picture"),
+    });
+    await expect(
+      page.getByRole("alert").filter({ hasText: /notes\.jpg/ }),
+    ).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("staff can set how much the display moves", async ({ page }) => {
+    await page.goto("/join");
+    await switchUser(page, "Avery Admin");
+    await page.goto("/admin/display");
+    const motion = page.getByLabel("Motion");
+    await expect(motion).toHaveValue("full", { timeout: 15_000 });
+    await motion.selectOption("calm");
+    await expect(page.getByText("Display settings saved.")).toBeVisible();
+    await expect(motion).toHaveValue("calm");
+  });
+});
+
