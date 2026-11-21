@@ -1,13 +1,26 @@
 /**
- * Photo storage behind putPhoto / getPhoto / deletePhoto so Drive can move
- * to S3/R2 later without touching feature code.
+ * Photo storage behind putPhoto / getPhoto / deletePhoto, so where the bytes
+ * live can change (R2, say) without touching feature code.
  *
- * Dev default: local `.data/inventory-photos`.
- * When Google is configured: Drive folder `Inventory Photos / {folder}/`.
+ * Where a new photo goes:
+ * - The live site, and anything else running on the database: the
+ *   `StoredFile` table. A Worker has no disk, so this is the only place that
+ *   needs no setup.
+ * - Fixture mode (`next dev`): local `.data/inventory-photos`.
+ * - Drive folder `Inventory Photos / {folder}/`, only when
+ *   INVENTORY_PHOTO_STORAGE=drive and Google is configured. It is not picked
+ *   just because Google is configured for other syncs: a service account can
+ *   only keep files in a shared drive, so an upload to an ordinary folder
+ *   fails.
+ *
+ * A stored photo is read back from wherever its key says it is (`db:`,
+ * `drive:`, `local:`), whatever new uploads use.
  */
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { getDataProviderMode } from "@/lib/data/factory";
+import { prisma } from "@/lib/db";
 import { getGoogleCmsConfig } from "@/lib/google/config";
 import {
   DriveClient,
@@ -15,6 +28,11 @@ import {
   type DriveFile,
 } from "@/lib/google/drive";
 import { ServiceAccountTokenSource } from "@/lib/google/auth";
+import {
+  MAX_STORED_PHOTO_BYTES,
+  PhotoRejectedError,
+  databasePhotoId,
+} from "./upload-policy";
 
 const LOCAL_DIR = path.join(process.cwd(), ".data", "inventory-photos");
 
@@ -90,13 +108,6 @@ class LocalPhotoStorage implements PhotoStorage {
   }
 
   async getPhoto(storageKey: string): Promise<StoredPhoto | null> {
-    if (storageKey.startsWith(FIXTURE_PREFIX)) {
-      return {
-        storageKey,
-        mimeType: "image/svg+xml",
-        bytes: fixtureSvg(storageKey),
-      };
-    }
     if (!storageKey.startsWith("local:")) return null;
     const filePath = localPath(storageKey);
     if (!filePath) return null;
@@ -160,16 +171,7 @@ class DrivePhotoStorage implements PhotoStorage {
   }
 
   async getPhoto(storageKey: string): Promise<StoredPhoto | null> {
-    if (storageKey.startsWith(FIXTURE_PREFIX)) {
-      return {
-        storageKey,
-        mimeType: "image/svg+xml",
-        bytes: fixtureSvg(storageKey),
-      };
-    }
-    if (!storageKey.startsWith("drive:")) {
-      return localFallback().getPhoto(storageKey);
-    }
+    if (!storageKey.startsWith("drive:")) return null;
     const fileId = storageKey.slice("drive:".length);
     try {
       const [meta, bytes] = await Promise.all([
@@ -187,34 +189,106 @@ class DrivePhotoStorage implements PhotoStorage {
   }
 
   async deletePhoto(storageKey: string): Promise<void> {
-    if (!storageKey.startsWith("drive:")) {
-      await localFallback().deletePhoto(storageKey);
-      return;
-    }
+    if (!storageKey.startsWith("drive:")) return;
     await this.client.trashFile(storageKey.slice("drive:".length)).catch(() => undefined);
+  }
+}
+
+class DatabasePhotoStorage implements PhotoStorage {
+  async putPhoto(input: PutPhotoInput): Promise<{ storageKey: string }> {
+    if (input.bytes.length > MAX_STORED_PHOTO_BYTES) {
+      throw new PhotoRejectedError(
+        "That photo is too large to save. Try a smaller picture.",
+        413,
+      );
+    }
+    const id = randomUUID();
+    await prisma.storedFile.create({
+      data: {
+        id,
+        mimeType: input.mimeType,
+        // A copy on its own ArrayBuffer, which is the type Prisma takes.
+        bytes: new Uint8Array(input.bytes),
+        folder: (input.folder ?? "temp").slice(0, 64),
+      },
+    });
+    return { storageKey: `db:${id}` };
+  }
+
+  async getPhoto(storageKey: string): Promise<StoredPhoto | null> {
+    const id = databasePhotoId(storageKey);
+    if (!id) return null;
+    const row = await prisma.storedFile.findUnique({ where: { id } });
+    if (!row) return null;
+    return { storageKey, mimeType: row.mimeType, bytes: Buffer.from(row.bytes) };
+  }
+
+  async deletePhoto(storageKey: string): Promise<void> {
+    const id = databasePhotoId(storageKey);
+    if (!id) return;
+    await prisma.storedFile.deleteMany({ where: { id } });
+  }
+}
+
+/** Sends a new photo to the configured place and finds a stored one by its key. */
+class RoutedPhotoStorage implements PhotoStorage {
+  private readonly database = new DatabasePhotoStorage();
+  private readonly local = new LocalPhotoStorage();
+  private driveStorage: DrivePhotoStorage | null | undefined;
+
+  private drive(): DrivePhotoStorage | null {
+    if (this.driveStorage !== undefined) return this.driveStorage;
+    const google = getGoogleCmsConfig();
+    this.driveStorage = google
+      ? new DrivePhotoStorage(
+          new DriveClient(
+            new ServiceAccountTokenSource(google.serviceAccount, [DRIVE_SCOPE]),
+          ),
+          google.folderId,
+        )
+      : null;
+    return this.driveStorage;
+  }
+
+  private forNewPhotos(): PhotoStorage {
+    if ((process.env.INVENTORY_PHOTO_STORAGE ?? "").toLowerCase() === "drive") {
+      const drive = this.drive();
+      if (drive) return drive;
+    }
+    return getDataProviderMode() === "prisma" ? this.database : this.local;
+  }
+
+  private forKey(storageKey: string): PhotoStorage | null {
+    if (storageKey.startsWith("db:")) return this.database;
+    if (storageKey.startsWith("drive:")) return this.drive();
+    if (storageKey.startsWith("local:")) return this.local;
+    return null;
+  }
+
+  putPhoto(input: PutPhotoInput): Promise<{ storageKey: string }> {
+    return this.forNewPhotos().putPhoto(input);
+  }
+
+  async getPhoto(storageKey: string): Promise<StoredPhoto | null> {
+    if (storageKey.startsWith(FIXTURE_PREFIX)) {
+      return {
+        storageKey,
+        mimeType: "image/svg+xml",
+        bytes: fixtureSvg(storageKey),
+      };
+    }
+    return (await this.forKey(storageKey)?.getPhoto(storageKey)) ?? null;
+  }
+
+  async deletePhoto(storageKey: string): Promise<void> {
+    await this.forKey(storageKey)?.deletePhoto(storageKey);
   }
 }
 
 let cached: PhotoStorage | null = null;
 
-function localFallback(): LocalPhotoStorage {
-  return new LocalPhotoStorage();
-}
-
 export function getPhotoStorage(): PhotoStorage {
-  if (cached) return cached;
-  const google = getGoogleCmsConfig();
-  if (google) {
-    const tokens = new ServiceAccountTokenSource(google.serviceAccount, [
-      DRIVE_SCOPE,
-    ]);
-    cached = new DrivePhotoStorage(
-      new DriveClient(tokens),
-      google.folderId,
-    );
-    return cached;
-  }
-  cached = new LocalPhotoStorage();
+  cached ??= new RoutedPhotoStorage();
   return cached;
 }
 

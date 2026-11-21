@@ -18,6 +18,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useData } from "@/components/providers";
 import { compressInventoryPhoto } from "@/lib/inventory/compress-client";
+import { PHOTO_UPLOAD_FAILED } from "@/lib/inventory/config";
+import { readJson } from "@/lib/read-json";
 import { CONDITION_CARDS, canInventory } from "@/lib/inventory";
 import { useHydrated } from "@/lib/use-hydrated";
 import type {
@@ -168,14 +170,14 @@ function InventoryWizardForm() {
         method: "POST",
         body: form,
       });
-      const json = (await res.json()) as {
+      const json = await readJson<{
         storageKey?: string;
         thumbKey?: string;
         mimeType?: string;
         error?: string;
-      };
-      if (!res.ok || !json.storageKey) {
-        throw new Error(json.error || "Upload failed");
+      }>(res);
+      if (!res.ok || !json?.storageKey) {
+        throw new Error(json?.error || PHOTO_UPLOAD_FAILED);
       }
       const draft: PhotoDraft = {
         storageKey: json.storageKey,
@@ -190,7 +192,7 @@ function InventoryWizardForm() {
         photos: { ...s.photos, [kind]: draft },
       }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
+      setError(err instanceof Error ? err.message : PHOTO_UPLOAD_FAILED);
     } finally {
       setUploading(false);
     }

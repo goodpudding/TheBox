@@ -21,6 +21,8 @@ import {
   STATUS_LABELS,
 } from "@/lib/inventory";
 import { compressInventoryPhoto } from "@/lib/inventory/compress-client";
+import { PHOTO_UPLOAD_FAILED } from "@/lib/inventory/config";
+import { readJson } from "@/lib/read-json";
 import { formatDateTime } from "@/lib/format";
 import type {
   AreaSteward,
@@ -532,8 +534,8 @@ function IssueForm({
               method: "POST",
               body: form,
             });
-            const json = (await res.json()) as { storageKey?: string };
-            if (json.storageKey) setPhotoKey(json.storageKey);
+            const json = await readJson<{ storageKey?: string }>(res);
+            if (json?.storageKey) setPhotoKey(json.storageKey);
           })();
         }}
       />
@@ -575,12 +577,15 @@ function AddPhotoButton({
                 method: "POST",
                 body: form,
               });
-              const json = (await res.json()) as {
+              const json = await readJson<{
                 storageKey?: string;
                 thumbKey?: string;
                 mimeType?: string;
-              };
-              if (!json.storageKey) throw new Error("Upload failed");
+                error?: string;
+              }>(res);
+              if (!res.ok || !json?.storageKey) {
+                throw new Error(json?.error || PHOTO_UPLOAD_FAILED);
+              }
               await provider.addInventoryPhoto(currentUser.id, itemId, {
                 storageKey: json.storageKey,
                 thumbKey: json.thumbKey,

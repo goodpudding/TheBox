@@ -6,6 +6,23 @@
 
 export const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 
+/**
+ * Largest photo the database keeps. D1 allows 2 MB in one row. The browser
+ * shrinks a photo to 1600 px before it uploads, which lands well under this.
+ */
+export const MAX_STORED_PHOTO_BYTES = 1_500_000;
+
+/** An upload that storage will not take. The message is shown to the member. */
+export class PhotoRejectedError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "PhotoRejectedError";
+  }
+}
+
 export type PhotoMimeType = "image/jpeg" | "image/png" | "image/webp";
 
 export const PHOTO_MIME_TYPES: readonly PhotoMimeType[] = [
@@ -22,7 +39,7 @@ export function isPhotoMimeType(value: unknown): value is PhotoMimeType {
 }
 
 /**
- * The two key shapes `storage.ts` hands back from an upload:
+ * The key shapes `storage.ts` hands back from an upload: `db:<uuid>`,
  * `drive:<file id>` and `local:<folder>/<uuid>.<ext>`. A key in any other
  * shape did not come from the upload route. `fixture:` keys are seed data
  * and server-built placeholders, never something a caller supplies.
@@ -30,6 +47,8 @@ export function isPhotoMimeType(value: unknown): value is PhotoMimeType {
  * This checks the shape only. It does not prove the file exists or that the
  * caller is the one who uploaded it.
  */
+const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+const DB_KEY = new RegExp(`^db:${UUID}$`);
 const DRIVE_KEY = /^drive:[A-Za-z0-9_-]{16,128}$/;
 const LOCAL_KEY =
   /^local:(?!\.{1,2}\/)[A-Za-z0-9._-]{1,64}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(?:jpg|png|webp)$/;
@@ -38,7 +57,13 @@ export function isIssuedPhotoKey(value: unknown): value is string {
   if (typeof value !== "string") return false;
   // `$` also matches before a trailing newline, so rule those out first.
   if (/\s/.test(value)) return false;
-  return DRIVE_KEY.test(value) || LOCAL_KEY.test(value);
+  return DB_KEY.test(value) || DRIVE_KEY.test(value) || LOCAL_KEY.test(value);
+}
+
+/** The row id inside a `db:` key, or null when the key is not one. */
+export function databasePhotoId(storageKey: string): string | null {
+  if (/\s/.test(storageKey) || !DB_KEY.test(storageKey)) return null;
+  return storageKey.slice("db:".length);
 }
 
 /** Identify a raster image from its leading bytes. The declared type is ignored. */

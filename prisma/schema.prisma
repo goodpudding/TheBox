@@ -983,6 +983,20 @@ model InventoryItem {
   @@index([name])
 }
 
+/// File bytes kept in the database, because a Worker has no disk. Inventory
+/// photos today. The app never loads this table with the rest of the data;
+/// rows are read one at a time by key (`db:<id>`).
+model StoredFile {
+  id        String   @id
+  mimeType  String
+  bytes     Bytes
+  /// "temp" until the upload is attached to a record.
+  folder    String   @default("temp")
+  createdAt DateTime @default(now())
+
+  @@index([folder, createdAt])
+}
+
 model ItemPhoto {
   id           String         @id @default(cuid())
   itemId       String?

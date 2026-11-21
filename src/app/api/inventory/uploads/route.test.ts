@@ -114,4 +114,32 @@ describe("POST /api/inventory/uploads", () => {
     const res = await post(upload({ file: jpegFile() }));
     expect(res.status).toBe(200);
   });
+
+  it("answers in JSON when storage fails, so the form can show a message", async () => {
+    auth.mockResolvedValue({ user: { id: "u-maya" } });
+    findUnique.mockResolvedValue({ id: "u-maya", status: "active", deletedAt: null });
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    putPhoto.mockRejectedValue(
+      Object.assign(new Error("operation not permitted"), { code: "EPERM" }),
+    );
+    const res = await post(upload({ file: jpegFile() }));
+    expect(res.status).toBe(500);
+    expect(res.headers.get("content-type")).toContain("application/json");
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/could not save the photo/i);
+    // The cause stays in the server log, not in the reply.
+    expect(body.error).not.toMatch(/EPERM|not permitted/);
+    expect(logged).toHaveBeenCalled();
+    logged.mockRestore();
+  });
+
+  it("passes on a storage refusal with its own status and message", async () => {
+    auth.mockResolvedValue({ user: { id: "u-maya" } });
+    findUnique.mockResolvedValue({ id: "u-maya", status: "active", deletedAt: null });
+    const { PhotoRejectedError } = await import("@/lib/inventory/upload-policy");
+    putPhoto.mockRejectedValue(new PhotoRejectedError("That photo is too large.", 413));
+    const res = await post(upload({ file: jpegFile() }));
+    expect(res.status).toBe(413);
+    expect(((await res.json()) as { error: string }).error).toBe("That photo is too large.");
+  });
 });
