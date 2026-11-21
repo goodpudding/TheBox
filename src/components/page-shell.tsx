@@ -27,7 +27,8 @@ export function PageHero({
 }: {
   eyebrow: string;
   title: string;
-  description?: string;
+  /** Plain words, or a TextBlock drawn as a span. */
+  description?: ReactNode;
 }) {
   return (
     <div className="max-w-2xl">

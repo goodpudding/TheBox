@@ -802,6 +802,27 @@ async function main() {
     });
   }
 
+  // Lists with no table of their own are SiteRecord rows: one JSON row each.
+  // The app reads these, not the PromoSlide and DisplayConfig tables above.
+  const siteCollections: Record<string, string> = {
+    people: "people.json",
+    wishlistZones: "wishlist-zones.json",
+    wishlistItems: "wishlist-items.json",
+    promoSlides: "promos.json",
+    projects: "projects.json",
+  };
+  for (const [collection, file] of Object.entries(siteCollections)) {
+    for (const row of readJson<Array<Record<string, unknown>>>(file)) {
+      const id = `${collection}:${String(row.id)}`;
+      const data = JSON.stringify(row);
+      await prisma.siteRecord.upsert({
+        where: { id },
+        create: { id, collection, data },
+        update: { data },
+      });
+    }
+  }
+
   const displayConfig = readJson<Record<string, unknown>>("display-config.json");
   await prisma.displayConfig.upsert({
     where: { id: "default" },

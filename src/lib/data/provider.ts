@@ -1,3 +1,4 @@
+import type { RateCard } from "@/lib/rate-card";
 import type {
   AccessLog,
   AuditEvent,
@@ -7,7 +8,14 @@ import type {
   Certification,
   ClassSession,
   ClassCategory,
+  ContentCategory,
   ContentPage,
+  AreaSteward,
+  MembershipTier,
+  UserRole,
+  WishlistItemTier,
+  SiteInfo,
+  Project,
   DisplayConfig,
   ISODate,
   ISODateTime,
@@ -276,6 +284,12 @@ export interface ClassSessionInput extends Partial<ClassSession> {
   endsAt: ISODateTime;
   capacity: number;
   instructorId: string;
+  /**
+   * What the class page says about this session, as HTML. Cleaned on save and
+   * kept as this session's own content page. Leave it out to keep what is
+   * there; send it empty to go back to the shared wording.
+   */
+  description?: string;
 }
 
 export interface BookingRosterRow extends Booking {
@@ -316,8 +330,13 @@ export interface ModuleInput extends Partial<LearningModule> {
 export interface LessonInput extends Partial<Lesson> {
   moduleId: string;
   title: string;
-  slug: string;
-  contentSlug: string;
+  /** The lesson's address inside its module. Made from the title when left out. */
+  slug?: string;
+  /**
+   * Which content page holds the lesson's text. Leave it out: a new lesson
+   * gets a pointer of its own, and `adminSaveLessonText` writes the page.
+   */
+  contentSlug?: string;
 }
 
 export interface QuestionInput extends Partial<Question> {
@@ -330,11 +349,16 @@ export interface QuestionInput extends Partial<Question> {
 export interface VideoInput extends Partial<LessonVideo> {
   lessonId: string;
   title: string;
-  youtubeId: string;
-  url: string;
-  channel: string;
   role: LessonVideo["role"];
-  order: number;
+  /**
+   * A YouTube link, or the id on its own in `youtubeId`. A new video needs
+   * one of the two; the id is read out of the link.
+   */
+  url?: string;
+  youtubeId?: string;
+  channel?: string;
+  /** Left out, a new video goes last in its lesson. */
+  order?: number;
 }
 
 export interface MachineInput extends Partial<Machine> {
@@ -342,6 +366,80 @@ export interface MachineInput extends Partial<Machine> {
   area: Machine["area"];
   requiredCertificationIds: string[];
   readerKey: string;
+}
+
+/**
+ * A page of text staff edit under Admin → Content. `id` picks the page to
+ * change; without it a new page is made. Left-out fields keep their value.
+ */
+export interface ContentPageInput {
+  id?: string;
+  title: string;
+  /** Sanitized on save: scripts, styles and unknown tags are dropped. */
+  html: string;
+  /** The page's address. Made from the title when a new page leaves it out. */
+  slug?: string;
+  category?: ContentCategory;
+  /**
+   * Change this only when the meaning changed. For the waiver, a new version
+   * becomes the current one and every member is asked to sign again.
+   */
+  version?: string;
+  published?: boolean;
+}
+
+export interface PersonInput {
+  id?: string;
+  name: string;
+  roleTitle: string;
+  kind: PersonKind;
+  bio: string;
+  sortOrder?: number;
+  published?: boolean;
+}
+
+export interface ProjectInput {
+  id?: string;
+  title: string;
+  maker: string;
+  area: string;
+  caption: string;
+  imageSrc: string;
+  imageAlt?: string;
+  sortOrder?: number;
+  published?: boolean;
+}
+
+export interface WishlistItemInput {
+  id?: string;
+  zoneId: string;
+  name: string;
+  model?: string;
+  qty: number;
+  priceCents: number;
+  estimated?: boolean;
+  url?: string | null;
+  note?: string | null;
+  tier?: WishlistItemTier;
+  sortOrder?: number;
+}
+
+export interface VolunteerRoleInput {
+  id?: string;
+  title: string;
+  /** What the role involves, shown on the Volunteer page. Left out keeps the text. */
+  descriptionHtml?: string;
+  active?: boolean;
+  sortOrder?: number;
+}
+
+export interface BountyModeration {
+  title?: string;
+  description?: string;
+  /** Off the public board without deleting it. */
+  hidden?: boolean;
+  /** Back to open: drops the claim and the completion. */
+  reopen?: boolean;
 }
 
 export interface UsageFilters {
@@ -878,6 +976,21 @@ export interface DataProvider {
     status: MembershipStatus,
     actorId: string,
   ): Promise<User>;
+  /**
+   * Change a member's role, membership tier, shop access or staff note.
+   * The person acting is whoever is signed in, never an id the caller sends.
+   * Only an admin may change a role, never their own, and the last active
+   * admin cannot be demoted.
+   */
+  adminUpdateMember(
+    id: string,
+    patch: {
+      role?: UserRole;
+      tier?: MembershipTier | null;
+      shopAccess?: boolean;
+      notes?: string;
+    },
+  ): Promise<User>;
   /** Member chooses their shop PIN. Rejects bad and trivial PINs. Clears a reset flag. */
   setMyKioskPin(userId: string, pin: string): Promise<User>;
   /**
@@ -931,6 +1044,18 @@ export interface DataProvider {
   adminRevokeCertification(input: RevokeInput): Promise<UserCertification>;
   adminUpsertCertification(data: CertificationInput): Promise<Certification>;
   adminUpsertClass(data: ClassSessionInput): Promise<ClassSession>;
+  /** Every class: drafts, cancelled and past ones too. Upcoming first. */
+  adminListClasses(): Promise<ClassSessionView[]>;
+  /**
+   * Take a class off the calendar. Bookings are left as they are, and no
+   * money or credits move. The hourly Zeffy pull does not undo it.
+   */
+  adminCancelClass(id: string): Promise<ClassSession>;
+  adminRestoreClass(id: string): Promise<ClassSession>;
+  /** Staff put a member in a class. Capacity, waitlist and payment hold as usual. */
+  adminAddBooking(classSessionId: string, userId: string): Promise<Booking>;
+  /** Staff cancel a member's booking, at any time before or after the cutoff. */
+  adminCancelBooking(bookingId: string): Promise<Booking>;
   adminListRoster(classSessionId: string): Promise<BookingRosterRow[]>;
   adminMarkBookingPaid(bookingId: string, actorId: string): Promise<Booking>;
   /** Mark paid + attach Zeffy payment id (webhook/sync). */
@@ -974,6 +1099,16 @@ export interface DataProvider {
     data: MaintenanceBlockInput,
   ): Promise<MaintenanceBlock>;
   adminListMaintenanceBlocks(): Promise<MaintenanceBlock[]>;
+  /**
+   * Schedule or change a maintenance block as whoever is signed in. Staff and
+   * active Shop Stewards may; the provider refuses everyone else. The page a
+   * steward uses calls this: the `admin…` methods are staff only by name.
+   */
+  scheduleMaintenance(
+    data: Omit<MaintenanceBlockInput, "createdById">,
+  ): Promise<MaintenanceBlock>;
+  /** The maintenance schedule, for the same people who may change it. */
+  listMaintenanceSchedule(): Promise<MaintenanceBlock[]>;
 
   /** Tool champion / Shop lead track */
   getToolChampionProgress(userId: string): Promise<ToolChampionProgress>;
@@ -992,6 +1127,17 @@ export interface DataProvider {
 
   adminUpsertModule(data: ModuleInput): Promise<LearningModule>;
   adminUpsertLesson(data: LessonInput): Promise<Lesson>;
+  /**
+   * Remove a lesson with its videos and the watch and progress records for
+   * them. Certifications members hold are never touched. The only lesson of a
+   * published module is refused.
+   */
+  adminDeleteLesson(id: string): Promise<void>;
+  /**
+   * Save the text members read in a lesson. The text is a content page; a
+   * lesson that has none yet gets one and is pointed at it.
+   */
+  adminSaveLessonText(lessonId: string, html: string): Promise<ContentPage>;
   adminUpsertQuestion(data: QuestionInput): Promise<Question>;
   adminDeleteQuestion(id: string): Promise<void>;
   /** Quiz bank for a module (includes inactive). */
@@ -1011,6 +1157,10 @@ export interface DataProvider {
     id: string,
     published: boolean,
   ): Promise<PublishModuleResult>;
+  /** Every machine, switched off or not. The public list hides inactive ones. */
+  adminListMachines(): Promise<Machine[]>;
+  /** Every certification, switched off or not. */
+  adminListCertifications(): Promise<Certification[]>;
   adminUpsertMachine(data: MachineInput): Promise<Machine>;
   adminListUsage(
     range: DateRange,
@@ -1024,6 +1174,59 @@ export interface DataProvider {
   ): Promise<VolunteerInterest>;
   adminListContentMappings(): Promise<ContentPage[]>;
   adminSyncContent(): Promise<{ syncedAt: ISODateTime; count: number }>;
+  adminSaveContentPage(input: ContentPageInput): Promise<ContentPage>;
+
+  /** Volunteer roles, including ones that are switched off. */
+  adminListVolunteerRoles(): Promise<VolunteerRole[]>;
+  /** Saves the role and its description page together. */
+  adminSaveVolunteerRole(input: VolunteerRoleInput): Promise<VolunteerRole>;
+
+  /** Creates a badge for a member. The UID is stored the way readers send it. */
+  adminRegisterBadge(
+    userId: string,
+    input: { uid: string; label?: string },
+  ): Promise<Badge>;
+  /** Switch a lost badge off at every reader, or back on. */
+  adminSetBadgeActive(badgeId: string, active: boolean): Promise<Badge>;
+
+  /** Every bounty with contact details, hidden ones included. */
+  adminListBounties(): Promise<Bounty[]>;
+  adminUpdateBounty(id: string, patch: BountyModeration): Promise<Bounty>;
+  /** Removes a request for good. For spam. */
+  adminDeleteBounty(id: string): Promise<void>;
+
+  adminDeleteMaintenanceBlock(id: string): Promise<void>;
+
+  /** Replaces the list of members who steward an inventory area. */
+  adminSetAreaStewards(areaId: string, userIds: string[]): Promise<AreaSteward[]>;
+  /**
+   * The pieces of page text staff have changed, by slug. A slug that is
+   * missing shows its built-in wording (src/lib/data/text-blocks.ts).
+   */
+  listTextBlocks(): Promise<Record<string, string>>;
+
+  /** Staff directory, including people who are hidden. */
+  adminListPeople(): Promise<Person[]>;
+  adminSavePerson(input: PersonInput): Promise<Person>;
+  adminDeletePerson(id: string): Promise<void>;
+
+  /** The "Made at The Box" gallery. */
+  listProjects(): Promise<Project[]>;
+  adminListProjects(): Promise<Project[]>;
+  adminSaveProject(input: ProjectInput): Promise<Project>;
+  adminDeleteProject(id: string): Promise<void>;
+
+  adminSaveWishlistItem(input: WishlistItemInput): Promise<WishlistItem>;
+  adminDeleteWishlistItem(id: string): Promise<void>;
+
+  /** Shop name, address and social links shown in the footer. */
+  /** Machine prices. Members see these; the kiosk and the server price jobs from them. */
+  getRateCard(): Promise<RateCard>;
+  /** Change some of the prices. Refuses the whole change if any value will not do. */
+  adminSaveRateCard(patch: Partial<RateCard>): Promise<RateCard>;
+
+  getSiteInfo(): Promise<SiteInfo>;
+  adminSaveSiteInfo(input: Partial<SiteInfo>): Promise<SiteInfo>;
   adminUpdateSettings(data: Partial<OrgSettings>): Promise<OrgSettings>;
   adminListAuditEvents(subjectUserId?: string): Promise<AuditEvent[]>;
 

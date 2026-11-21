@@ -3,8 +3,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { SocialLinks } from "@/components/project-highlights";
+import { useSiteInfo } from "@/components/use-site-info";
 
 export function SiteFooter() {
+  const site = useSiteInfo();
   return (
     <footer className="mt-auto bg-footer text-white/90">
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
@@ -20,17 +22,15 @@ export function SiteFooter() {
           </div>
           <div>
             <p className="font-display text-lg font-semibold tracking-tight">
-              The Box · Discover Burien Makerspace
+              {site.orgName}
             </p>
             <p className="mt-1 text-sm text-white/55">
-              611 SW 152nd St (lower level) · access from SW 153rd · Burien, WA
+              {site.addressLine}
             </p>
           </div>
         </div>
         <p className="mt-5 max-w-xl text-sm text-white/65 font-serif leading-relaxed">
-          A community makerspace in Burien, WA, run by Discover Burien.
-          Membership, classes, and machine access live here — the rest of our
-          public story lives on discoverburien.org.
+          {site.blurb}
         </p>
         <SocialLinks tone="dark" className="mt-5 text-white/90" />
         <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 font-display text-sm">

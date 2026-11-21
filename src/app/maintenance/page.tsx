@@ -39,11 +39,15 @@ function MaintenanceBody() {
     if (!currentUser) return;
     let cancelled = false;
     void (async () => {
-      const [p, m, b] = await Promise.all([
+      const [p, m] = await Promise.all([
         provider.getToolChampionProgress(currentUser.id),
         provider.listMachines(),
-        provider.adminListMaintenanceBlocks(),
       ]);
+      // The schedule is for the people who may change it: staff and Shop
+      // Stewards. Everyone else gets the explanation below, not an error.
+      const b = p.canScheduleMaintenance
+        ? await provider.listMaintenanceSchedule()
+        : [];
       if (cancelled) return;
       setProgress(p);
       setMachines(m.filter((x) => x.active));
@@ -75,20 +79,21 @@ function MaintenanceBody() {
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // React clears currentTarget once the handler first waits, so keep the form.
+    const formEl = e.currentTarget;
     if (!currentUser) return;
     setPending(true);
     setError(null);
-    const form = new FormData(e.currentTarget);
+    const form = new FormData(formEl);
     try {
-      await provider.adminUpsertMaintenanceBlock({
+      await provider.scheduleMaintenance({
         machineId: String(form.get("machineId") ?? ""),
         startsAt: fromDatetimeLocalValue(String(form.get("startsAt") ?? "")),
         endsAt: fromDatetimeLocalValue(String(form.get("endsAt") ?? "")),
         reason: String(form.get("reason") ?? "").trim(),
-        createdById: currentUser.id,
       });
       bump();
-      e.currentTarget.reset();
+      formEl.reset();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save");
     } finally {

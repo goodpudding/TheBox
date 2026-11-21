@@ -163,6 +163,42 @@ describe("persistBundleToPrisma", () => {
     ]);
   });
 
+  it("removes a lesson from the database after everything that points at it", async () => {
+    // D1 refuses to delete a lesson while a video or a progress row still
+    // names it, and a video while a watch record does.
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    const detail = await admin.getModule("shop-orientation");
+    const lesson = detail!.lessons.find((l) => l.videos.length > 0)!;
+    const videoIds = lesson.videos.map((v) => v.id);
+    await admin.markVideoWatched(videoIds[0]!, "u-maya");
+    await admin.markLessonComplete(lesson.id, "u-maya");
+    calls.length = 0;
+
+    await admin.adminDeleteLesson(lesson.id);
+
+    const deletes = calls
+      .filter((c) => c.method === "deleteMany")
+      .map((c) => c.model);
+    expect(deletes).toEqual(["videoWatch", "lessonVideo", "lessonProgress", "lesson"]);
+    expect(table("lesson").has(lesson.id)).toBe(false);
+    for (const id of videoIds) expect(table("lessonVideo").has(id)).toBe(false);
+    expect(
+      [...table("lessonProgress").values()].some((row) => row.lessonId === lesson.id),
+    ).toBe(false);
+    expect(
+      [...table("videoWatch").values()].some((row) => videoIds.includes(String(row.videoId))),
+    ).toBe(false);
+    // Nobody's certification is part of the removal.
+    expect(calls.some((c) => c.model === "userCertification")).toBe(false);
+
+    const later = await createPrismaDataProvider("u-admin", { fresh: true });
+    expect((await later.getModule("shop-orientation"))!.lessons.map((l) => l.id)).not.toContain(
+      lesson.id,
+    );
+  });
+
   it("a profile edit writes only the columns it changed", async () => {
     const { persistBundleToPrisma } = await import("./prisma-provider");
     const previous = cloneFixtures(loadFixtures());
@@ -479,40 +515,184 @@ describe("payments applied by the system", () => {
   });
 });
 
-describe("what the live site cannot store yet", () => {
-  it("refuses a wishlist purchase report instead of accepting and dropping it", async () => {
-    // These collections are not saved in the database yet. The pages hide the
-    // forms on the live site; a direct call must not be told it worked.
+describe("lists that have no table of their own", () => {
+  // The staff directory, wishlist, lobby promos, display settings and tool
+  // champion terms used to be read from fixture files on the live site, and
+  // every write to them was refused. They are kept as SiteRecord rows now.
+  function records(collection: string): Row[] {
+    return [...table("siteRecord").values()]
+      .filter((row) => row.collection === collection)
+      .map((row) => JSON.parse(String(row.data)) as Row);
+  }
+
+  it("keeps a wishlist purchase report, and a later request sees it", async () => {
     await seedDatabase();
     const { createPrismaDataProvider } = await import("./prisma-provider");
     const provider = await createPrismaDataProvider(null, { fresh: true });
+    const before = records("wishlistPurchaseReports").length;
     const catalog = await provider.getWishlistCatalog();
     const item = catalog.items.find((i) => i.status !== "fulfilled")!;
-    await expect(
-      provider.reportWishlistPurchase({
-        itemId: item.id,
-        name: "Pat",
-        email: "pat@example.com",
-      }),
-    ).rejects.toThrow(/not available on the live site/i);
-    expect(upserts("auditEvent")).toHaveLength(0);
+    await provider.reportWishlistPurchase({
+      itemId: item.id,
+      name: "Pat",
+      email: "pat@example.com",
+    });
+    const stored = records("wishlistPurchaseReports");
+    expect(stored).toHaveLength(before + 1);
+    expect(stored.some((r) => r.itemId === item.id && r.name === "Pat")).toBe(true);
+
+    const staff = await createPrismaDataProvider("u-admin", { fresh: true });
+    const reports = await staff.adminListWishlistPurchaseReports();
+    expect(reports.some((r) => r.itemId === item.id && r.name === "Pat")).toBe(true);
   });
 
-  it("refuses display settings, promo slides and tool champion requests the same way", async () => {
+  it("writes only the row that changed", async () => {
     await seedDatabase();
     const { createPrismaDataProvider } = await import("./prisma-provider");
     const admin = await createPrismaDataProvider("u-admin", { fresh: true });
-    await expect(admin.saveDisplayConfig({ cadenceSeconds: 20 })).rejects.toThrow(
-      /not available on the live site/i,
-    );
-    await expect(admin.deletePromo("promo-welcome")).rejects.toThrow(
-      /not available on the live site/i,
-    );
-    await expect(
-      admin.requestToolChampionTerm({ userId: "u-maya", machineId: "m-sewing-1" }),
-    ).rejects.toThrow(/not available on the live site/i);
-    // Reading them still works.
-    expect((await admin.getDisplayConfig()).cadenceSeconds).toBeGreaterThan(0);
-    expect((await admin.listPromos()).length).toBeGreaterThan(0);
+    const promo = (await admin.listPromos())[0]!;
+    await admin.savePromo({ ...promo, title: "Holiday hours" });
+    const written = upserts("siteRecord").map((u) => u.where.id);
+    expect(written).toEqual([`promoSlides:${promo.id}`]);
+  });
+
+  it("keeps display settings, a deleted promo and a tool champion request", async () => {
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    await admin.saveDisplayConfig({ cadenceSeconds: 20 });
+    await admin.deletePromo("promo-welcome");
+    await admin.requestToolChampionTerm({ userId: "u-maya", machineId: "m-miter-saw" });
+
+    const later = await createPrismaDataProvider("u-admin", { fresh: true });
+    expect((await later.getDisplayConfig()).cadenceSeconds).toBe(20);
+    expect((await later.listPromos()).map((p) => p.id)).not.toContain("promo-welcome");
+    expect(records("toolChampionTerms").some((t) => t.userId === "u-maya" && t.machineId === "m-miter-saw")).toBe(true);
+  });
+
+  it("reads the staff directory from the database, not from the fixture file", async () => {
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const first = await createPrismaDataProvider(null, { fresh: true });
+    const person = (await first.listPeople())[0]!;
+    writeElsewhere("siteRecord", `people:${person.id}`, {
+      data: JSON.stringify({ ...person, name: "Renamed In The Database" }),
+    });
+    const second = await createPrismaDataProvider(null, { fresh: true });
+    expect((await second.listPeople()).map((p) => p.name)).toContain("Renamed In The Database");
+  });
+
+  it("keeps the machine rate card as one row and reads it back", async () => {
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    const before = await admin.getRateCard();
+    await admin.adminSaveRateCard({ laserMemberHourlyCents: 1800 });
+    expect(upserts("siteRecord").map((u) => u.where.id)).toEqual(["rateCard:default"]);
+    expect(JSON.parse(String(table("siteRecord").get("rateCard:default")?.data))).toEqual({
+      ...before,
+      laserMemberHourlyCents: 1800,
+    });
+
+    const later = await createPrismaDataProvider(null, { fresh: true });
+    expect((await later.getRateCard()).laserMemberHourlyCents).toBe(1800);
+  });
+
+  it("uses the default price for each rate card field the database has wrong", async () => {
+    await seedDatabase();
+    const { DEFAULT_RATE_CARD } = await import("@/lib/rate-card");
+    table("siteRecord").set("rateCard:default", {
+      id: "rateCard:default",
+      collection: "rateCard",
+      data: JSON.stringify({ laserMemberHourlyCents: 1800, cncMemberHourlyCents: "free", plasmaSetupCents: -1 }),
+    });
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const provider = await createPrismaDataProvider(null, { fresh: true });
+    expect(await provider.getRateCard()).toEqual({
+      ...DEFAULT_RATE_CARD,
+      laserMemberHourlyCents: 1800,
+    });
+  });
+
+  it("is the default rate card when the database has none", async () => {
+    await seedDatabase();
+    table("siteRecord").delete("rateCard:default");
+    const { DEFAULT_RATE_CARD } = await import("@/lib/rate-card");
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const provider = await createPrismaDataProvider(null, { fresh: true });
+    expect(await provider.getRateCard()).toEqual(DEFAULT_RATE_CARD);
+  });
+
+  it("shows nothing, not sample rows, when the database has none", async () => {
+    await seedDatabase();
+    for (const id of [...table("siteRecord").keys()]) {
+      if (id.startsWith("people:")) table("siteRecord").delete(id);
+    }
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const provider = await createPrismaDataProvider(null, { fresh: true });
+    expect(await provider.listPeople()).toEqual([]);
+  });
+});
+
+describe("removals staff make from the admin", () => {
+  function deletes(model: string): string[] {
+    return calls
+      .filter((c) => c.model === model && c.method === "deleteMany")
+      .flatMap((c) => (c.args as { where: { id: { in: string[] } } }).where.id.in);
+  }
+
+  it("really deletes a removed bounty, and only that one", async () => {
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    const [spam, keep] = await admin.adminListBounties();
+    await admin.adminDeleteBounty(spam!.id);
+    expect(deletes("bounty")).toEqual([spam!.id]);
+    const later = await createPrismaDataProvider("u-admin", { fresh: true });
+    const ids = (await later.adminListBounties()).map((b) => b.id);
+    expect(ids).not.toContain(spam!.id);
+    expect(ids).toContain(keep!.id);
+  });
+
+  it("keeps a hidden bounty in the database, marked hidden", async () => {
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    const bounty = (await admin.adminListBounties())[0]!;
+    await admin.adminUpdateBounty(bounty.id, { hidden: true });
+    expect(deletes("bounty")).toEqual([]);
+    expect(table("bounty").get(bounty.id)?.deletedAt).toBeInstanceOf(Date);
+    const later = await createPrismaDataProvider(null, { fresh: true });
+    expect((await later.listBounties()).map((b) => b.id)).not.toContain(bounty.id);
+  });
+
+  it("really deletes a removed maintenance block", async () => {
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    const block = (await admin.adminListMaintenanceBlocks())[0]!;
+    await admin.adminDeleteMaintenanceBlock(block.id);
+    expect(deletes("maintenanceBlock")).toEqual([block.id]);
+    const later = await createPrismaDataProvider("u-admin", { fresh: true });
+    expect((await later.adminListMaintenanceBlocks()).map((b) => b.id)).not.toContain(block.id);
+  });
+
+  it("adds and removes area stewards as rows", async () => {
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    const area = (await admin.listInventoryAreas())[0]!;
+    await admin.adminSetAreaStewards(area.id, ["u-maya", "u-quinn"]);
+    const maya = (await admin.listAreaStewards()).find(
+      (s) => s.areaId === area.id && s.userId === "u-maya",
+    )!;
+    expect(table("areaSteward").has(maya.id)).toBe(true);
+    calls.length = 0;
+    await admin.adminSetAreaStewards(area.id, ["u-quinn"]);
+    expect(deletes("areaSteward")).toContain(maya.id);
+    expect(table("areaSteward").has(maya.id)).toBe(false);
+    const later = await createPrismaDataProvider("u-admin", { fresh: true });
+    const after = (await later.listAreaStewards()).filter((s) => s.areaId === area.id);
+    expect(after.map((s) => s.userId)).toEqual(["u-quinn"]);
   });
 });

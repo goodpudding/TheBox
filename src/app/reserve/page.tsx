@@ -6,6 +6,7 @@ import { MemberGate } from "@/components/member-gate";
 import { PageHero, PageShell } from "@/components/page-shell";
 import { StatusPill } from "@/components/status-pill";
 import { useData } from "@/components/providers";
+import { TextBlock } from "@/components/text-block";
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
 import { formatDateTime } from "@/lib/format";
@@ -152,16 +153,20 @@ function ReserveBody() {
       <PageHero
         eyebrow="Reserve"
         title="Machine priority holds"
-        description="See what’s open or booked right now, then pick a time. A reservation is priority — not exclusive lockout."
+        description={<TextBlock slug="reserve-hero" as="span" />}
       />
 
       {settings ? (
-        <p className="mt-6 max-w-2xl text-sm text-secondary leading-relaxed">
-          Book up to {settings.reservationHorizonDays} days ahead. Length caps
-          depend on the machine (3D printers up to 5 hours). You may hold{" "}
-          {settings.maxOpenReservations} open reservation
-          {settings.maxOpenReservations === 1 ? "" : "s"} at a time.
-        </p>
+        <TextBlock
+          slug="reserve-limits"
+          values={{
+            horizonDays: settings.reservationHorizonDays,
+            openReservations: `${settings.maxOpenReservations} open reservation${
+              settings.maxOpenReservations === 1 ? "" : "s"
+            }`,
+          }}
+          className="mt-6 max-w-2xl text-sm text-secondary leading-relaxed"
+        />
       ) : null}
 
       <section className="mt-12">

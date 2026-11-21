@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
+import { VolunteerRoleEditor } from "@/components/admin/volunteer-role-editor";
 import { StatusPill } from "@/components/status-pill";
 import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
@@ -47,7 +48,7 @@ export default function AdminVolunteersPage() {
     void (async () => {
       const [list, roleList] = await Promise.all([
         provider.adminListVolunteerInterests(),
-        provider.listVolunteerRoles(),
+        provider.adminListVolunteerRoles(),
       ]);
       setInterests(list);
       setRoles(roleList);
@@ -187,6 +188,7 @@ export default function AdminVolunteersPage() {
           <li className="text-secondary">No volunteer interests yet.</li>
         ) : null}
       </ul>
+      <VolunteerRoleEditor />
     </AdminShell>
   );
 }

@@ -4,12 +4,45 @@ Member-facing web app and back office for **The Box**, the community makerspace 
 
 ## Status
 
-**Phase 5 (current):** Prisma schema + seed, PrismaDataProvider, Auth.js magic links, Google Drive CMS sync scaffold, Docker Compose (Mailpit), Vitest, Playwright smoke tests. UI still defaults to **mock** data for day-to-day work.
+**Live** at `https://discoverburienmakerspace.com` on Cloudflare Workers + D1 (Workers Paid plan). Local `next dev` still runs on fixtures.
+
+**Phase 5:** Prisma schema + seed, PrismaDataProvider, Auth.js magic links, Google Drive CMS sync scaffold, Docker Compose (Mailpit), Vitest, Playwright smoke tests.
 
 **Phase 4:** staff admin + `/dev/reader`  
 **Phase 3:** classes, reserve, learn/quizzes  
 **Phase 2:** onboarding, dashboard, account, certifications, usage  
 **Phase 1:** shell, fixtures, public pages  
+
+## What staff edit without a developer
+
+The rule: how the site looks is code; what it says is edited in the admin. Everything below saves to the live database.
+
+| What | Where |
+|---|---|
+| Waiver, hours, policies, FAQ, history, staff intro, support and lesson text | Admin → Content (rich-text editor; a new waiver version asks every member to sign again) |
+| The explanatory text on Join, Support, Wishlist, Staff, History, Events, Bounties, Volunteer, Equipment, Made here, a class page and Reserve | Admin → Content → Text on pages. Each piece starts with its built-in wording (`src/lib/data/text-blocks.ts`) and can go back to it |
+| Machines (incl. attended-only, longest booking, order) and certifications (incl. what each covers, prerequisites, order) | Admin → Machines, Admin → Certifications (switched-off ones stay listed) |
+| Classes: details, description, cancel or restore; add a member or cancel a booking | Admin → Classes (lists drafts, cancelled and past classes too). Cancelling moves no money: Zeffy refunds are made in Zeffy |
+| Learning modules: details, pass mark, attempts, equipment confirmed; lessons and their text; videos; quiz questions with one or several right answers | Admin → Learn → a module. Removing a lesson takes its videos and the watch and progress records with it; certifications members hold are untouched |
+| Staff and instructor directory | Admin → People |
+| "Made at The Box" gallery | Admin → Gallery |
+| Wishlist items, purchase reports | Admin → Wishlist |
+| Lobby display promos and settings | Admin → Display |
+| Shop name, address, footer text, social links, checkout links, limits | Admin → Settings |
+| Machine rates: laser, CNC and plasma per hour, minimums, plasma setup fee and its last-weekend waiver, filament cost and markup, sublimation per print, run-time rounding | Admin → Settings → Machine rates |
+| A member's membership, shop access, staff note, and (admins only) role; registering a badge for them and switching a lost one off | Admin → Members → a member |
+| Volunteer roles and what each involves | Admin → Volunteers → Roles |
+| Bounty board requests: fix the wording, hide, reopen, remove spam | Admin → Bounties |
+| Shared PCs and their software: edit, retire a PC, switch a program off | Admin → Workstations (a retired PC's kiosk screen says it is switched off) |
+| Maintenance blocks: change or remove | Admin → Reservations → Maintenance blocks |
+| Maintenance blocks: schedule or change one as a Shop Steward who is not staff | `/maintenance` |
+| Inventory areas (rename, switch off) and who stewards each | Inventory → Areas |
+| Which page is the hours and which policy new members agree to; the every-safety-question quiz rule | Admin → Settings |
+| Shop inventory with photos | Inventory → Add item |
+
+Lists with no table of their own (directory, gallery, wishlist, promos, display settings, shop details, tool champion terms) are rows in `SiteRecord`, one JSON row each (`src/lib/data/persist-delta.ts`). Uploaded pictures are rows in `StoredFile`, because a Worker has no disk; set `INVENTORY_PHOTO_STORAGE=drive` to send new photos to a Google shared drive instead (`src/lib/inventory/storage.ts`).
+
+Still in code: page headings, button labels and the messages built from data (dashboard notices, quiz results, booking confirmations), which machines are included with membership and which bill by time, gram or print (`src/lib/credits.ts`), and the class-category and machine-area lists. To make another paragraph editable, add it to `TEXT_BLOCKS` and draw it with `<TextBlock slug="…" />`.
 
 ## Local development (mock UI — default)
 
@@ -85,7 +118,9 @@ npm run db:seed
 
 `/workstation?device=BOX-PC-1` is the kiosk UI (no public header/footer/Dev toolbar). PIN or phone QR logs in the same `User` row. Magic links stay for home use.
 
-Login is **identity + which software you may open**. Sitting at a desk URL does not start a clock or debit credits. Charge when a **job is sent** (estimate shown first). 3D: grams × (filament $/kg × 1.30 / 1000), default ~$12/kg PLA → ~1.56¢/g, min $1 member / $5 nonmember. Laser/CNC: estimated run time rounded up 5 min (member/nonmember rates). Vinyl, woodshop, sewing, hand tools: included. Sublimation $1/$2 per print. Unlimited: log the job at $0 machine time. Prints and spooler jobs are not cancelled on logout.
+Login is **identity + which software you may open**. Sitting at a desk URL does not start a clock or debit credits. Charge when a **job is sent** (estimate shown first).
+
+The prices are the shop's rate card, edited under Admin → Settings → Machine rates and kept in the database (`SiteRecord` row `rateCard:default`; `src/lib/rate-card.ts`). The numbers below are the defaults, which apply until staff save their own. 3D: grams × (filament $/kg × 1.30 / 1000), default ~$12/kg PLA → ~1.56¢/g, min $1 member / $5 nonmember. Laser/CNC: estimated run time rounded up 5 min (member/nonmember rates). Plasma: the same, plus a $50 setup fee that is waived on the last weekend of the month. Sublimation $1/$2 per print. Vinyl, woodshop, sewing, hand tools: included, and not on the card. Unlimited: log the job at $0 machine time. The server prices every job itself from the card (`src/lib/workstation/jobs.ts`); the desk only sends grams, minutes or prints. A changed rate applies from the next job sent, and jobs already sent keep what they were charged. `Machine.hourlyRateCents` is not read by billing. Prints and spooler jobs are not cancelled on logout.
 
 Tauri 2 shell: `apps/workstation-shell/` (autostart, Credential Manager, launch mapped `.exe`s after `POST /api/workstation/launch`).
 
@@ -302,7 +337,7 @@ chromium-browser --kiosk --noerrdialogs --disable-infobars \
 
 Disable screen sleep on the device (e.g. `xset s off`, `xset -dpms`, or Raspberry Pi OS screen blanking settings). Use a systemd user service or desktop autostart that opens the URL after network is up.
 
-Staff edit promos, panel order, cadence, and name display under **Admin → Display**. The rotation includes a **Bounty board** panel (open and recently claimed requests, no claim form). Promo images upload to `public/uploads/promos` in development, and `npm run sync:google` drops images from Drive `Photos/Promos/` into the same folder; for production, point uploads at object storage (S3/R2) and store the resulting URL on the promo.
+Staff edit promos, panel order, cadence, and name display under **Admin → Display**. The rotation includes a **Bounty board** panel (open and recently claimed requests, no claim form). A promo picture uploaded from Admin → Display is shrunk in the browser and kept in the database with the other uploaded photos.
 
 ## Env
 

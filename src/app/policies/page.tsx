@@ -19,7 +19,7 @@ export default function PoliciesIndexPage() {
       <PageHero
         eyebrow="House policies"
         title="How we share the shop"
-        description="Staff keep these pages up to date from the shared Google Drive folder."
+        description="The house rules everyone agrees to when they use the shop."
       />
 
       <ul className="mt-12 divide-y divide-border border-y border-border">

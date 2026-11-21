@@ -3,7 +3,10 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { devToolsLocked } from "@/lib/data/rpc-policy";
 import { putPhoto } from "@/lib/inventory/storage";
-import { validatePhotoUpload } from "@/lib/inventory/upload-policy";
+import {
+  PhotoRejectedError,
+  validatePhotoUpload,
+} from "@/lib/inventory/upload-policy";
 
 export const runtime = "nodejs";
 
@@ -73,21 +76,35 @@ export async function POST(request: NextRequest) {
     .toLowerCase()
     .replace(/[^a-z0-9_-]/g, "")
     .slice(0, 32) || "other";
-  const stored = await putPhoto({
-    bytes: main.bytes,
-    mimeType: main.check.mimeType,
-    filename: file.name || `${kind}.jpg`,
-    folder: "temp",
-  });
+  // Storage can fail for reasons the member cannot fix. The form reads the
+  // reply as JSON, so it must get JSON even then.
+  let stored: { storageKey: string };
   let thumbKey: string | null = null;
-  if (small && small.check.ok) {
-    const thumbStored = await putPhoto({
-      bytes: small.bytes,
-      mimeType: small.check.mimeType,
-      filename: `thumb-${file.name || "photo.jpg"}`,
+  try {
+    stored = await putPhoto({
+      bytes: main.bytes,
+      mimeType: main.check.mimeType,
+      filename: file.name || `${kind}.jpg`,
       folder: "temp",
     });
-    thumbKey = thumbStored.storageKey;
+    if (small && small.check.ok) {
+      const thumbStored = await putPhoto({
+        bytes: small.bytes,
+        mimeType: small.check.mimeType,
+        filename: `thumb-${file.name || "photo.jpg"}`,
+        folder: "temp",
+      });
+      thumbKey = thumbStored.storageKey;
+    }
+  } catch (err) {
+    if (err instanceof PhotoRejectedError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
+    console.error(JSON.stringify({ route: "inventory/uploads", error: String(err) }));
+    return NextResponse.json(
+      { error: "Could not save the photo. Please try again." },
+      { status: 500 },
+    );
   }
   return NextResponse.json({
     storageKey: stored.storageKey,

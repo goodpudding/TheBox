@@ -1,7 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { PROJECT_HIGHLIGHTS, SOCIAL_LINKS } from "@/lib/social";
+import { useEffect, useState } from "react";
+import { useData } from "@/components/providers";
+import { TextBlock } from "@/components/text-block";
+import { useSiteInfo } from "@/components/use-site-info";
+import type { Project } from "@/lib/data";
 
 function InstagramIcon({ className }: { className?: string }) {
   return (
@@ -45,8 +49,21 @@ export function ProjectHighlights({
   limit,
   showHeading = true,
 }: ProjectHighlightsProps) {
-  const items =
-    limit != null ? PROJECT_HIGHLIGHTS.slice(0, limit) : PROJECT_HIGHLIGHTS;
+  const { provider, revision } = useData();
+  const social = useSiteInfo();
+  const [projects, setProjects] = useState<Project[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void provider.listProjects().then((list) => {
+      if (!cancelled) setProjects(list);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [provider, revision]);
+
+  const items = limit != null ? projects.slice(0, limit) : projects;
 
   return (
     <div>
@@ -57,14 +74,14 @@ export function ProjectHighlights({
             <h2 className="mt-2 font-display text-2xl font-semibold text-brown">
               Member project highlights
             </h2>
-            <p className="mt-3 text-secondary leading-relaxed">
-              A peek at what people are building in the shop. Follow along for
-              more — and tag us when you finish something.
-            </p>
+            <TextBlock
+              slug="gallery-intro"
+              className="mt-3 text-secondary leading-relaxed"
+            />
           </div>
           <div className="flex flex-wrap gap-2">
             <a
-              href={SOCIAL_LINKS.instagram.href}
+              href={social.instagramUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-full border border-brown/25 bg-surface px-4 py-2.5 font-display text-sm font-semibold text-brown transition-colors hover:border-brown/50 hover:bg-white"
@@ -73,7 +90,7 @@ export function ProjectHighlights({
               Instagram
             </a>
             <a
-              href={SOCIAL_LINKS.facebook.href}
+              href={social.facebookUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-full border border-brown/25 bg-surface px-4 py-2.5 font-display text-sm font-semibold text-brown transition-colors hover:border-brown/50 hover:bg-white"
@@ -96,6 +113,8 @@ export function ProjectHighlights({
                 alt={project.imageAlt}
                 fill
                 sizes="(max-width: 640px) 100vw, 50vw"
+                // Uploaded photos and outside addresses are shown as they are.
+                unoptimized={!project.imageSrc.startsWith("/images/")}
                 className="object-cover object-center transition-transform duration-500 group-hover:scale-[1.03]"
               />
             </div>
@@ -114,27 +133,11 @@ export function ProjectHighlights({
         ))}
       </ul>
 
-      <p className="mt-10 max-w-2xl text-sm text-secondary">
-        Want your build featured? Share it on{" "}
-        <a
-          href={SOCIAL_LINKS.instagram.href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary-text underline underline-offset-2"
-        >
-          Instagram
-        </a>{" "}
-        or{" "}
-        <a
-          href={SOCIAL_LINKS.facebook.href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary-text underline underline-offset-2"
-        >
-          Facebook
-        </a>{" "}
-        and tell staff — we only post member work with permission.
-      </p>
+      <TextBlock
+        slug="gallery-permission"
+        values={{ instagramUrl: social.instagramUrl, facebookUrl: social.facebookUrl }}
+        className="mt-10 max-w-2xl text-sm text-secondary"
+      />
     </div>
   );
 }
@@ -146,6 +149,7 @@ export function SocialLinks({
   className?: string;
   tone?: "light" | "dark";
 }) {
+  const social = useSiteInfo();
   const linkClass =
     tone === "dark"
       ? "inline-flex items-center gap-2 hover:text-primary transition-colors"
@@ -156,7 +160,7 @@ export function SocialLinks({
       className={`flex flex-wrap gap-x-5 gap-y-2 font-display text-sm ${className}`}
     >
       <a
-        href={SOCIAL_LINKS.instagram.href}
+        href={social.instagramUrl}
         target="_blank"
         rel="noopener noreferrer"
         className={linkClass}
@@ -165,7 +169,7 @@ export function SocialLinks({
         Instagram
       </a>
       <a
-        href={SOCIAL_LINKS.facebook.href}
+        href={social.facebookUrl}
         target="_blank"
         rel="noopener noreferrer"
         className={linkClass}

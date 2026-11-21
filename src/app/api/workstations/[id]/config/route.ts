@@ -11,7 +11,16 @@ export async function GET(
   const { id } = await ctx.params;
   const config = await workstationConfigPayload(id);
   if (!config) {
-    return NextResponse.json({ error: "Unknown workstation" }, { status: 404 });
+    return NextResponse.json(
+      { error: "This desk is not set up yet. Ask staff to register it." },
+      { status: 404 },
+    );
+  }
+  if (!config.workstation.active) {
+    return NextResponse.json(
+      { error: "This desk has been switched off. Ask staff." },
+      { status: 403 },
+    );
   }
   return NextResponse.json(config, {
     headers: { "Cache-Control": "no-store" },

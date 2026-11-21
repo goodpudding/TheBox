@@ -15,9 +15,26 @@ import {
   shopLeadProgress,
   TOOL_CHAMPION_TERM_MONTHS,
 } from "./access";
+import {
+  CONTENT_CATEGORIES,
+  cleanContentHtml,
+  contentHtmlHasText,
+  contentSlug,
+} from "./content-html";
+import { isBadgeUid, normalizeBadgeUid } from "./badge-uid";
 import { cloneFixtures, loadFixtures } from "./load-fixtures";
+import { pictureAddress, webAddress } from "./site-info";
+import {
+  applyRateCardPatch,
+  normalizeRateCard,
+  rateCardChanges,
+  type RateCard,
+} from "../rate-card";
+import { isTextBlockSlug } from "./text-blocks";
 import {
   computePublishReadiness,
+  describePublishBlockers,
+  youtubeIdFrom,
   gradeQuizAttempt,
   publishBlockersFromReadiness,
 } from "./learning";
@@ -81,6 +98,12 @@ import type {
   WishlistItemView,
   WishlistPurchaseReportInput,
   WishlistPurchaseReportView,
+  ContentPageInput,
+  PersonInput,
+  ProjectInput,
+  WishlistItemInput,
+  BountyModeration,
+  VolunteerRoleInput,
 } from "./provider";
 import { buildDisplayFeed, buildMachineStatuses } from "./display-feed";
 import {
@@ -169,6 +192,12 @@ import type {
   PhotoKind,
   WishlistItem,
   WishlistPurchaseReport,
+  Project,
+  SiteInfo,
+  UserRole,
+  MembershipTier,
+  VideoRole,
+  AreaSteward,
 } from "./types";
 import {
   canInventory,
@@ -268,6 +297,15 @@ function endsAfterShopClosing(endsAt: string): boolean {
   if (!window) return true;
   const [, close] = window;
   return end.hour * 60 + end.minute > close * 60;
+}
+
+const VIDEO_ROLES: readonly VideoRole[] = ["primary", "supporting", "conditional"];
+
+/** A copy without the keys whose value is undefined, so an edit cannot blank a field it did not send. */
+function definedOnly<T extends object>(data: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(data).filter(([, value]) => value !== undefined),
+  ) as Partial<T>;
 }
 
 function questionCorrectIndexes(q: Question): number[] {
@@ -419,6 +457,38 @@ export function mergeStaffEdits(
     if (!same) owned.add(key);
   }
   return [...owned];
+}
+
+const MEMBER_ROLES: readonly UserRole[] = ["member", "staff", "admin"];
+
+const MEMBERSHIP_TIERS: readonly MembershipTier[] = [
+  "day",
+  "community",
+  "maker",
+  "household_addon",
+  "patron",
+  "friend",
+  "scholarship",
+  "maker_pro",
+  "unlimited",
+  "team",
+  "shop_steward",
+];
+
+/** Ten past the largest order in the list, so a new row lands at the end. */
+function nextSortOrder(rows: { sortOrder: number }[]): number {
+  return rows.reduce((max, row) => Math.max(max, row.sortOrder), 0) + 10;
+}
+
+/** "SawStop Table Saw" → "sawstop-table-saw", for a made-up reader key. */
+function readerSlug(name: string): string {
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40)
+    .replace(/-+$/g, "");
+  return slug || "machine";
 }
 
 export class MockDataProvider implements DataProvider {
@@ -1585,12 +1655,25 @@ export class MockDataProvider implements DataProvider {
     if (!session || !session.published) {
       throw new Error("Class session not found");
     }
+    if (session.cancelledAt) throw new Error("This class was cancelled.");
     if (new Date(session.startsAt).getTime() < Date.now()) {
       throw new Error("Cannot book a class that has already started");
     }
 
     this.assertInterestPriority(classSessionId, userId);
+    return this.placeBooking(session, userId, "You already have a booking for this class");
+  }
 
+  /**
+   * The part of a booking that is the same whoever makes it: one booking per
+   * person, prerequisites, then a seat, a payment hold or the waitlist.
+   */
+  private placeBooking(
+    session: ClassSession,
+    userId: string,
+    alreadyBooked: string,
+  ): Booking {
+    const classSessionId = session.id;
     const existing = this.state.bookings.find(
       (b) =>
         b.classSessionId === classSessionId &&
@@ -1598,7 +1681,7 @@ export class MockDataProvider implements DataProvider {
         !["cancelled", "expired", "no_show"].includes(b.status),
     );
     if (existing) {
-      throw new Error("You already have a booking for this class");
+      throw new Error(alreadyBooked);
     }
 
     for (const certId of session.prerequisiteCertificationIds) {
@@ -1759,13 +1842,25 @@ export class MockDataProvider implements DataProvider {
       }
     }
 
+    return this.releaseBooking(booking, session, userId);
+  }
+
+  /**
+   * Cancel a booking and pass its seat on: the first person waiting moves up,
+   * or the waitlist is renumbered. Credits spent on it are given back.
+   */
+  private async releaseBooking(
+    booking: Booking,
+    session: ClassSession,
+    actorId: string,
+  ): Promise<Booking> {
     const wasSeat = SEAT_STATUSES.includes(booking.status);
     booking.status = "cancelled";
     booking.cancelledAt = this.now();
     this.touch(booking);
 
     if (wasSeat) {
-      await this.adminPromoteFromWaitlist(session.id, userId);
+      await this.adminPromoteFromWaitlist(session.id, actorId);
     } else {
       // Re-number waitlist
       const waitlisted = this.state.bookings
@@ -2408,6 +2503,90 @@ export class MockDataProvider implements DataProvider {
       .sort((a, b) => a.sortOrder - b.sortOrder);
   }
 
+  async adminListVolunteerRoles(): Promise<VolunteerRole[]> {
+    return [...this.state.volunteerRoles].sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+
+  async adminSaveVolunteerRole(input: VolunteerRoleInput): Promise<VolunteerRole> {
+    const now = this.now();
+    const title = requiredText(input.title, "Title", NAME_MAX);
+    const existing = input.id
+      ? this.state.volunteerRoles.find((r) => r.id === input.id)
+      : undefined;
+    if (input.id && !existing) throw new Error("That role no longer exists.");
+    const sameTitle = this.state.volunteerRoles.find(
+      (r) => r.id !== existing?.id && r.title.trim().toLowerCase() === title.toLowerCase(),
+    );
+    if (sameTitle) throw new Error(`There is already a role called "${sameTitle.title}".`);
+
+    let role: VolunteerRole;
+    if (existing) {
+      Object.assign(existing, {
+        title,
+        active: input.active ?? existing.active,
+        sortOrder: input.sortOrder ?? existing.sortOrder,
+        updatedAt: now,
+      });
+      role = existing;
+    } else {
+      // The address and the description page keep their names for good, so
+      // a later rename does not break the sign-up form or the page link.
+      let slug = contentSlug(title).slice(0, 48).replace(/-+$/g, "") || "role";
+      const taken = (candidate: string) =>
+        this.state.volunteerRoles.some((r) => r.slug === candidate) ||
+        this.state.contentPages.some((p) => p.slug === `volunteer-${candidate}`);
+      for (let n = 2; taken(slug); n += 1) {
+        slug = `${slug.replace(/-\d+$/, "")}-${n}`;
+      }
+      role = {
+        id: this.id("vr"),
+        slug,
+        title,
+        contentSlug: `volunteer-${slug}`,
+        active: input.active ?? true,
+        sortOrder: input.sortOrder ?? nextSortOrder(this.state.volunteerRoles),
+        createdAt: now,
+        updatedAt: now,
+      };
+      this.state.volunteerRoles.push(role);
+    }
+
+    if (input.descriptionHtml !== undefined) {
+      const html = cleanContentHtml(input.descriptionHtml);
+      const page = this.state.contentPages.find((p) => p.slug === role.contentSlug);
+      if (page) {
+        if (page.html !== html || page.title !== title || !page.published) {
+          Object.assign(page, {
+            html,
+            title,
+            published: contentHtmlHasText(html),
+            updatedAt: now,
+          });
+        }
+      } else if (contentHtmlHasText(html)) {
+        this.state.contentPages.push({
+          id: this.id("content"),
+          slug: role.contentSlug,
+          title,
+          html,
+          category: "volunteer",
+          version: "1",
+          published: true,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+    }
+    this.pushAudit({
+      action: "volunteer_role_saved",
+      actorId: this.currentUserId ?? null,
+      entityType: "VolunteerRole",
+      entityId: role.id,
+      metadata: { title: role.title, active: role.active },
+    });
+    return { ...role };
+  }
+
   async submitVolunteerInterest(
     input: VolunteerInterestInput,
   ): Promise<VolunteerInterest> {
@@ -2492,6 +2671,63 @@ export class MockDataProvider implements DataProvider {
   async getBounty(id: string): Promise<BountyView | null> {
     const bounty = this.state.bounties.find((b) => b.id === id && !b.deletedAt);
     return bounty ? this.toBountyView(bounty) : null;
+  }
+
+  async adminListBounties(): Promise<Bounty[]> {
+    return this.state.bounties
+      .map((b) => ({ ...b }))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async adminUpdateBounty(id: string, patch: BountyModeration): Promise<Bounty> {
+    const bounty = this.state.bounties.find((b) => b.id === id);
+    if (!bounty) throw new Error("That request no longer exists.");
+    const actorId = this.currentUserId ?? null;
+    const now = this.now();
+    const note = (action: AuditAction) =>
+      this.pushAudit({ action, actorId, entityType: "Bounty", entityId: id });
+
+    if (patch.title !== undefined || patch.description !== undefined) {
+      const title = (patch.title ?? bounty.title).trim();
+      const description = (patch.description ?? bounty.description).trim();
+      if (title.length < 3 || title.length > 120) {
+        throw new Error("Title should be between 3 and 120 characters");
+      }
+      if (description.length < 10 || description.length > 2000) {
+        throw new Error("The description should be between 10 and 2000 characters");
+      }
+      if (title !== bounty.title || description !== bounty.description) {
+        bounty.title = title;
+        bounty.description = description;
+        note("bounty_edited_by_staff");
+      }
+    }
+    if (patch.hidden !== undefined && patch.hidden !== Boolean(bounty.deletedAt)) {
+      bounty.deletedAt = patch.hidden ? now : null;
+      note(patch.hidden ? "bounty_hidden" : "bounty_unhidden");
+    }
+    if (patch.reopen && bounty.status !== "open") {
+      bounty.status = "open";
+      bounty.claimedByUserId = null;
+      bounty.claimedAt = null;
+      bounty.completedAt = null;
+      note("bounty_reopened");
+    }
+    bounty.updatedAt = now;
+    return { ...bounty };
+  }
+
+  async adminDeleteBounty(id: string): Promise<void> {
+    const bounty = this.state.bounties.find((b) => b.id === id);
+    if (!bounty) throw new Error("That request is already gone.");
+    this.state.bounties = this.state.bounties.filter((b) => b.id !== id);
+    this.pushAudit({
+      action: "bounty_removed",
+      actorId: this.currentUserId ?? null,
+      entityType: "Bounty",
+      entityId: id,
+      metadata: { title: bounty.title },
+    });
   }
 
   async submitBountyRequest(input: BountyRequestInput): Promise<Bounty> {
@@ -2847,6 +3083,77 @@ export class MockDataProvider implements DataProvider {
     return user;
   }
 
+  async adminUpdateMember(
+    id: string,
+    patch: {
+      role?: UserRole;
+      tier?: MembershipTier | null;
+      shopAccess?: boolean;
+      notes?: string;
+    },
+  ): Promise<User> {
+    const user = this.requireUser(id);
+    // Who is acting comes from the session, not from the request. A role
+    // change that trusted a sent id could be claimed in an admin's name.
+    const actor = this.state.users.find((u) => u.id === this.currentUserId) ?? null;
+
+    if (patch.role !== undefined && patch.role !== user.role) {
+      if (!MEMBER_ROLES.includes(patch.role)) throw new Error("Unknown role.");
+      if (actor?.role !== "admin") throw new Error("Only an admin can change roles.");
+      if (actor.id === user.id) throw new Error("You cannot change your own role.");
+      const otherActiveAdmins = this.state.users.filter(
+        (u) => u.role === "admin" && u.status === "active" && u.id !== user.id,
+      );
+      if (user.role === "admin" && user.status === "active" && otherActiveAdmins.length === 0) {
+        throw new Error("This is the last active admin. Make someone else an admin first.");
+      }
+      const from = user.role;
+      user.role = patch.role;
+      this.pushAudit({
+        action: "member_role_changed",
+        actorId: actor.id,
+        subjectUserId: id,
+        entityType: "User",
+        entityId: id,
+        metadata: { from, to: patch.role },
+      });
+    }
+
+    const changed: Record<string, unknown> = {};
+    if (patch.tier !== undefined && patch.tier !== (user.tier ?? null)) {
+      if (patch.tier !== null && !MEMBERSHIP_TIERS.includes(patch.tier)) {
+        throw new Error("Unknown membership.");
+      }
+      changed.tier = { from: user.tier ?? null, to: patch.tier };
+      user.tier = patch.tier;
+    }
+    if (patch.shopAccess !== undefined && patch.shopAccess !== user.shopAccess) {
+      changed.shopAccess = { from: user.shopAccess, to: patch.shopAccess };
+      user.shopAccess = patch.shopAccess;
+    }
+    if (patch.notes !== undefined) {
+      const notes = optionalText(patch.notes, "Staff note", MESSAGE_MAX) ?? "";
+      if (notes !== (user._notes ?? "")) {
+        // The note itself stays out of the audit trail.
+        changed.notes = true;
+        if (notes) user._notes = notes;
+        else delete user._notes;
+      }
+    }
+    if (Object.keys(changed).length > 0) {
+      this.pushAudit({
+        action: "member_updated",
+        actorId: actor?.id ?? null,
+        subjectUserId: id,
+        entityType: "User",
+        entityId: id,
+        metadata: changed,
+      });
+    }
+    this.touch(user);
+    return user;
+  }
+
   private async rememberPin(userId: string, pin: string): Promise<void> {
     if (process.env.VITEST !== "true") return;
     const { hashKioskPin, normalizePin } = await import(
@@ -3104,6 +3411,66 @@ export class MockDataProvider implements DataProvider {
     return badge;
   }
 
+  async adminRegisterBadge(
+    userId: string,
+    input: { uid: string; label?: string },
+  ): Promise<Badge> {
+    const member = this.requireUser(userId);
+    const uid = normalizeBadgeUid(typeof input.uid === "string" ? input.uid : "");
+    if (!isBadgeUid(uid)) {
+      throw new Error(
+        "That does not look like a badge number. Type the letters and digits printed on the fob, or tap it on a reader.",
+      );
+    }
+    const existing = this.state.badges.find((b) => normalizeBadgeUid(b.uid) === uid);
+    if (existing) {
+      const owner = existing.userId
+        ? this.state.users.find((u) => u.id === existing.userId)
+        : undefined;
+      throw new Error(
+        owner
+          ? `That badge is already registered to ${owner.displayName}.`
+          : "That badge is already registered. Link it to this member from the list.",
+      );
+    }
+    const now = this.now();
+    const badge: Badge = {
+      id: this.id("badge"),
+      uid,
+      label: optionalText(input.label, "Label", NAME_MAX) ?? undefined,
+      userId: member.id,
+      active: true,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.state.badges.push(badge);
+    this.pushAudit({
+      action: "badge_registered",
+      actorId: this.currentUserId ?? null,
+      subjectUserId: member.id,
+      entityType: "Badge",
+      entityId: badge.id,
+    });
+    return { ...badge };
+  }
+
+  async adminSetBadgeActive(badgeId: string, active: boolean): Promise<Badge> {
+    const badge = this.state.badges.find((b) => b.id === badgeId);
+    if (!badge) throw new Error("Badge not found");
+    if (badge.active !== active) {
+      badge.active = active;
+      this.touch(badge);
+      this.pushAudit({
+        action: active ? "badge_reactivated" : "badge_deactivated",
+        actorId: this.currentUserId ?? null,
+        subjectUserId: badge.userId,
+        entityType: "Badge",
+        entityId: badge.id,
+      });
+    }
+    return { ...badge };
+  }
+
   async adminRecordCheckoff(input: CheckoffInput): Promise<UserCertification> {
     this.requireUser(input.userId);
     const cert = this.state.certifications.find(
@@ -3205,25 +3572,28 @@ export class MockDataProvider implements DataProvider {
     return cert;
   }
 
-  async adminUpsertClass(data: ClassSessionInput): Promise<ClassSession> {
+  async adminUpsertClass(input: ClassSessionInput): Promise<ClassSession> {
     const now = this.now();
+    // The description is a content page, not a column on the class.
+    const { description, ...data } = input;
     if (data.id) {
       const existing = this.state.classSessions.find((c) => c.id === data.id);
       if (existing) {
-        const staffEditedFields = mergeStaffEdits(existing, data);
-        Object.assign(existing, data, {
+        // A class keeps the address it was given. Its title can change.
+        const changes = { ...data, slug: existing.slug };
+        const staffEditedFields = mergeStaffEdits(existing, changes);
+        Object.assign(existing, changes, {
           staffEditedFields,
           updatedAt: now,
         });
+        if (description !== undefined) this.saveClassDescription(existing, description);
         return existing;
       }
     }
     const session: ClassSession = {
       id: data.id ?? this.id("class"),
       title: data.title,
-      slug:
-        data.slug ??
-        data.title.toLowerCase().replace(/\s+/g, "-").slice(0, 48),
+      slug: this.uniqueClassSlug(data.slug ?? data.title, data.startsAt),
       descriptionSlug: data.descriptionSlug ?? "class-generic",
       category: data.category ?? "workshop",
       instructorId: data.instructorId,
@@ -3248,7 +3618,191 @@ export class MockDataProvider implements DataProvider {
       updatedAt: now,
     };
     this.state.classSessions.push(session);
+    if (description !== undefined) this.saveClassDescription(session, description);
     return session;
+  }
+
+  /**
+   * A class address nobody else has. The database allows each one once, and
+   * the same class runs week after week under one title: the second session
+   * gets its date added, and a counter after that.
+   */
+  private uniqueClassSlug(source: string, startsAt: string): string {
+    const taken = new Set(this.state.classSessions.map((c) => c.slug));
+    const base = contentSlug(source).slice(0, 48).replace(/-+$/g, "") || "class";
+    if (!taken.has(base)) return base;
+    const date = new Date(startsAt);
+    const dated = Number.isNaN(date.getTime())
+      ? base
+      : `${base}-${date.toISOString().slice(0, 10)}`;
+    if (!taken.has(dated)) return dated;
+    for (let n = 2; ; n += 1) {
+      const candidate = `${dated}-${n}`;
+      if (!taken.has(candidate)) return candidate;
+    }
+  }
+
+  /**
+   * Keep what staff wrote about one session as that session's own page.
+   * Several sessions can start out pointing at one shared page; an edit to
+   * one must not change the others, so the edited session gets its own.
+   */
+  private saveClassDescription(session: ClassSession, rawHtml: string): void {
+    const now = this.now();
+    const html = cleanContentHtml(rawHtml);
+    const ownSlug = `class-description-${contentSlug(session.id)}`;
+    const own = this.state.contentPages.find((p) => p.slug === ownSlug);
+
+    if (!contentHtmlHasText(html)) {
+      // Emptied: back to the wording every class without its own text shows.
+      if (own?.published) Object.assign(own, { published: false, updatedAt: now });
+      if (session.descriptionSlug === ownSlug) {
+        session.descriptionSlug = "class-generic";
+        session.staffEditedFields = [
+          ...new Set([...(session.staffEditedFields ?? []), "descriptionSlug"]),
+        ];
+      }
+      return;
+    }
+
+    const current = this.state.contentPages.find(
+      (p) => p.slug === session.descriptionSlug && p.published,
+    );
+    if (current && current.html === html) return;
+
+    if (own) {
+      Object.assign(own, { html, title: session.title, published: true, updatedAt: now });
+    } else {
+      this.state.contentPages.push({
+        id: this.id("content"),
+        slug: ownSlug,
+        title: session.title,
+        html,
+        category: "class",
+        version: "1",
+        published: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+    if (session.descriptionSlug !== ownSlug) {
+      session.descriptionSlug = ownSlug;
+      // The Zeffy pull keeps fields staff own.
+      session.staffEditedFields = [
+        ...new Set([...(session.staffEditedFields ?? []), "descriptionSlug"]),
+      ];
+    }
+  }
+
+  async adminListClasses(): Promise<ClassSessionView[]> {
+    const now = Date.now();
+    const start = (c: ClassSession) => new Date(c.startsAt).getTime();
+    const ended = (c: ClassSession) => new Date(c.endsAt).getTime() < now;
+    return this.state.classSessions
+      .filter((c) => !c.deletedAt)
+      .sort((a, b) => {
+        if (ended(a) !== ended(b)) return ended(a) ? 1 : -1;
+        // Upcoming soonest first; past most recent first.
+        return ended(a) ? start(b) - start(a) : start(a) - start(b);
+      })
+      .map((c) => this.toClassView(c, this.currentUserId));
+  }
+
+  private requireClass(id: string): ClassSession {
+    const session = this.state.classSessions.find((c) => c.id === id && !c.deletedAt);
+    if (!session) throw new Error("Class session not found");
+    return session;
+  }
+
+  async adminCancelClass(id: string): Promise<ClassSession> {
+    const session = this.requireClass(id);
+    if (session.cancelledAt) throw new Error("This class is already cancelled.");
+    session.cancelledAt = this.now();
+    // Without this the hourly Zeffy pull would put the class back.
+    session.staffEditedFields = [
+      ...new Set([...(session.staffEditedFields ?? []), "cancelledAt"]),
+    ];
+    this.touch(session);
+    this.pushAudit({
+      action: "class_cancelled",
+      actorId: this.currentUserId ?? null,
+      entityType: "ClassSession",
+      entityId: session.id,
+      metadata: { title: session.title, startsAt: session.startsAt },
+    });
+    return session;
+  }
+
+  async adminRestoreClass(id: string): Promise<ClassSession> {
+    const session = this.requireClass(id);
+    if (!session.cancelledAt) throw new Error("This class is not cancelled.");
+    session.cancelledAt = null;
+    // Zeffy decides again from here, as it did before the staff cancel.
+    const owned = (session.staffEditedFields ?? []).filter((f) => f !== "cancelledAt");
+    session.staffEditedFields = owned.length > 0 ? owned : null;
+    this.touch(session);
+    this.pushAudit({
+      action: "class_restored",
+      actorId: this.currentUserId ?? null,
+      entityType: "ClassSession",
+      entityId: session.id,
+      metadata: { title: session.title, startsAt: session.startsAt },
+    });
+    return session;
+  }
+
+  async adminAddBooking(classSessionId: string, userId: string): Promise<Booking> {
+    const user = this.requireUser(userId);
+    if (user.status === "suspended") {
+      throw new Error(`${user.displayName} is suspended and cannot be booked into a class.`);
+    }
+    const session = this.requireClass(classSessionId);
+    if (session.cancelledAt) throw new Error("This class was cancelled.");
+    // Staff can add a walk-in once a class has started, but not after it ends.
+    if (new Date(session.endsAt).getTime() < Date.now()) {
+      throw new Error("This class has already finished.");
+    }
+    const booking = this.placeBooking(
+      session,
+      userId,
+      `${user.displayName} already has a booking for this class.`,
+    );
+    this.pushAudit({
+      action: "booking_added_by_staff",
+      actorId: this.currentUserId ?? null,
+      subjectUserId: userId,
+      entityType: "Booking",
+      entityId: booking.id,
+      metadata: { classSessionId, status: booking.status },
+    });
+    return booking;
+  }
+
+  async adminCancelBooking(bookingId: string): Promise<Booking> {
+    const booking = this.state.bookings.find((b) => b.id === bookingId);
+    if (!booking) throw new Error("Booking not found");
+    if (booking.status === "cancelled") {
+      throw new Error("That booking is already cancelled.");
+    }
+    if (["expired", "attended", "no_show"].includes(booking.status)) {
+      throw new Error(`A booking marked ${booking.status.replace(/_/g, " ")} cannot be cancelled.`);
+    }
+    const session = this.state.classSessions.find(
+      (c) => c.id === booking.classSessionId,
+    );
+    if (!session) throw new Error("Class session not found");
+    const actorId = this.currentUserId ?? booking.userId;
+    const from = booking.status;
+    await this.releaseBooking(booking, session, actorId);
+    this.pushAudit({
+      action: "booking_cancelled_by_staff",
+      actorId: this.currentUserId ?? null,
+      subjectUserId: booking.userId,
+      entityType: "Booking",
+      entityId: booking.id,
+      metadata: { classSessionId: session.id, from },
+    });
+    return booking;
   }
 
   async adminListRoster(classSessionId: string): Promise<BookingRosterRow[]> {
@@ -3712,7 +4266,17 @@ export class MockDataProvider implements DataProvider {
     if (data.id) {
       const existing = this.state.maintenanceBlocks.find((m) => m.id === data.id);
       if (existing) {
-        Object.assign(existing, data, { updatedAt: now });
+        // Who first scheduled it stays on the block. The edit is in the audit trail.
+        Object.assign(existing, data, {
+          createdById: existing.createdById,
+          updatedAt: now,
+        });
+        this.pushAudit({
+          action: "maintenance_updated",
+          actorId: data.createdById,
+          entityType: "MaintenanceBlock",
+          entityId: existing.id,
+        });
         return existing;
       }
     }
@@ -3738,6 +4302,51 @@ export class MockDataProvider implements DataProvider {
 
   async adminListMaintenanceBlocks(): Promise<MaintenanceBlock[]> {
     return [...this.state.maintenanceBlocks];
+  }
+
+  /**
+   * The signed-in person, if they may schedule maintenance. Who that is
+   * comes from the session the provider was made for, never from the
+   * request, so the check cannot be passed by naming someone else.
+   */
+  private maintenanceActor(): User {
+    const actor = this.state.users.find((u) => u.id === this.currentUserId);
+    if (!actor || !canScheduleMaintenance(actor)) {
+      throw new Error("Only staff or Shop Stewards can schedule maintenance");
+    }
+    return actor;
+  }
+
+  async scheduleMaintenance(
+    data: Omit<MaintenanceBlockInput, "createdById">,
+  ): Promise<MaintenanceBlock> {
+    const actor = this.maintenanceActor();
+    return this.adminUpsertMaintenanceBlock({
+      id: data.id,
+      machineId: data.machineId,
+      startsAt: data.startsAt,
+      endsAt: data.endsAt,
+      reason: data.reason,
+      createdById: actor.id,
+    });
+  }
+
+  async listMaintenanceSchedule(): Promise<MaintenanceBlock[]> {
+    this.maintenanceActor();
+    return [...this.state.maintenanceBlocks];
+  }
+
+  async adminDeleteMaintenanceBlock(id: string): Promise<void> {
+    const block = this.state.maintenanceBlocks.find((m) => m.id === id);
+    if (!block) throw new Error("That maintenance block is already gone.");
+    this.state.maintenanceBlocks = this.state.maintenanceBlocks.filter((m) => m.id !== id);
+    this.pushAudit({
+      action: "maintenance_removed",
+      actorId: this.currentUserId ?? null,
+      entityType: "MaintenanceBlock",
+      entityId: id,
+      metadata: { machineId: block.machineId, startsAt: block.startsAt, endsAt: block.endsAt },
+    });
   }
 
   private toolChampionProgressFor(userId: string): ToolChampionProgress {
@@ -3884,54 +4493,138 @@ export class MockDataProvider implements DataProvider {
 
   async adminUpsertModule(data: ModuleInput): Promise<LearningModule> {
     const now = this.now();
-    if (data.id) {
-      const existing = this.state.learningModules.find((m) => m.id === data.id);
-      if (existing) {
-        Object.assign(existing, data, { updatedAt: now });
-        return existing;
+    const existing = data.id
+      ? this.state.learningModules.find((m) => m.id === data.id)
+      : undefined;
+    const settings = this.state.settings;
+
+    const title = (data.title ?? "").trim().slice(0, 200);
+    if (!title) throw new Error("Give the module a title.");
+    const slug = contentSlug(data.slug ?? existing?.slug ?? title);
+    if (!slug) {
+      throw new Error("Give the module an address made of letters or numbers.");
+    }
+    if (this.state.learningModules.some((m) => m.slug === slug && m.id !== existing?.id)) {
+      throw new Error(`Another module already uses the address "${slug}".`);
+    }
+    const certificationId = data.certificationId ?? existing?.certificationId;
+    if (!this.state.certifications.some((c) => c.id === certificationId)) {
+      throw new Error("Choose a certification for this module.");
+    }
+    if (data.passThresholdPercent !== undefined) {
+      const pct = data.passThresholdPercent;
+      if (!Number.isInteger(pct) || pct < 1 || pct > 100) {
+        throw new Error("The pass mark must be between 1 and 100 percent.");
       }
     }
-    const mod: LearningModule = {
-      id: data.id ?? this.id("mod"),
-      slug: data.slug,
-      title: data.title,
-      summary: data.summary ?? "",
-      certificationId: data.certificationId,
-      knowledgeOnly: data.knowledgeOnly ?? false,
-      published: data.published ?? false,
-      equipmentStatus: data.equipmentStatus ?? "confirmed",
+    if (data.attemptLimit !== undefined) {
+      const limit = data.attemptLimit;
+      if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
+        throw new Error("Members need at least 1 attempt.");
+      }
+    }
+    if (data.sortOrder !== undefined && !Number.isFinite(data.sortOrder)) {
+      throw new Error("The order must be a number.");
+    }
+    const equipmentStatus =
+      data.equipmentStatus ?? existing?.equipmentStatus ?? "confirmed";
+    if (equipmentStatus !== "confirmed" && equipmentStatus !== "unconfirmed") {
+      throw new Error("Say whether the equipment matches this module.");
+    }
+    const staysPublished = Boolean(existing?.published) && data.published !== false;
+    if (staysPublished && equipmentStatus !== "confirmed") {
+      throw new Error(
+        "Unpublish the module before marking its equipment as not confirmed.",
+      );
+    }
+
+    const next: LearningModule = {
+      id: existing?.id ?? data.id ?? this.id("mod"),
+      slug,
+      title,
+      summary: (data.summary ?? existing?.summary ?? "").trim().slice(0, 2000),
+      certificationId: certificationId as string,
+      knowledgeOnly: data.knowledgeOnly ?? existing?.knowledgeOnly ?? false,
+      published: staysPublished,
+      equipmentStatus,
       passThresholdPercent:
         data.passThresholdPercent ??
-        this.state.settings.quizPassThresholdPercent,
+        existing?.passThresholdPercent ??
+        settings.quizPassThresholdPercent,
       attemptLimit:
-        data.attemptLimit ?? this.state.settings.quizAttemptLimit,
-      sortOrder: data.sortOrder ?? this.state.learningModules.length + 1,
-      createdAt: now,
+        data.attemptLimit ?? existing?.attemptLimit ?? settings.quizAttemptLimit,
+      sortOrder:
+        data.sortOrder ??
+        existing?.sortOrder ??
+        this.state.learningModules.length + 1,
+      createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     };
-    this.state.learningModules.push(mod);
-    return mod;
+
+    // "Publish" here goes through the same guard as the Publish button. A
+    // module that is not ready stays a draft, and nothing is saved.
+    if (data.published === true && !existing?.published) {
+      const readiness = this.publishReadinessFor(next);
+      if (!readiness.canPublish) {
+        throw new Error(
+          `This module cannot be published yet: ${describePublishBlockers(readiness).join("; ")}.`,
+        );
+      }
+      next.published = true;
+    }
+
+    if (existing) {
+      Object.assign(existing, next);
+      return existing;
+    }
+    this.state.learningModules.push(next);
+    return next;
   }
 
   async adminUpsertLesson(data: LessonInput): Promise<Lesson> {
     const now = this.now();
-    if (data.id) {
-      const existing = this.state.lessons.find((l) => l.id === data.id);
-      if (existing) {
-        Object.assign(existing, data, { updatedAt: now });
-        return existing;
-      }
+    const existing = data.id
+      ? this.state.lessons.find((l) => l.id === data.id)
+      : undefined;
+    const title = (data.title ?? "").trim().slice(0, 200);
+    if (!title) throw new Error("Give the lesson a title.");
+    const moduleId = existing?.moduleId ?? data.moduleId;
+    if (!this.state.learningModules.some((m) => m.id === moduleId)) {
+      throw new Error("That module no longer exists.");
     }
+    const slug = contentSlug(data.slug ?? existing?.slug ?? title);
+    if (!slug) {
+      throw new Error("Give the lesson an address made of letters or numbers.");
+    }
+    if (
+      this.state.lessons.some(
+        (l) => l.moduleId === moduleId && l.slug === slug && l.id !== existing?.id,
+      )
+    ) {
+      throw new Error(`Another lesson in this module already uses the address "${slug}".`);
+    }
+    if (existing) {
+      // Only what was sent changes. A field the form left out stays as it is.
+      Object.assign(existing, definedOnly(data), {
+        moduleId,
+        title,
+        slug,
+        contentSlug: (data.contentSlug ?? "").trim() || existing.contentSlug,
+        updatedAt: now,
+      });
+      return existing;
+    }
+    const mod = this.state.learningModules.find((m) => m.id === moduleId);
     const lesson: Lesson = {
       id: data.id ?? this.id("les"),
-      moduleId: data.moduleId,
-      slug: data.slug,
-      title: data.title,
-      contentSlug: data.contentSlug,
+      moduleId,
+      slug,
+      title,
+      contentSlug:
+        (data.contentSlug ?? "").trim() || `lesson-${mod?.slug ?? "module"}-${slug}`,
       sortOrder:
         data.sortOrder ??
-        this.state.lessons.filter((l) => l.moduleId === data.moduleId).length +
-          1,
+        this.state.lessons.filter((l) => l.moduleId === moduleId).length + 1,
       estimatedMinutes: data.estimatedMinutes ?? 10,
       gap: data.gap ?? false,
       createdAt: now,
@@ -3941,31 +4634,152 @@ export class MockDataProvider implements DataProvider {
     return lesson;
   }
 
-  async adminUpsertQuestion(data: QuestionInput): Promise<Question> {
-    const now = this.now();
-    if (data.id) {
-      const existing = this.state.questions.find((q) => q.id === data.id);
-      if (existing) {
-        Object.assign(existing, data, { updatedAt: now });
-        if (
-          data.correctIndexes == null &&
-          data.correctIndex != null &&
-          existing.correctIndexes == null
-        ) {
-          existing.correctIndexes = [data.correctIndex];
-        }
-        return existing;
+  async adminDeleteLesson(id: string): Promise<void> {
+    const lesson = this.state.lessons.find((l) => l.id === id);
+    if (!lesson) throw new Error("That lesson no longer exists.");
+    const mod = this.state.learningModules.find((m) => m.id === lesson.moduleId);
+    const siblings = this.state.lessons.filter((l) => l.moduleId === lesson.moduleId);
+    if (mod?.published && siblings.length === 1) {
+      throw new Error(
+        "This is the only lesson in a published module. Unpublish the module first.",
+      );
+    }
+    // The lesson's videos go with it, and so do the records of who watched
+    // them and who finished the lesson: they describe something that no
+    // longer exists. A certification is a separate record and is not touched.
+    const videoIds = new Set(
+      this.state.lessonVideos.filter((v) => v.lessonId === id).map((v) => v.id),
+    );
+    this.state.videoWatches = this.state.videoWatches.filter(
+      (w) => !videoIds.has(w.videoId),
+    );
+    this.state.lessonVideos = this.state.lessonVideos.filter(
+      (v) => v.lessonId !== id,
+    );
+    for (const q of this.state.questions) {
+      if (q.sourceVideoId && videoIds.has(q.sourceVideoId)) {
+        q.sourceVideoId = null;
+        q.updatedAt = this.now();
       }
     }
-    const correctIndexes =
-      data.correctIndexes ??
-      (data.correctIndex != null ? [data.correctIndex] : [0]);
+    const progressRemoved = this.state.lessonProgress.filter(
+      (p) => p.lessonId === id,
+    ).length;
+    this.state.lessonProgress = this.state.lessonProgress.filter(
+      (p) => p.lessonId !== id,
+    );
+    this.state.lessons = this.state.lessons.filter((l) => l.id !== id);
+    this.pushAudit({
+      action: "learning_lesson_removed",
+      actorId: this.currentUserId ?? null,
+      entityType: "lesson",
+      entityId: id,
+      metadata: {
+        moduleId: lesson.moduleId,
+        title: lesson.title,
+        videos: videoIds.size,
+        progressRows: progressRemoved,
+      },
+    });
+  }
+
+  async adminSaveLessonText(lessonId: string, html: string): Promise<ContentPage> {
+    const lesson = this.state.lessons.find((l) => l.id === lessonId);
+    if (!lesson) throw new Error("That lesson no longer exists.");
+    const existing = this.state.contentPages.find(
+      (p) => p.slug === lesson.contentSlug,
+    );
+    if (existing) {
+      const saved = await this.adminSaveContentPage({
+        id: existing.id,
+        title: existing.title,
+        html,
+        published: true,
+      });
+      if (lesson.contentSlug !== saved.slug) {
+        lesson.contentSlug = saved.slug;
+        this.touch(lesson);
+      }
+      return saved;
+    }
+    // No page yet. Older lessons carry a path here ("learn/laser/safety")
+    // that a page address cannot be, so the lesson gets a page of its own
+    // and is pointed at it.
+    const mod = this.state.learningModules.find((m) => m.id === lesson.moduleId);
+    const base =
+      contentSlug(`lesson-${mod?.slug ?? "module"}-${lesson.slug}`) ||
+      `lesson-${this.id("text")}`;
+    const taken = new Set(this.state.contentPages.map((p) => p.slug));
+    let slug = base;
+    for (let n = 2; taken.has(slug); n += 1) slug = `${base}-${n}`;
+    const saved = await this.adminSaveContentPage({
+      title: lesson.title,
+      html,
+      slug,
+      category: "lesson",
+    });
+    lesson.contentSlug = saved.slug;
+    this.touch(lesson);
+    return saved;
+  }
+
+  async adminUpsertQuestion(data: QuestionInput): Promise<Question> {
+    const now = this.now();
+    const existing = data.id
+      ? this.state.questions.find((q) => q.id === data.id)
+      : undefined;
+    const prompt = (data.prompt ?? "").trim().slice(0, 1000);
+    if (!prompt) throw new Error("Write the question.");
+    const choices = (data.choices ?? existing?.choices ?? []).map((c) =>
+      String(c ?? "").trim().slice(0, 500),
+    );
+    if (choices.length < 2) throw new Error("A question needs at least 2 choices.");
+    if (choices.length > 6) throw new Error("A question can have at most 6 choices.");
+    if (choices.some((c) => !c)) {
+      throw new Error("Fill in every choice, or remove the empty one.");
+    }
+
+    // Which answers are right. A list sent with the save is what staff
+    // ticked. Without one, an edit keeps the answers the question has,
+    // unless the single answer sent is a different one.
+    const before = existing ? questionCorrectIndexes(existing) : null;
+    let indexes: number[];
+    if (data.correctIndexes != null) {
+      indexes = [...new Set(data.correctIndexes)].sort((a, b) => a - b);
+    } else if (before && (data.correctIndex == null || data.correctIndex === existing?.correctIndex)) {
+      indexes = [...before];
+    } else {
+      indexes = [data.correctIndex ?? 0];
+    }
+    if (
+      indexes.length === 0 ||
+      indexes.some((i) => !Number.isInteger(i) || i < 0 || i >= choices.length)
+    ) {
+      throw new Error("Tick at least one right answer from the choices.");
+    }
+    const unchanged =
+      before != null &&
+      before.length === indexes.length &&
+      [...before].sort((a, b) => a - b).every((v, i) => v === indexes[i]);
+    const correctIndexes = unchanged && existing?.correctIndexes ? existing.correctIndexes : indexes;
+    const correctIndex = unchanged && existing ? existing.correctIndex : indexes[0]!;
+
+    if (existing) {
+      Object.assign(existing, definedOnly(data), {
+        prompt,
+        choices,
+        correctIndex,
+        correctIndexes,
+        updatedAt: now,
+      });
+      return existing;
+    }
     const question: Question = {
       id: data.id ?? this.id("q"),
       moduleId: data.moduleId,
-      prompt: data.prompt,
-      choices: data.choices,
-      correctIndex: data.correctIndex ?? correctIndexes[0] ?? 0,
+      prompt,
+      choices,
+      correctIndex,
       correctIndexes,
       explanation: data.explanation,
       active: data.active ?? true,
@@ -3997,24 +4811,52 @@ export class MockDataProvider implements DataProvider {
     const now = this.now();
     const lesson = this.state.lessons.find((l) => l.id === data.lessonId);
     if (!lesson) throw new Error("Lesson not found");
-    if (data.id) {
-      const existing = this.state.lessonVideos.find((v) => v.id === data.id);
-      if (existing) {
-        Object.assign(existing, data, { updatedAt: now });
-        return existing;
-      }
+    const existing = data.id
+      ? this.state.lessonVideos.find((v) => v.id === data.id)
+      : undefined;
+    const title = (data.title ?? "").trim().slice(0, 300);
+    if (!title) throw new Error("Give the video a title.");
+    if (!VIDEO_ROLES.includes(data.role)) {
+      throw new Error("Choose whether the video is required, extra, or only for some members.");
+    }
+    // Staff paste a link. The id is read out of it; an id typed on its own
+    // still works, and an edit that sends neither keeps what the video has.
+    const typedId = (data.youtubeId ?? "").trim();
+    const link = (data.url ?? "").trim();
+    const youtubeId =
+      typedId || youtubeIdFrom(link) || (existing && !link ? existing.youtubeId : "");
+    if (!youtubeId) throw new Error("Paste the video's YouTube link.");
+    const url = link || `https://www.youtube.com/watch?v=${youtubeId}`;
+    const condition =
+      data.condition === undefined
+        ? (existing?.condition ?? null)
+        : (optionalText(data.condition, "Who should watch it", 300) ?? null);
+
+    if (existing) {
+      Object.assign(existing, definedOnly(data), {
+        title,
+        youtubeId,
+        url,
+        condition,
+        updatedAt: now,
+      });
+      return existing;
     }
     const video: LessonVideo = {
       id: data.id ?? this.id("vid"),
       lessonId: data.lessonId,
-      order: data.order,
+      order:
+        data.order ??
+        this.state.lessonVideos
+          .filter((v) => v.lessonId === data.lessonId)
+          .reduce((max, v) => Math.max(max, v.order), 0) + 1,
       provider: data.provider ?? "youtube",
-      youtubeId: data.youtubeId,
-      url: data.url,
-      title: data.title,
-      channel: data.channel,
+      youtubeId,
+      url,
+      title,
+      channel: (data.channel ?? "").trim(),
       role: data.role,
-      condition: data.condition ?? null,
+      condition,
       durationSeconds: data.durationSeconds ?? null,
       verifiedAt: data.verifiedAt ?? null,
       staffReviewed: data.staffReviewed ?? false,
@@ -4032,6 +4874,12 @@ export class MockDataProvider implements DataProvider {
     this.state.videoWatches = this.state.videoWatches.filter(
       (w) => w.videoId !== id,
     );
+    for (const q of this.state.questions) {
+      if (q.sourceVideoId === id) {
+        q.sourceVideoId = null;
+        q.updatedAt = this.now();
+      }
+    }
     this.state.lessonVideos.splice(idx, 1);
   }
 
@@ -4079,21 +4927,46 @@ export class MockDataProvider implements DataProvider {
     return { ok: true, module: mod };
   }
 
+  async adminListMachines(): Promise<Machine[]> {
+    return [...this.state.machines].sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+
+  async adminListCertifications(): Promise<Certification[]> {
+    return [...this.state.certifications].sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+
   async adminUpsertMachine(data: MachineInput): Promise<Machine> {
     const now = this.now();
-    if (data.id) {
-      const existing = this.state.machines.find((m) => m.id === data.id);
-      if (existing) {
-        Object.assign(existing, data, { updatedAt: now });
-        return existing;
-      }
+    const name = (data.name ?? "").trim();
+    if (!name) throw new Error("Give the machine a name.");
+    const existing = data.id
+      ? this.state.machines.find((m) => m.id === data.id)
+      : undefined;
+    // A shop without badge readers has nothing to type here, and the
+    // database wants a different key on every machine. Blank keeps the key a
+    // machine already has, or makes one up for a new machine.
+    const readerKey =
+      (data.readerKey ?? "").trim() ||
+      existing?.readerKey ||
+      `reader-${readerSlug(name)}-${this.id("k").slice(-4)}`;
+    const clash = this.state.machines.find(
+      (m) => m.readerKey === readerKey && m.id !== existing?.id,
+    );
+    if (clash) {
+      throw new Error(
+        `Reader key "${readerKey}" is already used by ${clash.name}. Give this machine a different one, or leave it blank.`,
+      );
+    }
+    if (existing) {
+      Object.assign(existing, data, { name, readerKey, updatedAt: now });
+      return existing;
     }
     const machine: Machine = {
       id: data.id ?? this.id("m"),
-      name: data.name,
+      name,
       area: data.area,
-      requiredCertificationIds: data.requiredCertificationIds,
-      readerKey: data.readerKey,
+      requiredCertificationIds: data.requiredCertificationIds ?? [],
+      readerKey,
       active: data.active ?? true,
       reservationRecommended: data.reservationRecommended ?? false,
       reservationRequired: data.reservationRequired ?? false,
@@ -4104,12 +4977,15 @@ export class MockDataProvider implements DataProvider {
       sortOrder: data.sortOrder ?? this.state.machines.length + 1,
       hourlyRateCents:
         data.hourlyRateCents ??
-        hourlyRateCentsFor({
-          id: data.id ?? "m-new",
-          name: data.name,
-          area: data.area,
-          hourlyRateCents: null,
-        }),
+        hourlyRateCentsFor(
+          {
+            id: data.id ?? "m-new",
+            name: data.name,
+            area: data.area,
+            hourlyRateCents: null,
+          },
+          normalizeRateCard(this.state.rateCard),
+        ),
       createdAt: now,
       updatedAt: now,
     };
@@ -4177,6 +5053,311 @@ export class MockDataProvider implements DataProvider {
     return { syncedAt, count: this.state.contentPages.length };
   }
 
+  // ── Lists staff keep: directory, gallery, wishlist, shop details ──────────
+
+  async adminListPeople(): Promise<Person[]> {
+    return [...this.state.people].sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+
+  async adminSavePerson(input: PersonInput): Promise<Person> {
+    const now = this.now();
+    const name = requiredText(input.name, "Name", NAME_MAX);
+    const roleTitle = optionalText(input.roleTitle, "Role", NAME_MAX) ?? "";
+    const bio = optionalText(input.bio, "Bio", MESSAGE_MAX) ?? "";
+    if (input.kind !== "staff" && input.kind !== "instructor") {
+      throw new Error("Choose staff or instructor.");
+    }
+    const existing = input.id
+      ? this.state.people.find((p) => p.id === input.id)
+      : undefined;
+    if (input.id && !existing) throw new Error("That person is no longer in the directory.");
+    if (existing) {
+      Object.assign(existing, {
+        name,
+        roleTitle,
+        bio,
+        kind: input.kind,
+        sortOrder: input.sortOrder ?? existing.sortOrder,
+        published: input.published ?? existing.published,
+        updatedAt: now,
+      });
+      return { ...existing };
+    }
+    const person: Person = {
+      id: this.id("person"),
+      slug: contentSlug(name) || this.id("p"),
+      name,
+      roleTitle,
+      kind: input.kind,
+      bio,
+      sortOrder: input.sortOrder ?? nextSortOrder(this.state.people),
+      published: input.published ?? true,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.state.people.push(person);
+    return { ...person };
+  }
+
+  async adminDeletePerson(id: string): Promise<void> {
+    this.state.people = this.state.people.filter((p) => p.id !== id);
+  }
+
+  async listProjects(): Promise<Project[]> {
+    return this.state.projects
+      .filter((p) => p.published)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+
+  async adminListProjects(): Promise<Project[]> {
+    return [...this.state.projects].sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+
+  async adminSaveProject(input: ProjectInput): Promise<Project> {
+    const now = this.now();
+    const title = requiredText(input.title, "Title", NAME_MAX);
+    const fields = {
+      title,
+      maker: optionalText(input.maker, "Maker", NAME_MAX) ?? "",
+      area: optionalText(input.area, "Area", NAME_MAX) ?? "",
+      caption: optionalText(input.caption, "Caption", 500) ?? "",
+      imageSrc: pictureAddress(input.imageSrc),
+      imageAlt: optionalText(input.imageAlt, "Picture description", 300) ?? title,
+    };
+    const existing = input.id
+      ? this.state.projects.find((p) => p.id === input.id)
+      : undefined;
+    if (input.id && !existing) throw new Error("That project is no longer in the gallery.");
+    if (existing) {
+      Object.assign(existing, fields, {
+        sortOrder: input.sortOrder ?? existing.sortOrder,
+        published: input.published ?? existing.published,
+        updatedAt: now,
+      });
+      return { ...existing };
+    }
+    const project: Project = {
+      id: this.id("proj"),
+      ...fields,
+      sortOrder: input.sortOrder ?? nextSortOrder(this.state.projects),
+      published: input.published ?? true,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.state.projects.push(project);
+    return { ...project };
+  }
+
+  async adminDeleteProject(id: string): Promise<void> {
+    this.state.projects = this.state.projects.filter((p) => p.id !== id);
+  }
+
+  async adminSaveWishlistItem(input: WishlistItemInput): Promise<WishlistItem> {
+    const now = this.now();
+    const name = requiredText(input.name, "Item name", NAME_MAX);
+    if (!this.state.wishlistZones.some((z) => z.id === input.zoneId)) {
+      throw new Error("Choose a wishlist zone for this item.");
+    }
+    const priceCents = Math.round(Number(input.priceCents));
+    if (!Number.isFinite(priceCents) || priceCents < 0 || priceCents > 100_000_00) {
+      throw new Error("Enter a price of zero or more.");
+    }
+    const qty = Math.round(Number(input.qty));
+    if (!Number.isFinite(qty) || qty < 1 || qty > 1000) {
+      throw new Error("Quantity must be at least 1.");
+    }
+    const link = typeof input.url === "string" ? input.url.trim() : "";
+    if (link && (link.length > 1000 || !/^https?:\/\/[^\s<>"]+$/i.test(link))) {
+      throw new Error("The link must be a web address that starts with https://");
+    }
+    const fields = {
+      zoneId: input.zoneId,
+      name,
+      model: optionalText(input.model, "Model", 200) ?? "",
+      qty,
+      priceCents,
+      estimated: input.estimated ?? false,
+      url: link || null,
+      note: optionalText(input.note, "Note", 500),
+      tier: input.tier === "stretch" ? ("stretch" as const) : ("core" as const),
+    };
+    const existing = input.id
+      ? this.state.wishlistItems.find((i) => i.id === input.id)
+      : undefined;
+    if (input.id && !existing) throw new Error("That item is no longer on the wishlist.");
+    if (existing) {
+      Object.assign(existing, fields, {
+        sortOrder: input.sortOrder ?? existing.sortOrder,
+        updatedAt: now,
+      });
+      return { ...existing };
+    }
+    const item: WishlistItem = {
+      id: this.id("wl"),
+      ...fields,
+      status: "needed",
+      fulfilledAt: null,
+      fulfilledBy: null,
+      sortOrder:
+        input.sortOrder ??
+        nextSortOrder(this.state.wishlistItems.filter((i) => i.zoneId === input.zoneId)),
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.state.wishlistItems.push(item);
+    return { ...item };
+  }
+
+  async adminDeleteWishlistItem(id: string): Promise<void> {
+    this.state.wishlistItems = this.state.wishlistItems.filter((i) => i.id !== id);
+    // A report about an item that is gone has nothing left to confirm.
+    this.state.wishlistPurchaseReports = this.state.wishlistPurchaseReports.filter(
+      (r) => r.itemId !== id,
+    );
+  }
+
+  async getRateCard(): Promise<RateCard> {
+    return normalizeRateCard(this.state.rateCard);
+  }
+
+  async adminSaveRateCard(patch: Partial<RateCard>): Promise<RateCard> {
+    const before = normalizeRateCard(this.state.rateCard);
+    // Throws on the first bad value, before anything is changed.
+    const after = applyRateCardPatch(before, patch);
+    const changes = rateCardChanges(before, after);
+    if (Object.keys(changes).length === 0) return before;
+    this.state.rateCard = after;
+    this.pushAudit({
+      action: "rate_card_changed",
+      actorId: this.currentUserId ?? null,
+      entityType: "rate_card",
+      entityId: "default",
+      metadata: changes,
+    });
+    return { ...after };
+  }
+
+  async getSiteInfo(): Promise<SiteInfo> {
+    return { ...this.state.siteInfo };
+  }
+
+  async adminSaveSiteInfo(input: Partial<SiteInfo>): Promise<SiteInfo> {
+    const current = this.state.siteInfo;
+    const next: SiteInfo = {
+      orgName:
+        input.orgName === undefined
+          ? current.orgName
+          : requiredText(input.orgName, "Shop name", 200),
+      addressLine:
+        input.addressLine === undefined
+          ? current.addressLine
+          : (optionalText(input.addressLine, "Address", 300) ?? ""),
+      blurb:
+        input.blurb === undefined
+          ? current.blurb
+          : (optionalText(input.blurb, "Description", 600) ?? ""),
+      facebookUrl:
+        input.facebookUrl === undefined
+          ? current.facebookUrl
+          : webAddress(input.facebookUrl, "The Facebook link"),
+      instagramUrl:
+        input.instagramUrl === undefined
+          ? current.instagramUrl
+          : webAddress(input.instagramUrl, "The Instagram link"),
+    };
+    this.state.siteInfo = next;
+    return { ...next };
+  }
+
+  async listTextBlocks(): Promise<Record<string, string>> {
+    const saved: Record<string, string> = {};
+    for (const page of this.state.contentPages) {
+      if (page.category === "block" && page.published) saved[page.slug] = page.html;
+    }
+    return saved;
+  }
+
+  async adminSaveContentPage(input: ContentPageInput): Promise<ContentPage> {
+    const now = this.now();
+    const title = (input.title ?? "").trim().slice(0, 200);
+    if (!title) throw new Error("Give the page a title.");
+    const html = cleanContentHtml(input.html ?? "");
+    if (!contentHtmlHasText(html)) throw new Error("The page has no text yet.");
+    const existing = input.id
+      ? this.state.contentPages.find((p) => p.id === input.id)
+      : undefined;
+    if (input.id && !existing) throw new Error("That page no longer exists.");
+
+    // A page that exists keeps its address exactly. Lessons and classes find
+    // their text by it, and some older addresses are paths ("learn/laser/safety")
+    // that tidying up would change.
+    const slug = existing ? existing.slug : contentSlug(input.slug ?? title);
+    if (!slug) throw new Error("Give the page an address made of letters or numbers.");
+    const clash = this.state.contentPages.find(
+      (p) => p.slug === slug && p.id !== existing?.id,
+    );
+    if (clash) {
+      throw new Error(
+        `Another page already uses the address "${slug}". It is "${clash.title}".`,
+      );
+    }
+    const version = (input.version ?? existing?.version ?? "1").trim().slice(0, 40) || "1";
+    const category = input.category ?? existing?.category ?? "other";
+    if (!CONTENT_CATEGORIES.includes(category)) throw new Error("Unknown page type.");
+    // A block's address is what ties it to its place on a page.
+    if (category === "block" && !isTextBlockSlug(slug)) {
+      throw new Error("That is not a piece of text any page shows.");
+    }
+
+    let page: ContentPage;
+    if (existing) {
+      Object.assign(existing, {
+        title,
+        html,
+        slug,
+        version,
+        category,
+        published: input.published ?? existing.published,
+        updatedAt: now,
+      });
+      page = existing;
+    } else {
+      page = {
+        id: this.id("content"),
+        slug,
+        title,
+        html,
+        category,
+        version,
+        published: input.published ?? true,
+        createdAt: now,
+        updatedAt: now,
+      };
+      this.state.contentPages.push(page);
+    }
+    // The waiver members sign is the one whose version the settings name.
+    // A new version on the published waiver makes it the current one, which
+    // is what asks every member to sign again.
+    if (
+      page.category === "waiver" &&
+      page.published &&
+      page.version !== this.state.settings.currentWaiverVersion
+    ) {
+      Object.assign(this.state.settings, {
+        currentWaiverVersion: page.version,
+        updatedAt: now,
+      });
+    }
+    this.pushAudit({
+      action: existing ? "content_page_updated" : "content_page_created",
+      actorId: this.currentUserId ?? null,
+      entityType: "content_page",
+      entityId: page.id,
+      metadata: { slug: page.slug, version: page.version, published: page.published },
+    });
+    return { ...page };
+  }
+
   async adminUpdateSettings(
     data: Partial<OrgSettings>,
   ): Promise<OrgSettings> {
@@ -4191,6 +5372,13 @@ export class MockDataProvider implements DataProvider {
       }
     } else if (data.defaultInstructorId === "") {
       data.defaultInstructorId = null;
+    }
+    for (const key of ["hoursContentSlug", "memberExpectationsPolicySlug"] as const) {
+      const slug = data[key];
+      if (slug === undefined || slug === this.state.settings[key]) continue;
+      if (!this.state.contentPages.some((p) => p.slug === slug && p.published)) {
+        throw new Error("Choose a published page from the list.");
+      }
     }
     Object.assign(this.state.settings, data, { updatedAt: this.now() });
     return { ...this.state.settings };
@@ -4467,6 +5655,40 @@ export class MockDataProvider implements DataProvider {
 
   async listAreaStewards() {
     return this.state.areaStewards.slice();
+  }
+
+  async adminSetAreaStewards(areaId: string, userIds: string[]): Promise<AreaSteward[]> {
+    const area = this.state.inventoryAreas.find((a) => a.id === areaId);
+    if (!area) throw new Error("That inventory area no longer exists.");
+    const wanted = [...new Set(Array.isArray(userIds) ? userIds : [])];
+    for (const userId of wanted) {
+      if (!this.state.users.some((u) => u.id === userId && !u.deletedAt)) {
+        throw new Error("One of those people is not a member any more.");
+      }
+    }
+    const current = this.state.areaStewards.filter((s) => s.areaId === areaId);
+    const now = this.now();
+    // Rows for people who stay are kept as they are, so only real changes are written.
+    const kept = current.filter((s) => wanted.includes(s.userId));
+    const added: AreaSteward[] = wanted
+      .filter((userId) => !kept.some((s) => s.userId === userId))
+      .map((userId) => ({ id: this.id("as"), areaId, userId, createdAt: now }));
+    const removedCount = current.length - kept.length;
+    this.state.areaStewards = [
+      ...this.state.areaStewards.filter((s) => s.areaId !== areaId),
+      ...kept,
+      ...added,
+    ];
+    if (added.length > 0 || removedCount > 0) {
+      this.pushAudit({
+        action: "area_stewards_changed",
+        actorId: this.currentUserId ?? null,
+        entityType: "InventoryArea",
+        entityId: areaId,
+        metadata: { stewards: wanted },
+      });
+    }
+    return [...kept, ...added];
   }
 
   async upsertInventoryArea(

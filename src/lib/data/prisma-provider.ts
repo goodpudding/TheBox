@@ -1,13 +1,18 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { loadFixtures } from "./load-fixtures";
+import { DEFAULT_SITE_INFO } from "./site-info";
+import { normalizeRateCard } from "../rate-card";
 import { MockDataProvider } from "./mock-provider";
 import type { DataProvider } from "./provider";
 import {
   changedColumns,
   cloneBundle,
   shouldPersistAfter,
+  RECORD_KEYS,
+  allSiteRecords,
   sliceChangedBundle,
+  type SiteRecordWrite,
   type ArrayKey,
 } from "./persist-delta";
 import {
@@ -256,6 +261,33 @@ function mapUser(row: {
  * Load all domain tables into a MockFixtureBundle.
  * Auth Account/Session/VerificationToken are intentionally ignored.
  */
+type SiteRecordRow = { id: string; collection: string; data: string };
+
+/**
+ * SiteRecord rows grouped by collection. A row whose JSON cannot be read is
+ * skipped and logged, so one bad row does not take the whole site down.
+ */
+function readSiteRecords(rows: SiteRecordRow[]) {
+  const byCollection = new Map<string, unknown[]>();
+  for (const row of rows) {
+    try {
+      const list = byCollection.get(row.collection) ?? [];
+      list.push(JSON.parse(row.data));
+      byCollection.set(row.collection, list);
+    } catch {
+      console.error(JSON.stringify({ siteRecord: row.id, error: "unreadable JSON" }));
+    }
+  }
+  return {
+    list<K extends (typeof RECORD_KEYS)[number]>(key: K): MockFixtureBundle[K] {
+      return (byCollection.get(key) ?? []) as MockFixtureBundle[K];
+    },
+    single<T>(key: string): T | null {
+      return (byCollection.get(key)?.[0] as T | undefined) ?? null;
+    },
+  };
+}
+
 export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
   // Split Promise.all batches so TS keeps tuple inference (large arrays widen to any[]).
   const [users, badges, certifications, userCertifications, machines] =
@@ -335,6 +367,9 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
     ]);
   const creditLedgerRows =
     (await prismaLoose.creditLedgerEntry?.findMany?.()) ?? [];
+  const siteRecords = readSiteRecords(
+    ((await prismaLoose.siteRecord?.findMany?.()) ?? []) as SiteRecordRow[],
+  );
   const [
     inventoryAreaRows,
     areaStewardRows,
@@ -455,8 +490,7 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
         deletedAt: toIso(m.deletedAt),
       }),
     ),
-    // Tool champion terms live in mock fixtures for now; Prisma table is a follow-up.
-    toolChampionTerms: [],
+    toolChampionTerms: siteRecords.list("toolChampionTerms"),
     usageSessions: usageSessions.map(
       (s): UsageSession => ({
         id: s.id,
@@ -844,10 +878,19 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
       }),
     ),
     settings: mapOrgSettings(settingsRow),
-    promoSlides: loadFixtures().promoSlides,
-    displayConfig: loadFixtures().displayConfig,
-    // Public staff/instructor directory is fixture-backed (same as promos).
-    people: loadFixtures().people,
+    promoSlides: siteRecords.list("promoSlides"),
+    // Settings, not sample content: the built-in defaults until staff save their own.
+    displayConfig:
+      siteRecords.single<MockFixtureBundle["displayConfig"]>("displayConfig") ??
+      loadFixtures().displayConfig,
+    people: siteRecords.list("people"),
+    projects: siteRecords.list("projects"),
+    // A missing or damaged field takes its default, one field at a time.
+    rateCard: normalizeRateCard(siteRecords.single("rateCard")),
+    siteInfo: {
+      ...DEFAULT_SITE_INFO,
+      ...(siteRecords.single<Partial<MockFixtureBundle["siteInfo"]>>("siteInfo") ?? {}),
+    },
     creditLedgerEntries: (
       creditLedgerRows as Array<Record<string, unknown>>
     ).map(
@@ -948,10 +991,9 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
         createdAt: toIsoRequired(e.createdAt as Date),
       }),
     ),
-    // Wishlist catalog + purchase reports stay fixture/mock-backed (no Prisma table).
-    wishlistZones: loadFixtures().wishlistZones,
-    wishlistItems: loadFixtures().wishlistItems,
-    wishlistPurchaseReports: loadFixtures().wishlistPurchaseReports,
+    wishlistZones: siteRecords.list("wishlistZones"),
+    wishlistItems: siteRecords.list("wishlistItems"),
+    wishlistPurchaseReports: siteRecords.list("wishlistPurchaseReports"),
   };
 }
 
@@ -972,6 +1014,8 @@ export async function persistBundleToPrisma(
   let settingsChanged = true;
   let toWrite = bundle;
   let removed: ReturnType<typeof sliceChangedBundle>["removed"] = {};
+  let recordWrites: SiteRecordWrite[] = previous ? [] : allSiteRecords(bundle);
+  let recordsRemoved: string[] = [];
   // The delta below only carries changed users, so validate against all of them.
   const knownUserIds = new Set(bundle.users.map((u) => u.id));
   if (previous) {
@@ -980,6 +1024,8 @@ export async function persistBundleToPrisma(
     toWrite = sliced.bundle;
     removed = sliced.removed;
     settingsChanged = sliced.settingsChanged;
+    recordWrites = sliced.siteRecords.writes;
+    recordsRemoved = sliced.siteRecords.removed;
   }
   const instructorOf = (settings: OrgSettings): string | null =>
     settings.defaultInstructorId && knownUserIds.has(settings.defaultInstructorId)
@@ -1048,13 +1094,34 @@ export async function persistBundleToPrisma(
     await saveTable(spec);
   }
 
+  // Lists with no table of their own. A row here is the whole record, and
+  // nothing points at it, so a removed one is really deleted.
+  for (const record of recordWrites) {
+    await db.siteRecord.upsert({
+      where: { id: record.id },
+      create: { ...record, createdAt: now, updatedAt: now },
+      update: { data: record.data, updatedAt: now },
+    });
+  }
+  if (recordsRemoved.length > 0) {
+    await db.siteRecord.deleteMany({ where: { id: { in: recordsRemoved } } });
+  }
+
   // Only these collections are hard-deleted by the mock; everything else
-  // uses deletedAt. Children before parents (VideoWatch -> LessonVideo).
+  // uses deletedAt. Children before parents: a lesson cannot go while a
+  // video or a progress row still points at it, nor a video while a watch
+  // record does.
   const hardDeletes: Array<[keyof typeof removed, string]> = [
     ["videoWatches", "videoWatch"],
     ["lessonVideos", "lessonVideo"],
+    ["lessonProgress", "lessonProgress"],
+    ["lessons", "lesson"],
     ["questions", "question"],
     ["itemPhotos", "itemPhoto"],
+    // Staff removals from the admin. Nothing else points at these rows.
+    ["bounties", "bounty"],
+    ["maintenanceBlocks", "maintenanceBlock"],
+    ["areaStewards", "areaSteward"],
   ];
   for (const [key, model] of hardDeletes) {
     const ids = removed[key];
@@ -1090,26 +1157,6 @@ export function invalidateBundleCache(): void {
   bundleInflight = null;
 }
 
-/**
- * Writes to collections the database has no tables for yet (they are loaded
- * from fixtures, or empty, on every request). The pages hide these on the
- * live site. A direct call is refused too: answering "saved" and keeping
- * nothing is worse than an error, and each one left an audit row pointing at
- * a record that never existed.
- */
-const NOT_STORED_YET: ReadonlySet<string> = new Set([
-  "reportWishlistPurchase",
-  "adminConfirmWishlistPurchase",
-  "adminDismissWishlistPurchase",
-  "adminMarkWishlistPurchased",
-  "requestToolChampionTerm",
-  "adminActivateToolChampionTerm",
-  "adminCompleteToolChampionTerm",
-  "savePromo",
-  "deletePromo",
-  "saveDisplayConfig",
-]);
-
 function createPersistingProxy(mock: MockDataProvider): DataProvider {
   let snapshot = cloneBundle(mock.getState());
   return new Proxy(mock, {
@@ -1118,9 +1165,6 @@ function createPersistingProxy(mock: MockDataProvider): DataProvider {
       if (typeof value !== "function") return value;
       const name = String(prop);
       return async (...args: unknown[]) => {
-        if (NOT_STORED_YET.has(name)) {
-          throw new Error("Not available on the live site yet.");
-        }
         const result = await (
           value as (...a: unknown[]) => Promise<unknown>
         ).apply(target, args);

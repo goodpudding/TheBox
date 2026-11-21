@@ -1,5 +1,7 @@
 import type { MockFixtureBundle } from "./types";
 import { billingFor, inferCreditGrantCents } from "../credits";
+import { DEFAULT_RATE_CARD } from "../rate-card";
+import { DEFAULT_PROJECTS, DEFAULT_SITE_INFO } from "./site-info";
 
 import users from "../../../data/mock/users.json";
 import badges from "../../../data/mock/badges.json";
@@ -275,6 +277,9 @@ export function loadFixtures(): MockFixtureBundle {
     volunteerInterests:
       volunteerInterests as MockFixtureBundle["volunteerInterests"],
     people: people as MockFixtureBundle["people"],
+    projects: DEFAULT_PROJECTS.map((p) => ({ ...p })),
+    siteInfo: { ...DEFAULT_SITE_INFO },
+    rateCard: { ...DEFAULT_RATE_CARD },
     bounties: bounties as MockFixtureBundle["bounties"],
     wishlistZones: wishlistZones as MockFixtureBundle["wishlistZones"],
     wishlistItems: wishlistItems as MockFixtureBundle["wishlistItems"],

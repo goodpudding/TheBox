@@ -59,6 +59,11 @@ function emptyForm(): {
   reservationRequired: boolean;
   locationLabel: string;
   gettingStartedVideoUrl: string;
+  attendedOperationRequired: boolean;
+  /** Text as typed. Blank means the shop-wide limit. */
+  maxReservationHours: string;
+  /** Text as typed. Blank adds a new machine at the end. */
+  sortOrder: string;
 } {
   return {
     name: "",
@@ -70,6 +75,9 @@ function emptyForm(): {
     reservationRequired: false,
     locationLabel: "",
     gettingStartedVideoUrl: "",
+    attendedOperationRequired: false,
+    maxReservationHours: "",
+    sortOrder: "",
   };
 }
 
@@ -95,7 +103,7 @@ export default function AdminMachinesPage() {
         to.setDate(to.getDate() + 1);
 
         const [m, c, mem, usage] = await Promise.all([
-          provider.listMachines(),
+          provider.adminListMachines(),
           provider.listCertifications(),
           provider.adminListMembers(),
           provider.adminListUsage({
@@ -163,6 +171,10 @@ export default function AdminMachinesPage() {
       reservationRequired: machine.reservationRequired,
       locationLabel: machine.locationLabel,
       gettingStartedVideoUrl: machine.gettingStartedVideoUrl ?? "",
+      attendedOperationRequired: machine.attendedOperationRequired,
+      maxReservationHours:
+        machine.maxReservationHours == null ? "" : String(machine.maxReservationHours),
+      sortOrder: String(machine.sortOrder),
     });
     setMessage(null);
     setError(null);
@@ -181,6 +193,11 @@ export default function AdminMachinesPage() {
     setMessage(null);
     try {
       const video = form.gettingStartedVideoUrl.trim();
+      const maxHours = Math.round(Number(form.maxReservationHours));
+      const order =
+        form.sortOrder.trim() && Number.isFinite(Number(form.sortOrder))
+          ? Number(form.sortOrder)
+          : null;
       const payload: MachineInput = {
         id: form.id,
         name: form.name.trim(),
@@ -192,6 +209,9 @@ export default function AdminMachinesPage() {
         reservationRequired: form.reservationRequired,
         locationLabel: form.locationLabel.trim(),
         gettingStartedVideoUrl: video.length > 0 ? video : null,
+        attendedOperationRequired: form.attendedOperationRequired,
+        maxReservationHours: maxHours > 0 ? maxHours : null,
+        ...(order !== null ? { sortOrder: order } : {}),
       };
       await provider.adminUpsertMachine(payload);
       setMessage(form.id ? "Machine updated." : "Machine created.");
@@ -311,15 +331,19 @@ export default function AdminMachinesPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="readerKey">Reader key</Label>
+            <Label htmlFor="readerKey">Reader key (optional)</Label>
             <Input
               id="readerKey"
-              required
               value={form.readerKey}
               onChange={(e) =>
                 setForm((f) => ({ ...f, readerKey: e.target.value }))
               }
+              aria-describedby="readerKey-help"
             />
+            <p id="readerKey-help" className="text-sm text-secondary">
+              Only needed when a badge reader is wired to this machine. Leave
+              it blank and one is made up for you.
+            </p>
           </div>
 
           <fieldset className="space-y-3">
@@ -383,6 +407,44 @@ export default function AdminMachinesPage() {
             />
             Reservation required to start
           </label>
+          <label className="flex cursor-pointer items-center gap-3 text-sm text-charcoal">
+            <input
+              type="checkbox"
+              checked={form.attendedOperationRequired}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  attendedOperationRequired: e.target.checked,
+                }))
+              }
+              className="size-4 accent-brown"
+            />
+            Someone must stay with it while it runs (no bookings past closing)
+          </label>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="maxReservationHours">Longest booking (hours)</Label>
+              <Input
+                id="maxReservationHours"
+                inputMode="numeric"
+                placeholder="Shop-wide limit"
+                value={form.maxReservationHours}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, maxReservationHours: e.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="machineSortOrder">Order in its area</Label>
+              <Input
+                id="machineSortOrder"
+                inputMode="numeric"
+                placeholder="Last"
+                value={form.sortOrder}
+                onChange={(e) => setForm((f) => ({ ...f, sortOrder: e.target.value }))}
+              />
+            </div>
+          </div>
 
           {form.id ? (
             <div className="rounded-2xl border border-border bg-surface/60 p-4">

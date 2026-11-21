@@ -61,8 +61,9 @@ export async function POST(request: NextRequest) {
         displayName: body.displayName,
         exeName: body.exeName,
         exePath: body.exePath ?? null,
-        sortOrder: body.sortOrder ?? 0,
-        active: body.active ?? true,
+        // Left out of a save, the order and on/off state stay as they are.
+        ...(typeof body.sortOrder === "number" ? { sortOrder: body.sortOrder } : {}),
+        ...(typeof body.active === "boolean" ? { active: body.active } : {}),
       },
     });
     return NextResponse.json({ map: row });

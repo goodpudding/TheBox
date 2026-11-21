@@ -80,10 +80,12 @@ export default function InterestBoardPage() {
 
   async function onPropose(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // React clears currentTarget once the handler first waits, so keep the form.
+    const formEl = e.currentTarget;
     setPending(true);
     setError(null);
     setMessage(null);
-    const form = new FormData(e.currentTarget);
+    const form = new FormData(formEl);
     try {
       const board = await provider.proposeInterestBoard({
         title: String(form.get("title") ?? ""),
@@ -111,7 +113,7 @@ export default function InterestBoardPage() {
           ? "Your interest board is live — people can sign up now."
           : "Thanks — staff will review your idea before it goes on the board.",
       );
-      e.currentTarget.reset();
+      formEl.reset();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not submit idea");
     } finally {

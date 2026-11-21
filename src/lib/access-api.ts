@@ -36,6 +36,4 @@ export function readerSecretIsValid(secret: string | null | undefined): boolean 
   );
 }
 
-export function normalizeBadgeUid(raw: string): string {
-  return raw.replace(/[^0-9a-fA-F]/g, "").toLowerCase();
-}
+export { normalizeBadgeUid } from "@/lib/data/badge-uid";

@@ -10,11 +10,13 @@ import {
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { AdminShell } from "@/components/admin-shell";
+import { MemberAccessForm } from "@/components/admin/member-access-form";
 import { StatusPill } from "@/components/status-pill";
 import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { normalizeBadgeUid } from "@/lib/data/badge-uid";
 import { formatDateTime } from "@/lib/format";
 import { formatShopPin } from "@/lib/workstation/pin-policy";
 import { formatMoneyExact, formatTier } from "@/lib/utils";
@@ -87,6 +89,7 @@ export default function AdminMemberDetailPage() {
 
   const [status, setStatus] = useState<MembershipStatus>("pending");
   const [linkBadgeId, setLinkBadgeId] = useState("");
+  const [newBadgeLabel, setNewBadgeLabel] = useState("");
   const [linkUid, setLinkUid] = useState("");
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -399,26 +402,59 @@ export default function AdminMemberDetailPage() {
     }
   }
 
-  async function onLinkByUid(e: FormEvent) {
+  async function onRegisterBadge(e: FormEvent) {
     e.preventDefault();
-    const uid = linkUid.trim();
+    if (!member) return;
+    const uid = normalizeBadgeUid(linkUid);
     if (!uid) return;
-    const match = allBadges.find(
-      (b) => b.uid.toLowerCase() === uid.toLowerCase(),
-    );
-    if (!match) {
-      setError("No badge found with that UID.");
-      return;
-    }
-    if (match.userId != null && match.userId !== member?.id) {
-      setError("That badge is already linked to another member.");
-      return;
-    }
-    if (match.userId === member?.id) {
+    // A badge already in the catalog with nobody on it is linked, not made twice.
+    const match = allBadges.find((b) => normalizeBadgeUid(b.uid) === uid);
+    if (match?.userId === member.id) {
       setMessage("Badge already linked to this member.");
       return;
     }
-    await linkBadgeById(match.id);
+    if (match && match.userId == null) {
+      await linkBadgeById(match.id);
+      setLinkUid("");
+      setNewBadgeLabel("");
+      return;
+    }
+    setPending(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await provider.adminRegisterBadge(member.id, {
+        uid: linkUid,
+        label: newBadgeLabel,
+      });
+      setLinkUid("");
+      setNewBadgeLabel("");
+      bump();
+      setMessage("Badge registered.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not register the badge");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function onSetBadgeActive(badgeId: string, active: boolean) {
+    setPending(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await provider.adminSetBadgeActive(badgeId, active);
+      bump();
+      setMessage(
+        active
+          ? "Badge switched on."
+          : "Badge switched off. It no longer opens any machine.",
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not change the badge");
+    } finally {
+      setPending(false);
+    }
   }
 
   async function onUnlink(badgeId: string) {
@@ -515,6 +551,7 @@ export default function AdminMemberDetailPage() {
             ))}
           </select>
         </div>
+        <MemberAccessForm key={member.id} member={member} />
         {currentUser?.role === "staff" || currentUser?.role === "admin" ? (
           <div className="mt-6 space-y-3">
             <Button
@@ -593,7 +630,8 @@ export default function AdminMemberDetailPage() {
         <p className="eyebrow">Machine credits</p>
         <p className="mt-2 text-sm text-secondary leading-relaxed">
           In-app ledger only. Zeffy never holds this balance. Negative is
-          allowed (they finished a job). Next Plus $50 grant pays debt first.
+          allowed (they finished a job). The next Membership Plus machine credit
+          pays debt first.
           Amount can be negative to adjust.
         </p>
         <p className="mt-4 font-display text-2xl font-semibold text-brown">
@@ -756,6 +794,20 @@ export default function AdminMemberDetailPage() {
                   </StatusPill>
                   <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={pending || !currentUser}
+                    aria-label={
+                      b.active
+                        ? `Switch off ${b.label ?? "badge"} (lost or stolen)`
+                        : `Switch on ${b.label ?? "badge"}`
+                    }
+                    onClick={() => void onSetBadgeActive(b.id, !b.active)}
+                  >
+                    {b.active ? "Switch off" : "Switch on"}
+                  </Button>
+                  <Button
+                    type="button"
                     variant="secondary"
                     size="sm"
                     disabled={pending || !currentUser}
@@ -805,21 +857,42 @@ export default function AdminMemberDetailPage() {
             ) : null}
           </form>
 
-          <form onSubmit={(e) => void onLinkByUid(e)} className="space-y-3">
-            <Label htmlFor="link-uid">Or link by badge UID</Label>
-            <Input
-              id="link-uid"
-              value={linkUid}
-              onChange={(e) => setLinkUid(e.target.value)}
-              placeholder="Badge UID"
-            />
+          <form onSubmit={(e) => void onRegisterBadge(e)} className="space-y-3">
+            <p className="font-display text-sm font-medium text-brown">
+              Register a new badge
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="link-uid">Badge number</Label>
+              <Input
+                id="link-uid"
+                value={linkUid}
+                onChange={(e) => setLinkUid(e.target.value)}
+                placeholder="04:AB:9C:12:7F:55:80"
+                autoCapitalize="characters"
+                autoComplete="off"
+                aria-describedby="link-uid-help"
+              />
+              <p id="link-uid-help" className="text-sm text-secondary">
+                The letters and digits printed on the fob, or what a reader shows
+                when it is tapped. Colons and capitals do not matter.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-badge-label">Label (optional)</Label>
+              <Input
+                id="new-badge-label"
+                value={newBadgeLabel}
+                onChange={(e) => setNewBadgeLabel(e.target.value)}
+                placeholder="Blue fob"
+              />
+            </div>
             <Button
               type="submit"
               size="sm"
               variant="secondary"
-              disabled={pending || !linkUid.trim() || !currentUser}
+              disabled={pending || !normalizeBadgeUid(linkUid) || !currentUser}
             >
-              Link by UID
+              Register badge
             </Button>
           </form>
         </div>

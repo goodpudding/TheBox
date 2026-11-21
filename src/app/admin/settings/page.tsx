@@ -2,22 +2,27 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { AdminShell } from "@/components/admin-shell";
+import { MachineRatesForm } from "@/components/admin/machine-rates-form";
+import { SiteDetailsForm } from "@/components/admin/site-details-form";
 import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { OrgSettings, User } from "@/lib/data";
+import type { ContentPage, OrgSettings, User } from "@/lib/data";
 
 export default function AdminSettingsPage() {
   const { provider, revision, bump } = useData();
   const [settings, setSettings] = useState<OrgSettings | null>(null);
   const [instructors, setInstructors] = useState<User[]>([]);
+  const [pages, setPages] = useState<ContentPage[]>([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
+      // Pages first: the two page pickers are filled when the form appears.
+      setPages(await provider.adminListContentMappings());
       setSettings(await provider.getSettings());
       const members = await provider.adminListMembers();
       setInstructors(
@@ -78,6 +83,11 @@ export default function AdminSettingsPage() {
         ),
         currentWaiverVersion: String(form.get("currentWaiverVersion") ?? ""),
         showPhase3Tiers: form.get("showPhase3Tiers") === "on",
+        requireSafetyCriticalAll: form.get("requireSafetyCriticalAll") === "on",
+        hoursContentSlug: String(form.get("hoursContentSlug") ?? ""),
+        memberExpectationsPolicySlug: String(
+          form.get("memberExpectationsPolicySlug") ?? "",
+        ),
       });
       setSettings(updated);
       bump();
@@ -297,6 +307,54 @@ export default function AdminSettingsPage() {
           Show Phase 3 tiers on Join
         </label>
 
+        <label className="flex items-center gap-3 font-display text-sm text-brown">
+          <input
+            type="checkbox"
+            name="requireSafetyCriticalAll"
+            className="size-4"
+            defaultChecked={settings.requireSafetyCriticalAll}
+          />
+          A quiz pass needs every safety-critical question right
+        </label>
+
+        <div className="space-y-2">
+          <Label htmlFor="hoursContentSlug">Page shown as the hours on Join</Label>
+          <select
+            id="hoursContentSlug"
+            name="hoursContentSlug"
+            defaultValue={settings.hoursContentSlug}
+            className={pickerClass}
+          >
+            {pagesFor(pages, settings.hoursContentSlug, ["hours"]).map((p) => (
+              <option key={p.slug} value={p.slug}>
+                {p.title}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="memberExpectationsPolicySlug">
+            Policy new members agree to when they join
+          </Label>
+          <select
+            id="memberExpectationsPolicySlug"
+            name="memberExpectationsPolicySlug"
+            defaultValue={settings.memberExpectationsPolicySlug}
+            className={pickerClass}
+          >
+            {pagesFor(pages, settings.memberExpectationsPolicySlug, ["policy"]).map(
+              (p) => (
+                <option key={p.slug} value={p.slug}>
+                  {p.title}
+                </option>
+              ),
+            )}
+          </select>
+          <p className="text-sm text-secondary">
+            Edit the pages themselves under Admin → Content.
+          </p>
+        </div>
+
         <div className="rounded-2xl border border-border bg-surface/60 px-4 py-4">
           <p className="font-display text-sm font-semibold text-brown">
             Lobby display token
@@ -313,8 +371,29 @@ export default function AdminSettingsPage() {
           {pending ? "Saving…" : "Save settings"}
         </Button>
       </form>
+      <MachineRatesForm />
+      <SiteDetailsForm />
     </AdminShell>
   );
+}
+
+const pickerClass =
+  "flex h-11 w-full rounded-full border border-border bg-surface px-4 font-display text-sm text-charcoal";
+
+/** Published pages of the given types, plus the one chosen now whatever it is. */
+function pagesFor(
+  pages: ContentPage[],
+  current: string,
+  categories: ContentPage["category"][],
+): { slug: string; title: string }[] {
+  const options = pages
+    .filter((p) => p.published && categories.includes(p.category))
+    .map((p) => ({ slug: p.slug, title: p.title }));
+  if (!options.some((p) => p.slug === current)) {
+    const chosen = pages.find((p) => p.slug === current);
+    options.unshift({ slug: current, title: chosen?.title ?? current });
+  }
+  return options;
 }
 
 function Field({
