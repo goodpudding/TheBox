@@ -192,8 +192,15 @@ export function Chip({ children }: { children: ReactNode }) {
 export function ChipGrid({ labels, max }: { labels: string[]; max: number }) {
   const shown = labels.length > max ? labels.slice(0, max - 1) : labels;
   const hidden = labels.length - shown.length;
+  // A short list gets the full width, so a long label is not cut off beside
+  // an empty column. It still fits: half as many chips, one to a row.
+  const oneColumn = labels.length <= max / 2;
   return (
-    <div className="grid grid-cols-2 gap-x-[0.8vw] gap-y-[1vh]">
+    <div
+      className={`grid gap-x-[0.8vw] gap-y-[1vh] ${
+        oneColumn ? "grid-cols-1" : "grid-cols-2"
+      }`}
+    >
       {shown.map((label, i) => (
         <Chip key={`${i}-${label}`}>{label}</Chip>
       ))}
