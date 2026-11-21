@@ -1,14 +1,10 @@
 "use client";
 
 import type { DisplayMachineStatus } from "@/lib/data";
+import { PageNote, SlideHeading, pageOf, timeLabel } from "./display-parts";
 
-function timeLabel(iso: string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Los_Angeles",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(iso));
-}
+/** Three rows of three: large enough to read from the street. */
+const PER_SCREEN = 9;
 
 function statusCopy(m: DisplayMachineStatus): string {
   switch (m.status) {
@@ -16,7 +12,7 @@ function statusCopy(m: DisplayMachineStatus): string {
       return "Available";
     case "in_use":
       return m.since
-        ? `In use · since ${timeLabel(m.since)}${m.displayName ? ` · ${m.displayName}` : ""}`
+        ? `In use since ${timeLabel(m.since)}${m.displayName ? ` · ${m.displayName}` : ""}`
         : "In use";
     case "reserved":
       return m.reservedAt ? `Reserved at ${timeLabel(m.reservedAt)}` : "Reserved";
@@ -25,49 +21,58 @@ function statusCopy(m: DisplayMachineStatus): string {
   }
 }
 
-function statusTone(status: DisplayMachineStatus["status"]): string {
-  switch (status) {
-    case "available":
-      return "border-primary/30 bg-primary/10";
-    case "in_use":
-      return "border-brown/25 bg-surface";
-    case "reserved":
-      return "border-border bg-white/50";
-    case "maintenance":
-      return "border-brown/40 bg-brown/10";
-  }
-}
+const CARD_TONE: Record<DisplayMachineStatus["status"], string> = {
+  available: "border-[#bfe3bc] bg-[#e3f4e1]",
+  in_use: "border-[#f3c3ba] bg-[#fbe3de]",
+  reserved: "border-[#ecd9a8] bg-[#f7ebcf]",
+  maintenance: "border-display-rule bg-[#ece7dd]",
+};
+
+const STATUS_TONE: Record<DisplayMachineStatus["status"], string> = {
+  available: "text-[#1f6b2a]",
+  in_use: "text-[#a8402f]",
+  reserved: "text-[#7d5a0c]",
+  maintenance: "text-display-muted",
+};
 
 export function PanelMachines({
   machines,
+  turn = 0,
 }: {
   machines: DisplayMachineStatus[];
+  /** Counts rotations, so a long list moves on a screen each time round. */
+  turn?: number;
 }) {
+  const screen = pageOf(machines, PER_SCREEN, turn);
   return (
-    <div className="flex h-full flex-col gap-[2vh]">
-      <h1 className="font-display text-[clamp(1.8rem,3.5vw,3.5rem)] font-semibold text-brown">
-        Machine status
-      </h1>
-      <div className="grid min-h-0 flex-1 grid-cols-2 content-start gap-[1.2vw] overflow-hidden md:grid-cols-3 xl:grid-cols-4">
-        {machines.map((m) => (
+    <>
+      <SlideHeading
+        lead="Machine"
+        accent="status"
+        aside={<PageNote page={screen.page} pages={screen.pages} />}
+      />
+      <div className="mt-[2.2vh] grid min-h-0 flex-1 grid-cols-3 grid-rows-[repeat(3,minmax(0,1fr))] gap-x-[1vw] gap-y-[1.4vh]">
+        {screen.items.map((m) => (
           <div
             key={m.id}
-            className={`rounded-[1vw] border px-[1.2vw] py-[1.4vh] ${statusTone(m.status)}`}
+            className={`flex min-h-0 min-w-0 flex-col justify-center overflow-hidden rounded-[1vw] border-2 px-[1vw] ${CARD_TONE[m.status]}`}
           >
-            <p className="font-display text-[clamp(1rem,1.8vw,1.6rem)] font-semibold leading-tight text-brown">
+            <p className="line-clamp-2 text-[1.6vw] font-bold leading-[1.2] text-display-ink">
               {m.name}
             </p>
+            <p
+              className={`mt-[0.4vh] line-clamp-2 text-[1.3vw] font-semibold leading-[1.3] ${STATUS_TONE[m.status]}`}
+            >
+              {statusCopy(m)}
+            </p>
             {m.attendedOperationRequired ? (
-              <p className="mt-[0.4vh] font-display text-[clamp(0.7rem,1.1vw,0.95rem)] font-semibold uppercase tracking-[0.08em] text-secondary">
+              <p className="truncate text-[1.3vw] leading-[1.3] text-display-muted">
                 Attend while running
               </p>
             ) : null}
-            <p className="mt-[0.8vh] font-display text-[clamp(0.85rem,1.35vw,1.2rem)] text-secondary">
-              {statusCopy(m)}
-            </p>
           </div>
         ))}
       </div>
-    </div>
+    </>
   );
 }

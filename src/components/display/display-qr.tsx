@@ -5,33 +5,40 @@ import QRCode from "qrcode";
 
 type DisplayQrProps = {
   url: string;
-  size?: number;
   label?: string;
+  /** Size on screen, as Tailwind classes. The bitmap is scaled to fit. */
+  className?: string;
 };
 
-export function DisplayQr({ url, size = 160, label }: DisplayQrProps) {
+/** Bitmap width. Scaled with sharp edges, so it does not need to be large. */
+const QR_PIXELS = 320;
+
+export function DisplayQr({
+  url,
+  label,
+  className = "h-[11vh] w-[11vh]",
+}: DisplayQrProps) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     void QRCode.toDataURL(url, {
-      width: size,
+      width: QR_PIXELS,
       margin: 1,
       errorCorrectionLevel: "M",
-      color: { dark: "#3d2b1f", light: "#ffffff" },
+      color: { dark: "#3a2408", light: "#ffffff" },
     }).then((next) => {
       if (!cancelled) setDataUrl(next);
     });
     return () => {
       cancelled = true;
     };
-  }, [url, size]);
+  }, [url]);
 
   if (!dataUrl) {
     return (
       <div
-        className="rounded-lg bg-white/20"
-        style={{ width: size, height: size }}
+        className={`shrink-0 rounded-[0.6vw] bg-white/40 ${className}`}
         aria-hidden
       />
     );
@@ -42,9 +49,7 @@ export function DisplayQr({ url, size = 160, label }: DisplayQrProps) {
     <img
       src={dataUrl}
       alt={label ?? "QR code"}
-      width={size}
-      height={size}
-      className="rounded-lg bg-white p-1"
+      className={`display-qr shrink-0 rounded-[0.6vw] bg-white p-[0.3vw] ${className}`}
     />
   );
 }

@@ -13,6 +13,14 @@
   --color-footer: #0d0d0d;
   --color-surface: #ffffff;
   --color-border: #e4e0db;
+  /* Lobby display (/display): warm panel beside a photo. */
+  --color-display-panel: #fff6e3;
+  --color-display-ink: #3a2408;
+  --color-display-muted: #645e5e;
+  --color-display-rule: #eadfc8;
+  --color-display-coral: #e37263;
+  --color-display-teal: #3e9cc4;
+  --color-display-gold: #cf9426;
 }
 
 @theme inline {
@@ -28,6 +36,13 @@
   --color-footer: var(--color-footer);
   --color-surface: var(--color-surface);
   --color-border: var(--color-border);
+  --color-display-panel: var(--color-display-panel);
+  --color-display-ink: var(--color-display-ink);
+  --color-display-muted: var(--color-display-muted);
+  --color-display-rule: var(--color-display-rule);
+  --color-display-coral: var(--color-display-coral);
+  --color-display-teal: var(--color-display-teal);
+  --color-display-gold: var(--color-display-gold);
   --font-serif: var(--font-alice);
   --font-sans: var(--font-outfit);
 }
@@ -144,6 +159,62 @@ button,
   .anim-hero-zoom {
     animation: none;
   }
+}
+
+/*
+ * Lobby display. It runs all day on a Raspberry Pi 3, so everything here
+ * animates transform or opacity only. --display-cadence is how long a slide
+ * stays up; the shell sets it.
+ */
+@keyframes display-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes display-zoom {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.06);
+  }
+}
+
+@keyframes display-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.display-slide-in {
+  animation: rise-in 0.6s ease-out both;
+}
+
+.display-photo-in {
+  animation: display-fade 0.9s ease-out both;
+}
+
+.display-photo-zoom {
+  animation: display-zoom var(--display-cadence, 12s) linear both;
+  will-change: transform;
+}
+
+.display-progress-bar {
+  transform-origin: left center;
+  animation: display-progress var(--display-cadence, 12s) linear both;
+  will-change: transform;
+}
+
+/* QR codes are scaled up from a small bitmap; keep the squares sharp. */
+.display-qr {
+  image-rendering: pixelated;
 }
 
 /* Schedule-X public events calendar */

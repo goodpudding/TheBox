@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useData } from "@/components/providers";
+import { DisplayPhotoSide } from "@/components/display/display-photo";
 import { DisplayShell } from "@/components/display/display-shell";
 import { PanelToday } from "@/components/display/panel-today";
 import { PanelMachines } from "@/components/display/panel-machines";
@@ -93,6 +94,8 @@ export default function DisplayClient() {
   const [panelIndex, setPanelIndex] = useState(0);
   const [cycle, setCycle] = useState(0);
   const [promoIndex, setPromoIndex] = useState(0);
+  // Counts every slide shown. Picks the photo and replays the slide entrance.
+  const [slide, setSlide] = useState(0);
   const [nowTick, setNowTick] = useState(0);
 
   // No token in the address is a refusal before any request is made.
@@ -153,6 +156,7 @@ export default function DisplayClient() {
   useEffect(() => {
     if (!feed || rotation.length === 0) return;
     const t = setInterval(() => {
+      setSlide((n) => n + 1);
       setPanelIndex((i) => {
         const next = i + 1;
         if (next >= rotation.length) {
@@ -166,39 +170,71 @@ export default function DisplayClient() {
     return () => clearInterval(t);
   }, [feed, rotation.length, cadenceMs]);
 
+  // Fetch the next photo while this one is up, so the change is a fade and
+  // not a picture loading top to bottom.
+  const photos = feed?.photos;
+  const nextPhotoUrl =
+    photos && photos.length > 1
+      ? photos[(slide + 1) % photos.length]!.url
+      : null;
+  useEffect(() => {
+    if (!nextPhotoUrl) return;
+    const preload = new Image();
+    preload.src = nextPhotoUrl;
+  }, [nextPhotoUrl]);
+
   void nowTick;
 
   if (denied) {
     return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-page">
-        <p className="font-display text-2xl text-brown">Display unavailable</p>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-display-panel">
+        <p className="font-display text-2xl text-display-ink">
+          Display unavailable
+        </p>
       </div>
     );
   }
 
   if (!feed) {
     return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-page">
-        <p className="font-display text-2xl text-secondary">Loading…</p>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-display-panel">
+        <p className="font-display text-2xl text-display-muted">Loading…</p>
       </div>
     );
   }
 
   const activeId = rotation[panelIndex % Math.max(rotation.length, 1)];
-  const promoSlide =
+  const promo =
     feed.promos.length > 0
-      ? [feed.promos[promoIndex % feed.promos.length]!]
-      : [];
+      ? feed.promos[promoIndex % feed.promos.length]!
+      : null;
+  const photoAt = (n: number) =>
+    feed.photos.length > 0
+      ? feed.photos[((n % feed.photos.length) + feed.photos.length) % feed.photos.length]!
+      : null;
 
   return (
     <div className="fixed inset-0 z-[100]">
-      <DisplayShell feed={feed} staleMinutes={staleMinutes}>
+      <DisplayShell
+        feed={feed}
+        staleMinutes={staleMinutes}
+        slideKey={`${slide}-${activeId ?? "none"}`}
+        cadenceMs={cadenceMs}
+        photoSide={
+          <DisplayPhotoSide
+            photo={photoAt(slide)}
+            previous={slide > 0 ? photoAt(slide - 1) : null}
+            overrideSrc={activeId === "promos" ? promo?.imageUrl : null}
+            motion={feed.config.motion}
+          />
+        }
+      >
         {activeId === "today" ? <PanelToday feed={feed} /> : null}
         {activeId === "machines" ? (
-          <PanelMachines machines={feed.machines} />
+          <PanelMachines machines={feed.machines} turn={cycle} />
         ) : null}
         {activeId === "upcoming" ? (
-          <PanelUpcoming items={feed.upcoming} />
+          <PanelUpcoming items={feed.upcoming} turn={cycle} />
         ) : null}
         {activeId === "certs" ? (
           <PanelCerts
@@ -209,12 +245,14 @@ export default function DisplayClient() {
         {activeId === "bounties" ? (
           <PanelBounties bounties={feed.bounties ?? []} />
         ) : null}
-        {activeId === "promos" ? <PanelPromos slides={promoSlide} /> : null}
+        {activeId === "promos" && promo ? (
+          <PanelPromos slides={[promo]} />
+        ) : null}
         {activeId === "membership" ? (
-          <PanelMembership membership={feed.membership} />
+          <PanelMembership membership={feed.membership} turn={cycle} />
         ) : null}
         {rotation.length === 0 ? (
-          <p className="font-display text-[clamp(1.2rem,2vw,1.8rem)] text-secondary">
+          <p className="text-[1.8vw] text-display-muted">
             Nothing scheduled to show right now.
           </p>
         ) : null}
