@@ -1633,12 +1633,25 @@ export class MockDataProvider implements DataProvider {
     if (!session || !session.published) {
       throw new Error("Class session not found");
     }
+    if (session.cancelledAt) throw new Error("This class was cancelled.");
     if (new Date(session.startsAt).getTime() < Date.now()) {
       throw new Error("Cannot book a class that has already started");
     }
 
     this.assertInterestPriority(classSessionId, userId);
+    return this.placeBooking(session, userId, "You already have a booking for this class");
+  }
 
+  /**
+   * The part of a booking that is the same whoever makes it: one booking per
+   * person, prerequisites, then a seat, a payment hold or the waitlist.
+   */
+  private placeBooking(
+    session: ClassSession,
+    userId: string,
+    alreadyBooked: string,
+  ): Booking {
+    const classSessionId = session.id;
     const existing = this.state.bookings.find(
       (b) =>
         b.classSessionId === classSessionId &&
@@ -1646,7 +1659,7 @@ export class MockDataProvider implements DataProvider {
         !["cancelled", "expired", "no_show"].includes(b.status),
     );
     if (existing) {
-      throw new Error("You already have a booking for this class");
+      throw new Error(alreadyBooked);
     }
 
     for (const certId of session.prerequisiteCertificationIds) {
@@ -1807,13 +1820,25 @@ export class MockDataProvider implements DataProvider {
       }
     }
 
+    return this.releaseBooking(booking, session, userId);
+  }
+
+  /**
+   * Cancel a booking and pass its seat on: the first person waiting moves up,
+   * or the waitlist is renumbered. Credits spent on it are given back.
+   */
+  private async releaseBooking(
+    booking: Booking,
+    session: ClassSession,
+    actorId: string,
+  ): Promise<Booking> {
     const wasSeat = SEAT_STATUSES.includes(booking.status);
     booking.status = "cancelled";
     booking.cancelledAt = this.now();
     this.touch(booking);
 
     if (wasSeat) {
-      await this.adminPromoteFromWaitlist(session.id, userId);
+      await this.adminPromoteFromWaitlist(session.id, actorId);
     } else {
       // Re-number waitlist
       const waitlisted = this.state.bookings
@@ -3324,25 +3349,28 @@ export class MockDataProvider implements DataProvider {
     return cert;
   }
 
-  async adminUpsertClass(data: ClassSessionInput): Promise<ClassSession> {
+  async adminUpsertClass(input: ClassSessionInput): Promise<ClassSession> {
     const now = this.now();
+    // The description is a content page, not a column on the class.
+    const { description, ...data } = input;
     if (data.id) {
       const existing = this.state.classSessions.find((c) => c.id === data.id);
       if (existing) {
-        const staffEditedFields = mergeStaffEdits(existing, data);
-        Object.assign(existing, data, {
+        // A class keeps the address it was given. Its title can change.
+        const changes = { ...data, slug: existing.slug };
+        const staffEditedFields = mergeStaffEdits(existing, changes);
+        Object.assign(existing, changes, {
           staffEditedFields,
           updatedAt: now,
         });
+        if (description !== undefined) this.saveClassDescription(existing, description);
         return existing;
       }
     }
     const session: ClassSession = {
       id: data.id ?? this.id("class"),
       title: data.title,
-      slug:
-        data.slug ??
-        data.title.toLowerCase().replace(/\s+/g, "-").slice(0, 48),
+      slug: this.uniqueClassSlug(data.slug ?? data.title, data.startsAt),
       descriptionSlug: data.descriptionSlug ?? "class-generic",
       category: data.category ?? "workshop",
       instructorId: data.instructorId,
@@ -3367,7 +3395,191 @@ export class MockDataProvider implements DataProvider {
       updatedAt: now,
     };
     this.state.classSessions.push(session);
+    if (description !== undefined) this.saveClassDescription(session, description);
     return session;
+  }
+
+  /**
+   * A class address nobody else has. The database allows each one once, and
+   * the same class runs week after week under one title: the second session
+   * gets its date added, and a counter after that.
+   */
+  private uniqueClassSlug(source: string, startsAt: string): string {
+    const taken = new Set(this.state.classSessions.map((c) => c.slug));
+    const base = contentSlug(source).slice(0, 48).replace(/-+$/g, "") || "class";
+    if (!taken.has(base)) return base;
+    const date = new Date(startsAt);
+    const dated = Number.isNaN(date.getTime())
+      ? base
+      : `${base}-${date.toISOString().slice(0, 10)}`;
+    if (!taken.has(dated)) return dated;
+    for (let n = 2; ; n += 1) {
+      const candidate = `${dated}-${n}`;
+      if (!taken.has(candidate)) return candidate;
+    }
+  }
+
+  /**
+   * Keep what staff wrote about one session as that session's own page.
+   * Several sessions can start out pointing at one shared page; an edit to
+   * one must not change the others, so the edited session gets its own.
+   */
+  private saveClassDescription(session: ClassSession, rawHtml: string): void {
+    const now = this.now();
+    const html = cleanContentHtml(rawHtml);
+    const ownSlug = `class-description-${contentSlug(session.id)}`;
+    const own = this.state.contentPages.find((p) => p.slug === ownSlug);
+
+    if (!contentHtmlHasText(html)) {
+      // Emptied: back to the wording every class without its own text shows.
+      if (own?.published) Object.assign(own, { published: false, updatedAt: now });
+      if (session.descriptionSlug === ownSlug) {
+        session.descriptionSlug = "class-generic";
+        session.staffEditedFields = [
+          ...new Set([...(session.staffEditedFields ?? []), "descriptionSlug"]),
+        ];
+      }
+      return;
+    }
+
+    const current = this.state.contentPages.find(
+      (p) => p.slug === session.descriptionSlug && p.published,
+    );
+    if (current && current.html === html) return;
+
+    if (own) {
+      Object.assign(own, { html, title: session.title, published: true, updatedAt: now });
+    } else {
+      this.state.contentPages.push({
+        id: this.id("content"),
+        slug: ownSlug,
+        title: session.title,
+        html,
+        category: "class",
+        version: "1",
+        published: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+    if (session.descriptionSlug !== ownSlug) {
+      session.descriptionSlug = ownSlug;
+      // The Zeffy pull keeps fields staff own.
+      session.staffEditedFields = [
+        ...new Set([...(session.staffEditedFields ?? []), "descriptionSlug"]),
+      ];
+    }
+  }
+
+  async adminListClasses(): Promise<ClassSessionView[]> {
+    const now = Date.now();
+    const start = (c: ClassSession) => new Date(c.startsAt).getTime();
+    const ended = (c: ClassSession) => new Date(c.endsAt).getTime() < now;
+    return this.state.classSessions
+      .filter((c) => !c.deletedAt)
+      .sort((a, b) => {
+        if (ended(a) !== ended(b)) return ended(a) ? 1 : -1;
+        // Upcoming soonest first; past most recent first.
+        return ended(a) ? start(b) - start(a) : start(a) - start(b);
+      })
+      .map((c) => this.toClassView(c, this.currentUserId));
+  }
+
+  private requireClass(id: string): ClassSession {
+    const session = this.state.classSessions.find((c) => c.id === id && !c.deletedAt);
+    if (!session) throw new Error("Class session not found");
+    return session;
+  }
+
+  async adminCancelClass(id: string): Promise<ClassSession> {
+    const session = this.requireClass(id);
+    if (session.cancelledAt) throw new Error("This class is already cancelled.");
+    session.cancelledAt = this.now();
+    // Without this the hourly Zeffy pull would put the class back.
+    session.staffEditedFields = [
+      ...new Set([...(session.staffEditedFields ?? []), "cancelledAt"]),
+    ];
+    this.touch(session);
+    this.pushAudit({
+      action: "class_cancelled",
+      actorId: this.currentUserId ?? null,
+      entityType: "ClassSession",
+      entityId: session.id,
+      metadata: { title: session.title, startsAt: session.startsAt },
+    });
+    return session;
+  }
+
+  async adminRestoreClass(id: string): Promise<ClassSession> {
+    const session = this.requireClass(id);
+    if (!session.cancelledAt) throw new Error("This class is not cancelled.");
+    session.cancelledAt = null;
+    // Zeffy decides again from here, as it did before the staff cancel.
+    const owned = (session.staffEditedFields ?? []).filter((f) => f !== "cancelledAt");
+    session.staffEditedFields = owned.length > 0 ? owned : null;
+    this.touch(session);
+    this.pushAudit({
+      action: "class_restored",
+      actorId: this.currentUserId ?? null,
+      entityType: "ClassSession",
+      entityId: session.id,
+      metadata: { title: session.title, startsAt: session.startsAt },
+    });
+    return session;
+  }
+
+  async adminAddBooking(classSessionId: string, userId: string): Promise<Booking> {
+    const user = this.requireUser(userId);
+    if (user.status === "suspended") {
+      throw new Error(`${user.displayName} is suspended and cannot be booked into a class.`);
+    }
+    const session = this.requireClass(classSessionId);
+    if (session.cancelledAt) throw new Error("This class was cancelled.");
+    // Staff can add a walk-in once a class has started, but not after it ends.
+    if (new Date(session.endsAt).getTime() < Date.now()) {
+      throw new Error("This class has already finished.");
+    }
+    const booking = this.placeBooking(
+      session,
+      userId,
+      `${user.displayName} already has a booking for this class.`,
+    );
+    this.pushAudit({
+      action: "booking_added_by_staff",
+      actorId: this.currentUserId ?? null,
+      subjectUserId: userId,
+      entityType: "Booking",
+      entityId: booking.id,
+      metadata: { classSessionId, status: booking.status },
+    });
+    return booking;
+  }
+
+  async adminCancelBooking(bookingId: string): Promise<Booking> {
+    const booking = this.state.bookings.find((b) => b.id === bookingId);
+    if (!booking) throw new Error("Booking not found");
+    if (booking.status === "cancelled") {
+      throw new Error("That booking is already cancelled.");
+    }
+    if (["expired", "attended", "no_show"].includes(booking.status)) {
+      throw new Error(`A booking marked ${booking.status.replace(/_/g, " ")} cannot be cancelled.`);
+    }
+    const session = this.state.classSessions.find(
+      (c) => c.id === booking.classSessionId,
+    );
+    if (!session) throw new Error("Class session not found");
+    const actorId = this.currentUserId ?? booking.userId;
+    const from = booking.status;
+    await this.releaseBooking(booking, session, actorId);
+    this.pushAudit({
+      action: "booking_cancelled_by_staff",
+      actorId: this.currentUserId ?? null,
+      subjectUserId: booking.userId,
+      entityType: "Booking",
+      entityId: booking.id,
+      metadata: { classSessionId: session.id, from },
+    });
+    return booking;
   }
 
   async adminListRoster(classSessionId: string): Promise<BookingRosterRow[]> {

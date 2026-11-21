@@ -282,6 +282,12 @@ export interface ClassSessionInput extends Partial<ClassSession> {
   endsAt: ISODateTime;
   capacity: number;
   instructorId: string;
+  /**
+   * What the class page says about this session, as HTML. Cleaned on save and
+   * kept as this session's own content page. Leave it out to keep what is
+   * there; send it empty to go back to the shared wording.
+   */
+  description?: string;
 }
 
 export interface BookingRosterRow extends Booking {
@@ -1008,6 +1014,18 @@ export interface DataProvider {
   adminRevokeCertification(input: RevokeInput): Promise<UserCertification>;
   adminUpsertCertification(data: CertificationInput): Promise<Certification>;
   adminUpsertClass(data: ClassSessionInput): Promise<ClassSession>;
+  /** Every class: drafts, cancelled and past ones too. Upcoming first. */
+  adminListClasses(): Promise<ClassSessionView[]>;
+  /**
+   * Take a class off the calendar. Bookings are left as they are, and no
+   * money or credits move. The hourly Zeffy pull does not undo it.
+   */
+  adminCancelClass(id: string): Promise<ClassSession>;
+  adminRestoreClass(id: string): Promise<ClassSession>;
+  /** Staff put a member in a class. Capacity, waitlist and payment hold as usual. */
+  adminAddBooking(classSessionId: string, userId: string): Promise<Booking>;
+  /** Staff cancel a member's booking, at any time before or after the cutoff. */
+  adminCancelBooking(bookingId: string): Promise<Booking>;
   adminListRoster(classSessionId: string): Promise<BookingRosterRow[]>;
   adminMarkBookingPaid(bookingId: string, actorId: string): Promise<Booking>;
   /** Mark paid + attach Zeffy payment id (webhook/sync). */

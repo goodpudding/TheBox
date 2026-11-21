@@ -242,6 +242,9 @@ function ClassDetailBody() {
           description={`${formatDateTime(session.startsAt)} · ${session.location}`}
         />
         <StatusPill tone="muted">{price}</StatusPill>
+        {session.cancelledAt ? (
+          <StatusPill tone="danger">Cancelled</StatusPill>
+        ) : null}
       </div>
 
       {priorityActive ? (
@@ -373,6 +376,10 @@ function ClassDetailBody() {
               Cancel booking
             </Button>
           </div>
+        ) : session.cancelledAt ? (
+          <p className="mt-4 text-sm text-charcoal">
+            This class was cancelled, so it cannot be booked.
+          </p>
         ) : (
           <div className="mt-4 space-y-4">
             <TextBlock

@@ -38,15 +38,24 @@ export function RichTextEditor({
 }) {
   const box = useRef<HTMLDivElement>(null);
   const started = useRef(false);
+  /** What was last reported, as the browser writes it. */
+  const reported = useRef<string | null>(null);
 
   useEffect(() => {
     if (started.current || !box.current) return;
     started.current = true;
     box.current.innerHTML = initialHtml;
+    reported.current = box.current.innerHTML;
   }, [initialHtml]);
 
+  // Only a real change is reported. Clicking into the box and out again is
+  // not one, and a form can tell "left alone" from "edited" by that.
   function report() {
-    if (box.current) onChange(box.current.innerHTML);
+    if (!box.current) return;
+    const html = box.current.innerHTML;
+    if (html === reported.current) return;
+    reported.current = html;
+    onChange(html);
   }
 
   function run(item: Command) {

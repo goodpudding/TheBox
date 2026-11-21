@@ -7,7 +7,7 @@ import { StatusPill } from "@/components/status-pill";
 import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
-import { hasStarted } from "@/lib/time-window";
+import { hasStarted, type Now } from "@/lib/time-window";
 import { useNow } from "@/lib/use-now";
 import { formatMoney } from "@/lib/utils";
 import type { ClassCategory, ClassSessionView } from "@/lib/data";
@@ -18,6 +18,21 @@ const CATEGORY_LABEL: Record<ClassCategory, string> = {
   workshop: "Workshop",
   open_studio: "Open studio",
 };
+
+/**
+ * One word for where a class stands. A class that has started is Past
+ * whatever else is true of it: the Zeffy pull marks finished classes
+ * cancelled and unpublished, which says nothing about whether they ran.
+ */
+function classStatus(
+  session: ClassSessionView,
+  now: Now,
+): { label: string; tone: "ok" | "muted" | "danger" | "warn" } {
+  if (hasStarted(session.startsAt, now)) return { label: "Past", tone: "muted" };
+  if (session.cancelledAt) return { label: "Cancelled", tone: "danger" };
+  if (!session.published) return { label: "Draft", tone: "warn" };
+  return { label: "Upcoming", tone: "ok" };
+}
 
 export default function AdminClassesPage() {
   const { provider, revision, bump } = useData();
@@ -41,11 +56,8 @@ export default function AdminClassesPage() {
     let cancelled = false;
     void (async () => {
       try {
-        const rows = await provider.listClasses({
-          upcomingOnly: true,
-          includeCancelled: true,
-          includeImported: true,
-        });
+        // Every class, not the public list: drafts, cancelled and past too.
+        const rows = await provider.adminListClasses();
         if (!cancelled) {
           setClasses(rows);
           setError(null);
@@ -144,11 +156,11 @@ export default function AdminClassesPage() {
       {classes === null ? (
         <p className="mt-10 text-secondary">Loading classes…</p>
       ) : classes.length === 0 ? (
-        <p className="mt-10 text-secondary">No published classes yet.</p>
+        <p className="mt-10 text-secondary">No classes yet.</p>
       ) : (
         <ul className="mt-10 divide-y divide-border border-y border-border">
           {classes.map((session) => {
-            const past = hasStarted(session.startsAt, now);
+            const status = classStatus(session, now);
             const price =
               session.priceCents <= 0
                 ? "Free"
@@ -175,9 +187,7 @@ export default function AdminClassesPage() {
                     <StatusPill tone="muted">
                       {CATEGORY_LABEL[session.category]}
                     </StatusPill>
-                    <StatusPill tone={past ? "muted" : "ok"}>
-                      {session.cancelledAt ? "Cancelled" : past ? "Past" : "Upcoming"}
-                    </StatusPill>
+                    <StatusPill tone={status.tone}>{status.label}</StatusPill>
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-charcoal">

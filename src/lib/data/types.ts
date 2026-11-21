@@ -103,6 +103,10 @@ export type AccessDenyReason =
   | "reservation_required";
 
 export type AuditAction =
+  | "class_cancelled"
+  | "class_restored"
+  | "booking_added_by_staff"
+  | "booking_cancelled_by_staff"
   | "member_role_changed"
   | "member_updated"
   | "content_page_created"
