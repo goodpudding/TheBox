@@ -17,7 +17,9 @@ import { PanelCerts } from "@/components/display/panel-certs";
 import { PanelPromos } from "@/components/display/panel-promos";
 import { PanelMembership } from "@/components/display/panel-membership";
 import { PanelBounties } from "@/components/display/panel-bounties";
+import { PanelCommunity } from "@/components/display/panel-community";
 import { PanelFindUs } from "@/components/display/panel-findus";
+import { PanelSpotlight } from "@/components/display/panel-spotlight";
 import type { DisplayFeed, DisplayPanelId } from "@/lib/data";
 import { laParts } from "@/lib/data/display-feed";
 
@@ -69,6 +71,10 @@ function panelHasContent(id: DisplayPanelId, feed: DisplayFeed): boolean {
       return feed.membership.products.length > 0;
     case "findus":
       return true;
+    case "spotlight":
+      return (feed.spotlight?.length ?? 0) > 0;
+    case "community":
+      return (feed.community?.length ?? 0) > 0;
   }
 }
 
@@ -257,6 +263,12 @@ export default function DisplayClient() {
           <PanelMembership membership={feed.membership} turn={cycle} />
         ) : null}
         {activeId === "findus" ? <PanelFindUs /> : null}
+        {activeId === "spotlight" ? (
+          <PanelSpotlight events={feed.spotlight ?? []} turn={cycle} />
+        ) : null}
+        {activeId === "community" ? (
+          <PanelCommunity events={feed.community ?? []} turn={cycle} />
+        ) : null}
         {rotation.length === 0 ? (
           <p className="text-[1.8vw] text-display-muted">
             Nothing scheduled to show right now.

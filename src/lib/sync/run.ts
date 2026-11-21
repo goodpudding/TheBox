@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { listAllZeffyCampaigns, getZeffyCampaign } from "@/lib/zeffy/client";
 import type { ZeffyCampaign } from "@/lib/zeffy/types";
 import type { ClassSource } from "@/lib/data/types";
+import { saveClassDescriptions } from "@/lib/sync/class-descriptions";
 import {
   campaignInWindow,
   isClassCampaign,
@@ -111,6 +112,9 @@ export async function syncClassesFromZeffy(now = new Date()): Promise<{
     (campaign) => isClassCampaign(campaign) && campaignInWindow(campaign, now),
   ).length;
   const syncedAt = now;
+
+  // Pages first: a class must never point at a description that is not there.
+  await saveClassDescriptions(plan.descriptions, syncedAt);
 
   for (const item of plan.upserts) {
     const data = {

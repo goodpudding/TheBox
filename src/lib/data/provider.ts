@@ -692,6 +692,13 @@ export interface DisplayUpcomingItem {
   bookingUrl: string;
 }
 
+/** An event with enough about it to fill a slide of its own. */
+export interface DisplayEventItem extends DisplayUpcomingItem {
+  priceCents: number;
+  /** What the event is about, as plain text. Null when nothing is written. */
+  description: string | null;
+}
+
 export interface DisplayCheckoff {
   id: string;
   title: string;
@@ -736,6 +743,10 @@ export interface DisplayFeed {
   onlineCerts: DisplayOnlineCert[];
   bounties: DisplayBounty[];
   promos: PromoSlide[];
+  /** The next three weeks of events, one per slide, each once. */
+  spotlight: DisplayEventItem[];
+  /** Free open events over the next five weeks, each once. */
+  community: DisplayEventItem[];
   /** Photos for the picture side of each slide, in rotation order. */
   photos: DisplayFeedPhoto[];
   membership: DisplayMembershipTier;

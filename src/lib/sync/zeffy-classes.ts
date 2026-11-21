@@ -1,3 +1,4 @@
+import { cleanContentHtml, contentHtmlHasText } from "@/lib/data/content-html";
 import { isMembershipCampaign } from "@/lib/zeffy/memberships";
 import type { ZeffyCampaign, ZeffyRate } from "@/lib/zeffy/types";
 import type { ClassSession, ClassSource } from "@/lib/data/types";
@@ -35,8 +36,18 @@ export interface PlannedClass {
   fields: Omit<ClassSyncRow, "id" | "staffEditedFields">;
 }
 
+/** What an event's Zeffy page says about it, to keep as a class page. */
+export interface PlannedDescription {
+  /** The content page's slug: one page per Zeffy event, shared by its dates. */
+  slug: string;
+  title: string;
+  html: string;
+}
+
 export interface ClassSyncPlan {
   upserts: PlannedClass[];
+  /** One per listed event that has a description on Zeffy. */
+  descriptions: PlannedDescription[];
   cancelIds: string[];
   created: number;
   updated: number;
@@ -111,6 +122,41 @@ function slugFor(campaignId: string, occurrenceId: string): string {
   return `zeffy-${a}-${b}`;
 }
 
+const ZEFFY_DESCRIPTION_PREFIX = "class-zeffy-";
+
+/** Slug of the page that holds one Zeffy event's description. */
+export function zeffyDescriptionSlug(campaignId: string): string {
+  const id = campaignId.replace(/[^a-z0-9-]/gi, "").toLowerCase().slice(0, 60);
+  return `${ZEFFY_DESCRIPTION_PREFIX}${id}`;
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/**
+ * A Zeffy description as HTML the site will show, or null when there is
+ * nothing to read. Zeffy sends HTML; plain text is turned into paragraphs.
+ * Either way only the tags a staff-written page may hold are kept.
+ */
+export function zeffyDescriptionHtml(raw: string | null | undefined): string | null {
+  const text = (raw ?? "").trim();
+  if (!text) return null;
+  const marked = /<[a-z][^>]*>/i.test(text)
+    ? text
+    : text
+        .split(/\n\s*\n/)
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .map((part) => `<p>${escapeHtml(part).replace(/\n/g, "<br />")}</p>`)
+        .join("");
+  const html = cleanContentHtml(marked);
+  return contentHtmlHasText(html) ? html : null;
+}
+
 function applyStaffEdits(
   existing: ClassSyncRow,
   next: Omit<ClassSyncRow, "id" | "staffEditedFields">,
@@ -148,6 +194,7 @@ export function planClassSync(input: {
   );
   const seen = new Set<string>();
   const upserts: PlannedClass[] = [];
+  const descriptions: PlannedDescription[] = [];
   let created = 0;
   let updated = 0;
 
@@ -156,6 +203,9 @@ export function planClassSync(input: {
       continue;
     }
     const cancelled = isCancelledCampaign(campaign);
+    const descriptionHtml = zeffyDescriptionHtml(campaign.description);
+    const descriptionSlug = zeffyDescriptionSlug(campaign.id);
+    let listed = false;
     const occurrences =
       campaign.occurrences && campaign.occurrences.length > 0
         ? campaign.occurrences
@@ -188,7 +238,15 @@ export function planClassSync(input: {
       const fields: Omit<ClassSyncRow, "id" | "staffEditedFields"> = {
         title: campaign.title,
         slug: existing?.slug ?? slugFor(campaign.id, occurrenceId),
-        descriptionSlug: existing?.descriptionSlug ?? "class-generic",
+        // The event's own words when Zeffy has some. Without them, whatever
+        // the class pointed at before, unless that was a Zeffy description
+        // that has since been removed. A description staff wrote on the site
+        // wins either way (applyStaffEdits below).
+        descriptionSlug: descriptionHtml
+          ? descriptionSlug
+          : existing && !existing.descriptionSlug.startsWith(ZEFFY_DESCRIPTION_PREFIX)
+            ? existing.descriptionSlug
+            : "class-generic",
         category: priceCents > 0 ? "workshop" : "open_studio",
         instructorId: input.defaultInstructorId ?? existing?.instructorId ?? "",
         startsAt,
@@ -213,8 +271,16 @@ export function planClassSync(input: {
         merged.cancelledAt = null;
       }
       upserts.push({ id: existing?.id ?? null, existing, fields: merged });
+      listed = true;
       if (existing) updated += 1;
       else created += 1;
+    }
+    if (listed && descriptionHtml) {
+      descriptions.push({
+        slug: descriptionSlug,
+        title: campaign.title,
+        html: descriptionHtml,
+      });
     }
   }
 
@@ -231,6 +297,7 @@ export function planClassSync(input: {
 
   return {
     upserts,
+    descriptions,
     cancelIds,
     created,
     updated,

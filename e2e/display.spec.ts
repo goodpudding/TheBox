@@ -88,11 +88,20 @@ test.describe("Lobby display", () => {
       timeout: 10_000,
     });
 
+    // Show the machine panel alone, with the feed's own data. Where it comes
+    // in the rotation is not what this test is about, and it moves whenever
+    // a slide is added.
+    await page.route("**/api/display/feed*", async (route) => {
+      const feed = await (await route.fetch()).json();
+      feed.config.panelOrder = ["machines"];
+      feed.config.pinnedPanel = null;
+      await route.fulfill({ json: feed });
+    });
     await page.goto(`/display?token=${encodeURIComponent(TOKEN)}`);
     await expect(page.getByText("Makerspace", { exact: true }).first()).toBeVisible({
       timeout: 15_000,
     });
-    // Machine panel rotates in; wait for status grid copy.
+    // Wait for status grid copy.
     const deadline = Date.now() + 40_000;
     let sawStatus = false;
     while (Date.now() < deadline) {
@@ -154,6 +163,99 @@ test.describe("Lobby display", () => {
     await expect(page.getByText("Turn right at 6th Ave SW")).toBeVisible();
     await expect(page.getByText("Come along the back")).toBeVisible();
     await expect(page.getByText("611 SW 152nd St, Burien")).toBeVisible();
+  });
+
+  test("an event gets a slide of its own, with what it is about", async ({
+    page,
+  }) => {
+    await page.route("**/api/display/feed*", async (route) => {
+      const feed = await (await route.fetch()).json();
+      feed.spotlight = [
+        {
+          id: "e1",
+          title: "Repair Café",
+          startsAt: "2026-12-16T02:00:00.000Z",
+          endsAt: "2026-12-16T04:00:00.000Z",
+          location: "611 SW 152nd St, Burien, WA",
+          category: "open_studio",
+          spotsRemaining: 5,
+          bookingUrl: "https://www.zeffy.com/ticketing/repair-cafe-4",
+          priceCents: 0,
+          description: "Bring something broken. Volunteers help you fix it.",
+        },
+        {
+          id: "e2",
+          title: "Stained Glass Ornaments",
+          startsAt: "2026-12-08T21:00:00.000Z",
+          endsAt: "2026-12-08T23:00:00.000Z",
+          location: "611 SW 152nd St, Burien, WA",
+          category: "workshop",
+          spotsRemaining: 1,
+          bookingUrl: "https://www.zeffy.com/ticketing/stained-glass",
+          priceCents: 6500,
+          description: null,
+        },
+      ];
+      feed.config.panelOrder = ["spotlight"];
+      feed.config.pinnedPanel = null;
+      await route.fulfill({ json: feed });
+    });
+    await page.clock.install();
+    await page.goto(`/display?token=${encodeURIComponent(TOKEN)}`);
+    await expect(page.getByRole("heading", { name: "Repair Café" })).toBeVisible({
+      timeout: 15_000,
+    });
+    // 02:00 UTC on the 16th is Tuesday evening the 15th in Burien.
+    await expect(page.getByText("Tuesday, December 15 · 6:00 – 8:00 PM")).toBeVisible();
+    await expect(page.getByText("Free community event")).toBeVisible();
+    await expect(
+      page.getByText("Bring something broken. Volunteers help you fix it."),
+    ).toBeVisible();
+    await expect(page.getByText("5 spots left")).toBeVisible();
+    await expect(page.getByAltText("Sign up for Repair Café")).toBeVisible();
+
+    // The next time round it is the next event's turn.
+    await page.clock.runFor(12_500);
+    await expect(
+      page.getByRole("heading", { name: "Stained Glass Ornaments" }),
+    ).toBeVisible();
+    await expect(page.getByText("Workshop · $65")).toBeVisible();
+    await expect(page.getByText("1 spot left")).toBeVisible();
+  });
+
+  test("free community events share one slide", async ({ page }) => {
+    await page.route("**/api/display/feed*", async (route) => {
+      const feed = await (await route.fetch()).json();
+      const event = (id: string, title: string, startsAt: string) => ({
+        id,
+        title,
+        startsAt,
+        endsAt: startsAt,
+        location: "611 SW 152nd St, Burien, WA",
+        category: "open_studio",
+        spotsRemaining: 8,
+        bookingUrl: `https://www.zeffy.com/ticketing/${id}`,
+        priceCents: 0,
+        description: null,
+      });
+      feed.community = [
+        event("q", "Queer Makers Night", "2026-11-25T02:00:00.000Z"),
+        event("j", "Junk Journaling Night", "2026-12-02T02:00:00.000Z"),
+        event("r", "Repair Café", "2026-12-16T02:00:00.000Z"),
+      ];
+      feed.config.panelOrder = ["community"];
+      feed.config.pinnedPanel = null;
+      await route.fulfill({ json: feed });
+    });
+    await page.goto(`/display?token=${encodeURIComponent(TOKEN)}`);
+    await expect(
+      page.getByRole("heading", { name: "Community events" }),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Free. Everyone welcome")).toBeVisible();
+    for (const title of ["Queer Makers Night", "Junk Journaling Night", "Repair Café"]) {
+      await expect(page.getByText(title, { exact: true })).toBeVisible();
+    }
+    await expect(page.getByAltText("Sign up for Repair Café")).toBeVisible();
   });
 
   test("the Find us slide is in the rotation without anyone adding it", async ({
@@ -236,6 +338,8 @@ test.describe("Lobby display", () => {
     ["promos", LONG],
     ["membership", "Membership"],
     ["findus", "Find us around back"],
+    ["spotlight", LONG],
+    ["community", "Community events"],
   ] as const;
 
   for (const [panel, heading] of PANELS) {
@@ -290,6 +394,23 @@ test.describe("Lobby display", () => {
         feed.promos = [
           { ...feed.promos[0], title: LONG, body: `${LONG}. `.repeat(12) },
         ];
+        feed.spotlight = [
+          {
+            ...feed.upcoming[0],
+            id: "s0",
+            title: LONG,
+            priceCents: 12000,
+            description: `${LONG}. `.repeat(6).trim(),
+          },
+        ];
+        feed.community = many(feed.upcoming, 11, (r: object, i) => ({
+          ...r,
+          id: `cm${i}`,
+          title: LONG,
+          category: "open_studio",
+          priceCents: 0,
+          description: null,
+        }));
         feed.membership.products = many(
           feed.membership.products,
           9,
@@ -442,6 +563,9 @@ test.describe("Admin → Display", () => {
     await page.goto("/admin/display");
     const photos = page.getByRole("region", { name: "Photos" });
     await expect(photos).toBeVisible({ timeout: 15_000 });
+    // The list arrives a moment after the section does. Count it once the
+    // sample photos are there, not while it is still empty.
+    await expect(photos.getByRole("listitem").first()).toBeVisible();
     const before = await photos.getByRole("listitem").count();
 
     await photos

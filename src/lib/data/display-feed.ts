@@ -3,6 +3,7 @@ import type {
   Bounty,
   Certification,
   ClassSession,
+  ContentPage,
   DisplayConfig,
   DisplayPhoto,
   LearningModule,
@@ -18,6 +19,7 @@ import type {
 } from "./types";
 import type {
   DisplayBounty,
+  DisplayEventItem,
   DisplayFeed,
   DisplayFeedPhoto,
   DisplayMachineStatus,
@@ -110,6 +112,42 @@ function bookedCount(
   return bookings.filter(
     (b) => b.classSessionId === classSessionId && SEAT_STATUSES.has(b.status),
   ).length;
+}
+
+/** How far ahead the spotlight and community slides look, and how much they hold. */
+export const DISPLAY_SPOTLIGHT_DAYS = 21;
+export const DISPLAY_COMMUNITY_DAYS = 35;
+export const DISPLAY_EVENT_LIMIT = 8;
+/** A description is cut to this many characters: about five lines on the TV. */
+export const DISPLAY_DESCRIPTION_MAX = 420;
+
+/** The page every class without its own words points at. Not about any one event. */
+const GENERIC_CLASS_PAGE = "class-generic";
+
+/**
+ * A page's text without its tags, for a slide. Written here, not borrowed
+ * from the content importer, because the display page loads this file and
+ * should not carry the importer with it.
+ */
+function plainText(html: string): string {
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#0?39;|&apos;/gi, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Cut at a word so a slide never ends mid-word. */
+function shorten(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max + 1);
+  const lastSpace = cut.lastIndexOf(" ");
+  return `${cut.slice(0, lastSpace > 0 ? lastSpace : max).trimEnd()}…`;
 }
 
 /** Where the display loads a photo from. */
@@ -221,6 +259,8 @@ export function buildDisplayFeed(input: {
   promoSlides: PromoSlide[];
   displayConfig: DisplayConfig;
   displayPhotos?: DisplayPhoto[];
+  /** Class description pages. Without them events have no description. */
+  contentPages?: ContentPage[];
   bounties?: Bounty[];
 }): DisplayFeed {
   const now = input.now ?? new Date();
@@ -305,6 +345,67 @@ export function buildDisplayFeed(input: {
         bookingUrl,
       };
     });
+
+  const describe = (c: ClassSession): string | null => {
+    if (c.descriptionSlug === GENERIC_CLASS_PAGE) return null;
+    const page = (input.contentPages ?? []).find(
+      (p) => p.slug === c.descriptionSlug && p.published && !p.deletedAt,
+    );
+    const text = page ? plainText(page.html) : "";
+    return text ? shorten(text, DISPLAY_DESCRIPTION_MAX) : null;
+  };
+
+  /**
+   * Events worth a slide: still to come, not called off, within `days`, each
+   * title once on its next date. A weekly class would otherwise fill the list.
+   */
+  const comingEvents = (
+    days: number,
+    keep: (c: ClassSession) => boolean,
+  ): DisplayEventItem[] => {
+    const until = now.getTime() + days * 24 * 3600_000;
+    const seen = new Set<string>();
+    return published
+      .filter((c) => {
+        const t = new Date(c.startsAt).getTime();
+        return (
+          !c.cancelledAt && !c.deletedAt && t >= now.getTime() && t <= until && keep(c)
+        );
+      })
+      .sort(
+        (a, b) =>
+          new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
+      )
+      .filter((c) => {
+        const key = c.title.trim().toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, DISPLAY_EVENT_LIMIT)
+      .map((c) => ({
+        id: c.id,
+        title: c.title,
+        startsAt: c.startsAt,
+        endsAt: c.endsAt,
+        location: c.location,
+        category: c.category,
+        spotsRemaining: Math.max(0, c.capacity - bookedCount(input.bookings, c.id)),
+        bookingUrl: c.zeffyUrl?.trim()
+          ? c.zeffyUrl
+          : `${siteBase()}/classes/${c.id}`,
+        priceCents: c.priceCents,
+        description: describe(c),
+      }));
+  };
+
+  const spotlight = comingEvents(DISPLAY_SPOTLIGHT_DAYS, () => true);
+  // Open studio is what a free event from Zeffy is filed as: Repair Café,
+  // Queer Makers Night and the like.
+  const community = comingEvents(
+    DISPLAY_COMMUNITY_DAYS,
+    (c) => c.category === "open_studio",
+  );
 
   const checkoffs = published
     .filter(
@@ -426,6 +527,8 @@ export function buildDisplayFeed(input: {
     onlineCerts,
     bounties,
     promos,
+    spotlight,
+    community,
     photos,
     membership,
     config: structuredClone(input.displayConfig),

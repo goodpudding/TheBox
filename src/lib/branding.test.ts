@@ -254,5 +254,21 @@ describe("the migration that renames live content", () => {
       contactEmail: "shop@example.org",
     });
   });
+
+  it("adds the two new slides to a saved panel order, once", () => {
+    const dir = path.join(process.cwd(), "migrations");
+    const sql = readFileSync(path.join(dir, "0021_event_slides.sql"), "utf8");
+    const db = migrated((d) => {
+      insertRow(d, "DisplayConfig", {
+        id: "default",
+        panelOrder: '["today","upcoming","findus"]',
+      });
+    });
+    db.exec(sql);
+    db.exec(sql);
+    expect(db.prepare(`SELECT "panelOrder" FROM "DisplayConfig"`).get()).toEqual({
+      panelOrder: '["today","upcoming","findus","spotlight","community"]',
+    });
+  });
 });
 

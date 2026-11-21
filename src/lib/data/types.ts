@@ -804,7 +804,9 @@ export type DisplayPanelId =
   | "bounties"
   | "promos"
   | "membership"
-  | "findus";
+  | "findus"
+  | "spotlight"
+  | "community";
 
 export type NameDisplayMode = "none" | "first" | "firstLast";
 

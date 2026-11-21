@@ -239,3 +239,144 @@ describe("planClassSync", () => {
     expect(restored.upserts[0]?.fields.cancelledAt).toBeNull();
   });
 });
+
+/**
+ * What an event is about is written once, on its Zeffy page. The pull copies
+ * it across so the site and the lobby display can show it.
+ */
+describe("event descriptions from Zeffy", () => {
+  const plan = (campaigns: ZeffyCampaign[], existing: ClassSyncRow[] = []) =>
+    planClassSync({
+      campaigns,
+      existing,
+      now: NOW,
+      defaultInstructorId: "u-admin",
+      defaultCapacity: 8,
+    });
+
+  it("gives a class the description written on its Zeffy page", () => {
+    const result = plan([
+      campaign({
+        id: "camp-repair",
+        title: "Repair Café",
+        description: "<p>Bring something broken. Volunteers help you fix it.</p>",
+      }),
+    ]);
+    expect(result.descriptions).toEqual([
+      {
+        slug: "class-zeffy-camp-repair",
+        title: "Repair Café",
+        html: "<p>Bring something broken. Volunteers help you fix it.</p>",
+      },
+    ]);
+    expect(result.upserts[0]!.fields.descriptionSlug).toBe("class-zeffy-camp-repair");
+  });
+
+  it("gives every date of a repeating event the one description", () => {
+    const start = Math.floor(NOW.getTime() / 1000) + DAY;
+    const result = plan([
+      campaign({
+        id: "camp-paint",
+        title: "Painting with Paul",
+        description: "<p>A relaxed painting hour.</p>",
+        occurrences: [
+          { id: "o1", start, end: start + 3600, is_archived: false },
+          { id: "o2", start: start + 7 * DAY, end: start + 7 * DAY + 3600, is_archived: false },
+        ],
+      }),
+    ]);
+    expect(result.descriptions).toHaveLength(1);
+    expect(result.upserts.map((u) => u.fields.descriptionSlug)).toEqual([
+      "class-zeffy-camp-paint",
+      "class-zeffy-camp-paint",
+    ]);
+  });
+
+  it("moves a class already on the site from the general wording to its own", () => {
+    const result = plan(
+      [campaign({ id: "camp-1", title: "Dovetails", description: "<p>Cut by hand.</p>" })],
+      [row({ id: "class_1", zeffyCampaignId: "camp-1", zeffyOccurrenceId: "default" })],
+    );
+    expect(result.upserts[0]!.fields.descriptionSlug).toBe("class-zeffy-camp-1");
+  });
+
+  it("keeps a description staff wrote on the site", () => {
+    const result = plan(
+      [campaign({ id: "camp-1", title: "Dovetails", description: "<p>From Zeffy.</p>" })],
+      [
+        row({
+          id: "class_1",
+          zeffyCampaignId: "camp-1",
+          zeffyOccurrenceId: "default",
+          descriptionSlug: "class-description-class-1",
+          staffEditedFields: ["descriptionSlug"],
+        }),
+      ],
+    );
+    expect(result.upserts[0]!.fields.descriptionSlug).toBe("class-description-class-1");
+  });
+
+  it("leaves a class on the general wording when Zeffy has nothing written", () => {
+    for (const description of ["", "   ", "<p></p>", "<p>&nbsp;</p>"]) {
+      const result = plan([campaign({ id: "camp-1", title: "Dovetails", description })]);
+      expect(result.descriptions).toEqual([]);
+      expect(result.upserts[0]!.fields.descriptionSlug).toBe("class-generic");
+    }
+  });
+
+  it("goes back to the general wording when the Zeffy description is removed", () => {
+    const result = plan(
+      [campaign({ id: "camp-1", title: "Dovetails", description: "" })],
+      [
+        row({
+          id: "class_1",
+          zeffyCampaignId: "camp-1",
+          zeffyOccurrenceId: "default",
+          descriptionSlug: "class-zeffy-camp-1",
+        }),
+      ],
+    );
+    expect(result.upserts[0]!.fields.descriptionSlug).toBe("class-generic");
+  });
+
+  it("keeps only safe formatting from what Zeffy sends", () => {
+    const result = plan([
+      campaign({
+        id: "camp-1",
+        title: "Dovetails",
+        description:
+          '<p onclick="x()">Hand tools <strong>only</strong>.</p><script>alert(1)</script><iframe src="https://evil.example"></iframe>',
+      }),
+    ]);
+    const html = result.descriptions[0]!.html;
+    expect(html).toContain("<strong>only</strong>");
+    expect(html).not.toMatch(/script|iframe|onclick/i);
+  });
+
+  it("turns plain text with blank lines into paragraphs", () => {
+    const result = plan([
+      campaign({
+        id: "camp-1",
+        title: "Dovetails",
+        description: "Bring a mug & a friend.\n\nAll materials provided.",
+      }),
+    ]);
+    expect(result.descriptions[0]!.html).toBe(
+      "<p>Bring a mug &amp; a friend.</p><p>All materials provided.</p>",
+    );
+  });
+
+  it("writes nothing for an event it is not listing", () => {
+    const result = plan([
+      campaign({
+        id: "camp-old",
+        title: "Long gone",
+        description: "<p>Past.</p>",
+        start_date: Math.floor(NOW.getTime() / 1000) - 90 * DAY,
+        end_date: Math.floor(NOW.getTime() / 1000) - 90 * DAY + 3600,
+      }),
+    ]);
+    expect(result.descriptions).toEqual([]);
+  });
+});
+

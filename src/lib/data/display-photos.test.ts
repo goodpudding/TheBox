@@ -110,5 +110,17 @@ describe("lobby display motion setting", () => {
     });
     expect(moved.panelOrder).toEqual(["findus", "upcoming"]);
   });
+
+  it("has the event spotlight and community slides in the rotation", async () => {
+    const provider = createMockDataProvider(null);
+    const start = await provider.getDisplayConfig();
+    expect(start.panelOrder).toEqual(
+      expect.arrayContaining(["spotlight", "community"]),
+    );
+    const moved = await provider.saveDisplayConfig({
+      panelOrder: ["community", "spotlight", "upcoming"],
+    });
+    expect(moved.panelOrder).toEqual(["community", "spotlight", "upcoming"]);
+  });
 });
 

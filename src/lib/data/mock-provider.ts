@@ -6434,6 +6434,7 @@ export class MockDataProvider implements DataProvider {
       promoSlides: this.state.promoSlides,
       displayConfig: this.state.displayConfig,
       displayPhotos: this.state.displayPhotos,
+      contentPages: this.state.contentPages,
       bounties: this.state.bounties,
     });
   }
@@ -6506,6 +6507,8 @@ export class MockDataProvider implements DataProvider {
       "promos",
       "membership",
       "findus",
+      "spotlight",
+      "community",
     ];
     if (data.panelOrder) {
       const filtered = data.panelOrder.filter((p) =>
