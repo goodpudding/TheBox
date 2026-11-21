@@ -129,9 +129,9 @@ export default function SupportPage() {
           Interested? Email{" "}
           <a
             className="text-primary-text underline"
-            href={`mailto:${settings?.contactEmail ?? "thebox@discoverburien.org"}`}
+            href={`mailto:${settings?.contactEmail ?? "discovermakers@gmail.com"}`}
           >
-            {settings?.contactEmail ?? "thebox@discoverburien.org"}
+            {settings?.contactEmail ?? "discovermakers@gmail.com"}
           </a>
           , or{" "}
           <Link href="/bounties#request" className="text-primary-text underline">

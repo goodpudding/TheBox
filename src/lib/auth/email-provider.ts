@@ -17,7 +17,11 @@ type EmailEnv = {
  * Both only ever get one bare address to write to (normalizeSignInEmail).
  */
 export function emailProvider(env: EmailEnv): EmailConfig {
-  const from = env.AUTH_EMAIL_FROM ?? "Discover Burien Makerspace <thebox@discoverburien.org>";
+  // The sender has to be on a domain the mail service has verified, so this
+  // is not the makerspace's Gmail contact address.
+  const from =
+    env.AUTH_EMAIL_FROM ??
+    "Discover Burien Makerspace <hello@discoverburienmakerspace.com>";
   if (env.AUTH_RESEND_KEY) {
     return Resend({
       id: "email",

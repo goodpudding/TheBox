@@ -127,8 +127,7 @@ test.describe("Makerspace portal critical paths (mock)", () => {
     });
   });
 
-  // The makerspace dropped the name "The Box". The waiver keeps its signed
-  // wording, so pages that print the waiver are not in this list.
+  // The makerspace dropped the name "The Box", the waiver included.
   for (const path of [
     "/join",
     "/events",
@@ -139,6 +138,7 @@ test.describe("Makerspace portal critical paths (mock)", () => {
     "/staff",
     "/wishlist",
     "/support",
+    "/policies",
     "/volunteer",
     "/login",
   ]) {

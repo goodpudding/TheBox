@@ -7,25 +7,36 @@ import { formatTier } from "./utils";
 
 /**
  * The makerspace dropped the name "The Box". It is Discover Burien
- * Makerspace, or "the makerspace" in a sentence. The waiver is the one
- * exception: it is a signed document, so its wording only changes when staff
- * publish a new version for members to sign.
+ * Makerspace, or "the makerspace" in a sentence. The waiver is a signed
+ * document, so its wording changed as a new version (2026.2) that members
+ * sign again; the general rename leaves it alone.
  */
 describe("the name The Box is gone", () => {
   it("from the tier label", () => {
     expect(formatTier("friend")).toBe("Friend of the Makerspace");
   });
 
-  it("from the sample content the site ships with, except the waiver", () => {
-    const bundle = loadFixtures();
-    const withoutWaiver = {
-      ...bundle,
-      contentPages: bundle.contentPages.filter((p) => p.category !== "waiver"),
-    };
-    const hits = [...JSON.stringify(withoutWaiver).matchAll(/.{0,40}the box.{0,20}/gi)].map(
-      (m) => m[0],
-    );
+  it("from the sample content the site ships with", () => {
+    const hits = [
+      ...JSON.stringify(loadFixtures()).matchAll(/.{0,40}the box.{0,20}/gi),
+    ].map((m) => m[0]);
     expect(hits).toEqual([]);
+  });
+
+  it("from the waiver, as a new version members are asked to sign", () => {
+    const bundle = loadFixtures();
+    const waiver = bundle.contentPages.find((p) => p.category === "waiver")!;
+    expect(waiver.version).toBe("2026.2");
+    expect(bundle.settings.currentWaiverVersion).toBe("2026.2");
+    expect(waiver.html).toContain("use of Discover Burien Makerspace involves");
+    expect(waiver.html).toContain(
+      "You release Discover Burien and Discover Burien Makerspace staff",
+    );
+    expect(waiver.html).toContain("This waiver (version 2026.2)");
+  });
+
+  it("the site's contact address is the makerspace's own", () => {
+    expect(loadFixtures().settings.contactEmail).toBe("discovermakers@gmail.com");
   });
 
   it("the sample content still reads as sentences", () => {
@@ -164,4 +175,84 @@ describe("the migration that renames live content", () => {
       (db.prepare(`SELECT "orgName" FROM "OrgSettings"`).get() as { orgName: string }).orgName,
     ).toBe("Burien Makers");
   });
+
+  const OLD_WAIVER =
+    "<p>By signing this waiver, you acknowledge that use of The Box makerspace involves inherent risks.</p><p>You release Discover Burien and The Box staff, volunteers, and affiliates from liability.</p><p>This waiver (version 2026.1) remains in effect until superseded.</p>";
+
+  function withLater(insert: (db: DatabaseSync) => void): DatabaseSync {
+    const db = migrated(insert);
+    const dir = path.join(process.cwd(), "migrations");
+    for (const name of ["0016_waiver_new_name.sql", "0017_contact_email.sql"]) {
+      db.exec(readFileSync(path.join(dir, name), "utf8"));
+    }
+    return db;
+  }
+
+  it("publishes the renamed waiver as version 2026.2, so members sign again", () => {
+    const db = withLater((d) => {
+      insertRow(d, "ContentPage", {
+        id: "content-waiver",
+        slug: "waiver",
+        title: "Liability Waiver",
+        category: "waiver",
+        version: "2026.1",
+        html: OLD_WAIVER,
+      });
+      insertRow(d, "OrgSettings", { id: "default", currentWaiverVersion: "2026.1" });
+    });
+    expect(
+      db.prepare(`SELECT "html", "version" FROM "ContentPage" WHERE "slug" = 'waiver'`).get(),
+    ).toEqual({
+      version: "2026.2",
+      html: "<p>By signing this waiver, you acknowledge that use of Discover Burien Makerspace involves inherent risks.</p><p>You release Discover Burien and Discover Burien Makerspace staff, volunteers, and affiliates from liability.</p><p>This waiver (version 2026.2) remains in effect until superseded.</p>",
+    });
+    expect(db.prepare(`SELECT "currentWaiverVersion" FROM "OrgSettings"`).get()).toEqual({
+      currentWaiverVersion: "2026.2",
+    });
+  });
+
+  it("leaves a waiver staff have already replaced, and its version, alone", () => {
+    const db = withLater((d) => {
+      insertRow(d, "ContentPage", {
+        id: "content-waiver",
+        slug: "waiver",
+        title: "Liability Waiver",
+        category: "waiver",
+        version: "2027.1",
+        html: "<p>Our own wording about The Box.</p>",
+      });
+      insertRow(d, "OrgSettings", { id: "default", currentWaiverVersion: "2027.1" });
+    });
+    expect(
+      db.prepare(`SELECT "html", "version" FROM "ContentPage" WHERE "slug" = 'waiver'`).get(),
+    ).toEqual({ version: "2027.1", html: "<p>Our own wording about The Box.</p>" });
+    expect(db.prepare(`SELECT "currentWaiverVersion" FROM "OrgSettings"`).get()).toEqual({
+      currentWaiverVersion: "2027.1",
+    });
+  });
+
+  it("does not ask members to sign again when there was no waiver to rename", () => {
+    const db = withLater((d) => {
+      insertRow(d, "OrgSettings", { id: "default", currentWaiverVersion: "2026.1" });
+    });
+    expect(db.prepare(`SELECT "currentWaiverVersion" FROM "OrgSettings"`).get()).toEqual({
+      currentWaiverVersion: "2026.1",
+    });
+  });
+
+  it("sets the contact address, unless staff already chose another", () => {
+    const fresh = withLater((d) => {
+      insertRow(d, "OrgSettings", { id: "default", contactEmail: "thebox@discoverburien.org" });
+    });
+    expect(fresh.prepare(`SELECT "contactEmail" FROM "OrgSettings"`).get()).toEqual({
+      contactEmail: "discovermakers@gmail.com",
+    });
+    const custom = withLater((d) => {
+      insertRow(d, "OrgSettings", { id: "default", contactEmail: "shop@example.org" });
+    });
+    expect(custom.prepare(`SELECT "contactEmail" FROM "OrgSettings"`).get()).toEqual({
+      contactEmail: "shop@example.org",
+    });
+  });
 });
+

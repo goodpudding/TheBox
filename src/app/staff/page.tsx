@@ -24,7 +24,7 @@ export default function StaffPage() {
     })();
   }, [provider, revision]);
 
-  const contact = settings?.contactEmail ?? "thebox@discoverburien.org";
+  const contact = settings?.contactEmail ?? "discovermakers@gmail.com";
 
   return (
     <PageShell>

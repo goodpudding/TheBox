@@ -135,7 +135,7 @@ export default function WishlistPage() {
     }
   }
 
-  const contact = settings?.contactEmail ?? "thebox@discoverburien.org";
+  const contact = settings?.contactEmail ?? "discovermakers@gmail.com";
   const donateUrl = settings?.donationUrl ?? settings?.paymentUrl ?? null;
 
   return (
