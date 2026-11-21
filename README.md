@@ -302,7 +302,14 @@ chromium-browser --kiosk --noerrdialogs --disable-infobars \
 
 Disable screen sleep on the device (e.g. `xset s off`, `xset -dpms`, or Raspberry Pi OS screen blanking settings). Use a systemd user service or desktop autostart that opens the URL after network is up.
 
-Staff edit promos, panel order, cadence, and name display under **Admin → Display**. The rotation includes a **Bounty board** panel (open and recently claimed requests, no claim form). Promo images upload to `public/uploads/promos` in development, and `npm run sync:google` drops images from Drive `Photos/Promos/` into the same folder; for production, point uploads at object storage (S3/R2) and store the resulting URL on the promo.
+Every slide has a photo on the left and its content on the right. Staff run the whole thing from **Admin → Display**, and changes reach the TV within a minute, with no deploy:
+
+- **Photos.** Add photos from a phone or laptop. They are shrunk in the browser (1600 px long edge) and the display rotates through them, one per slide. Each can have a caption, be hidden, reordered or deleted. Up to 60. Until there is one, the photo side shows a brand-coloured panel. The photo area is taller than wide, so wide photos are cropped at the sides.
+- **Promo slides.** Title, text, optional picture and QR link, with start and end dates. A promo's own picture replaces the rotating photo on that slide.
+- **Panels.** Order, pinned panel, seconds per slide, name display, how often Membership appears. Lists longer than a screen (machines, classes, membership tiers) show a screen at a time, moving on each rotation.
+- **Motion.** *Full* zooms photos slowly and shows a progress bar. *Calm* keeps only the fades: use it if the kiosk stutters (a Raspberry Pi 3 may).
+
+Promos, settings and photo rows are stored in D1 (`PromoSlide`, `DisplayConfig`, `DisplayPhoto`). Pictures are stored as base64 text in `DisplayPhotoBlob`, because the Worker has no disk or object storage and D1 holds one value of up to 2 MB; uploads are capped at 1.4 MB (`src/lib/display/limits.ts`). `src/lib/display/photo-store.ts` is the only code that touches the bytes, so moving them to R2 later changes one file. In local dev the pictures go to `.data/display-photos/` and the sample promos and photos in `data/mock/` are shown; the live site never shows those.
 
 ## Env
 
