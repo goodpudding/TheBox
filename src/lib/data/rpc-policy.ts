@@ -1,6 +1,7 @@
 import type { DataProvider } from "./provider";
 import type { User } from "./types";
 import { isStaffRole } from "./access";
+import { databaseErrorMessage } from "./db-errors";
 import { shouldPersistAfter } from "./persist-delta";
 
 export type DataMethod = keyof DataProvider;
@@ -105,6 +106,7 @@ export const RPC_RULES = {
   resuggestInterestBoard: { access: "user", arg: 1 },
   adminListMembers: { access: "staff", arg: -1 },
   adminUpdateMemberStatus: { access: "staff", arg: 2 },
+  adminUpdateMember: { access: "staff", arg: -1 },
   setMyKioskPin: { access: "user", arg: 0 },
   adminResetMemberKioskPin: { access: "staff", arg: 1 },
   adminSetMemberTeacher: { access: "staff", arg: 2 },
@@ -120,6 +122,11 @@ export const RPC_RULES = {
   adminRevokeCertification: { access: "staff", arg: 0, field: "actorId" },
   adminUpsertCertification: { access: "staff", arg: -1 },
   adminUpsertClass: { access: "staff", arg: -1 },
+  adminListClasses: { access: "staff", arg: -1 },
+  adminCancelClass: { access: "staff", arg: -1 },
+  adminRestoreClass: { access: "staff", arg: -1 },
+  adminAddBooking: { access: "staff", arg: -1 },
+  adminCancelBooking: { access: "staff", arg: -1 },
   adminListRoster: { access: "staff", arg: -1 },
   adminMarkBookingPaid: { access: "staff", arg: 1 },
   applyZeffyPaymentToBooking: { access: "staff", arg: -1 },
@@ -133,6 +140,10 @@ export const RPC_RULES = {
   adminCancelReservation: { access: "staff", arg: 1 },
   adminUpsertMaintenanceBlock: { access: "staff", arg: 0, field: "createdById" },
   adminListMaintenanceBlocks: { access: "staff", arg: -1 },
+  // Any signed-in person reaches these; the provider lets staff and active
+  // Shop Stewards through and refuses the rest, from the session's own id.
+  scheduleMaintenance: { access: "user", arg: -1 },
+  listMaintenanceSchedule: { access: "user", arg: -1 },
   getToolChampionProgress: { access: "user", arg: 0 },
   listToolChampionTerms: { access: "user", arg: 0 },
   requestToolChampionTerm: { access: "user", arg: 0, field: "userId" },
@@ -140,6 +151,8 @@ export const RPC_RULES = {
   adminCompleteToolChampionTerm: { access: "staff", arg: 1 },
   adminUpsertModule: { access: "staff", arg: -1 },
   adminUpsertLesson: { access: "staff", arg: -1 },
+  adminDeleteLesson: { access: "staff", arg: -1 },
+  adminSaveLessonText: { access: "staff", arg: -1 },
   adminUpsertQuestion: { access: "staff", arg: -1 },
   adminDeleteQuestion: { access: "staff", arg: -1 },
   adminListQuestions: { access: "staff", arg: -1 },
@@ -155,6 +168,32 @@ export const RPC_RULES = {
   adminUpdateVolunteerInterest: { access: "staff", arg: -1 },
   adminListContentMappings: { access: "staff", arg: -1 },
   adminSyncContent: { access: "staff", arg: -1 },
+  adminSaveContentPage: { access: "staff", arg: -1 },
+  listTextBlocks: { access: "public", arg: -1 },
+  adminListPeople: { access: "staff", arg: -1 },
+  adminSavePerson: { access: "staff", arg: -1 },
+  adminDeletePerson: { access: "staff", arg: -1 },
+  listProjects: { access: "public", arg: -1 },
+  adminListProjects: { access: "staff", arg: -1 },
+  adminSaveProject: { access: "staff", arg: -1 },
+  adminDeleteProject: { access: "staff", arg: -1 },
+  adminSaveWishlistItem: { access: "staff", arg: -1 },
+  adminDeleteWishlistItem: { access: "staff", arg: -1 },
+  getRateCard: { access: "public", arg: -1 },
+  adminSaveRateCard: { access: "staff", arg: -1 },
+  getSiteInfo: { access: "public", arg: -1 },
+  adminSaveSiteInfo: { access: "staff", arg: -1 },
+  adminListVolunteerRoles: { access: "staff", arg: -1 },
+  adminSaveVolunteerRole: { access: "staff", arg: -1 },
+  adminRegisterBadge: { access: "staff", arg: -1 },
+  adminSetBadgeActive: { access: "staff", arg: -1 },
+  adminListBounties: { access: "staff", arg: -1 },
+  adminUpdateBounty: { access: "staff", arg: -1 },
+  adminDeleteBounty: { access: "staff", arg: -1 },
+  adminDeleteMaintenanceBlock: { access: "staff", arg: -1 },
+  adminSetAreaStewards: { access: "staff", arg: -1 },
+  adminListMachines: { access: "staff", arg: -1 },
+  adminListCertifications: { access: "staff", arg: -1 },
   adminUpdateSettings: { access: "staff", arg: -1 },
   adminListAuditEvents: { access: "staff", arg: -1 },
   // The kiosk reads the feed from /api/display/feed with the display token.
@@ -338,6 +377,11 @@ export async function handleDataRpc(input: {
     const result = staff ? raw : withoutStaffNotes(raw);
     return { status: 200, body: { ok: true, result } };
   } catch (err) {
+    const database = databaseErrorMessage(err);
+    if (database) {
+      console.error(JSON.stringify({ rpc: method, databaseError: String(err) }));
+      return { status: 200, body: { ok: false, error: database } };
+    }
     const message = err instanceof Error ? err.message : "Request failed";
     return { status: 200, body: { ok: false, error: message } };
   }

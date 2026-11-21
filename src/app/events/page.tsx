@@ -6,6 +6,7 @@ import { EventsCalendar } from "@/components/events-calendar";
 import { PageHero, PageShell } from "@/components/page-shell";
 import { StatusPill } from "@/components/status-pill";
 import { useData } from "@/components/providers";
+import { TextBlock } from "@/components/text-block";
 import { Button } from "@/components/ui/button";
 import type { ClassInterestBoardView } from "@/lib/data";
 
@@ -30,7 +31,7 @@ export default function EventsPage() {
       <PageHero
         eyebrow="Calendar"
         title="Upcoming at the makerspace"
-        description="Classes, workshops, orientation, and open studio. Toggle calendar or list view, filter by type, and register when a checkout link is available."
+        description={<TextBlock slug="events-hero" as="span" />}
       />
 
       <p className="mt-6 max-w-2xl text-sm text-secondary leading-relaxed">
@@ -46,11 +47,10 @@ export default function EventsPage() {
         <h2 className="mt-2 font-display text-xl font-semibold text-brown">
           Suggest one — or join an interest list
         </h2>
-        <p className="mt-3 max-w-2xl text-sm text-secondary leading-relaxed">
-          Raise your hand for ideas the community wants. When enough people
-          sign up, staff schedule the class and the interest list gets first
-          dibs.
-        </p>
+        <TextBlock
+          slug="events-interest"
+          className="mt-3 max-w-2xl text-sm text-secondary leading-relaxed"
+        />
         {interestBoards.length > 0 ? (
           <ul className="mt-5 space-y-3">
             {interestBoards.map((board) => (

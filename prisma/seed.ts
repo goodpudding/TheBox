@@ -775,6 +775,26 @@ async function main() {
   // Promo slides are not seeded: staff write them in Admin → Display, and a
   // sample slide in the database would show on the lobby TV.
 
+  // Lists with no table of their own are SiteRecord rows: one JSON row each.
+  // Lobby promos and display settings are not among them: they have tables.
+  const siteCollections: Record<string, string> = {
+    people: "people.json",
+    wishlistZones: "wishlist-zones.json",
+    wishlistItems: "wishlist-items.json",
+    projects: "projects.json",
+  };
+  for (const [collection, file] of Object.entries(siteCollections)) {
+    for (const row of readJson<Array<Record<string, unknown>>>(file)) {
+      const id = `${collection}:${String(row.id)}`;
+      const data = JSON.stringify(row);
+      await prisma.siteRecord.upsert({
+        where: { id },
+        create: { id, collection, data },
+        update: { data },
+      });
+    }
+  }
+
   const displayConfig = readJson<Record<string, unknown>>("display-config.json");
   await prisma.displayConfig.upsert({
     where: { id: "default" },

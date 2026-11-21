@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { PageHero, PageShell } from "@/components/page-shell";
 import { useData } from "@/components/providers";
+import { TextBlock } from "@/components/text-block";
 import { Button } from "@/components/ui/button";
 import type { ContentPage, OrgSettings, Person } from "@/lib/data";
 
@@ -32,7 +33,7 @@ export default function StaffPage() {
         <PageHero
           eyebrow="People"
           title="Staff & instructors"
-          description="Who keeps the makerspace open, and who teaches on the calendar. A program of Discover Burien."
+          description={<TextBlock slug="staff-hero" as="span" />}
         />
         <div className="relative aspect-[16/10] overflow-hidden bg-brown/10 lg:mb-1">
           <Image
@@ -70,11 +71,10 @@ export default function StaffPage() {
         <h2 className="mt-2 font-display text-2xl font-semibold text-brown">
           Pitch a class
         </h2>
-        <p className="mt-3 leading-relaxed text-secondary">
-          Instructors propose a plan; staff decide if it fits the shop. Classes
-          and fees run through Discover Burien. Members can teach without a
-          space-rental fee; students do not need a membership to take a class.
-        </p>
+        <TextBlock
+          slug="staff-teaching"
+          className="mt-3 leading-relaxed text-secondary"
+        />
         <div className="mt-6 flex flex-wrap gap-3">
           <Button asChild>
             <a href={`mailto:${contact}`}>Email staff</a>

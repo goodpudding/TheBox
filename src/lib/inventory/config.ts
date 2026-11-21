@@ -18,3 +18,6 @@ export function isTempPhotoExpired(
 export const INVENTORY_PHOTO_LONG_EDGE = 1600;
 export const INVENTORY_THUMB_LONG_EDGE = 400;
 export const INVENTORY_JPEG_QUALITY = 0.8;
+
+/** Shown when an upload fails and the server gave no reason of its own. */
+export const PHOTO_UPLOAD_FAILED = "Could not upload the photo. Please try again.";

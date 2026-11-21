@@ -91,6 +91,64 @@ const ARRAY_KEYS = [
 
 export type ArrayKey = (typeof ARRAY_KEYS)[number];
 
+/**
+ * Lists kept as SiteRecord rows, one JSON row each. They have no table of
+ * their own, and nothing else in the database points at their rows. Lobby
+ * promos and display settings are not here: they have real tables
+ * (PromoSlide, DisplayConfig).
+ */
+export const RECORD_KEYS = [
+  "people",
+  "wishlistZones",
+  "wishlistItems",
+  "wishlistPurchaseReports",
+  "toolChampionTerms",
+  "projects",
+] as const;
+
+export type RecordKey = (typeof RECORD_KEYS)[number];
+
+/** Single objects kept the same way, under the row id "default". */
+export const RECORD_SINGLETONS = ["siteInfo", "rateCard"] as const;
+
+export type RecordSingleton = (typeof RECORD_SINGLETONS)[number];
+
+export function siteRecordId(collection: string, rowId: string): string {
+  return `${collection}:${rowId}`;
+}
+
+export type SiteRecordWrite = { id: string; collection: string; data: string };
+
+/** Every SiteRecord row a bundle holds. Used when there is nothing to compare with. */
+export function allSiteRecords(bundle: MockFixtureBundle): SiteRecordWrite[] {
+  const out: SiteRecordWrite[] = [];
+  for (const key of RECORD_KEYS) {
+    for (const row of (bundle[key] ?? []) as { id: string }[]) {
+      out.push({ id: siteRecordId(key, row.id), collection: key, data: JSON.stringify(row) });
+    }
+  }
+  for (const key of RECORD_SINGLETONS) {
+    if (bundle[key]) {
+      out.push({ id: siteRecordId(key, "default"), collection: key, data: JSON.stringify(bundle[key]) });
+    }
+  }
+  return out;
+}
+
+/** The SiteRecord rows a request changed, and the ids of the ones it removed. */
+export function changedSiteRecords(
+  previous: MockFixtureBundle,
+  next: MockFixtureBundle,
+): { writes: SiteRecordWrite[]; removed: string[] } {
+  const before = new Map(allSiteRecords(previous).map((r) => [r.id, r.data]));
+  const after = allSiteRecords(next);
+  const kept = new Set(after.map((r) => r.id));
+  return {
+    writes: after.filter((r) => before.get(r.id) !== r.data),
+    removed: [...before.keys()].filter((id) => !kept.has(id)),
+  };
+}
+
 export function removedIds(
   prev: { id: string }[] | undefined,
   next: { id: string }[],
@@ -106,6 +164,7 @@ export function sliceChangedBundle(
   bundle: MockFixtureBundle;
   removed: Partial<Record<ArrayKey, string[]>>;
   settingsChanged: boolean;
+  siteRecords: { writes: SiteRecordWrite[]; removed: string[] };
   displayConfigChanged: boolean;
   empty: boolean;
 } {
@@ -126,6 +185,9 @@ export function sliceChangedBundle(
   }
   const settingsChanged =
     JSON.stringify(previous.settings) !== JSON.stringify(next.settings);
+  const siteRecords = changedSiteRecords(previous, next);
+  const recordsChanged =
+    siteRecords.writes.length > 0 || siteRecords.removed.length > 0;
   const displayConfigChanged =
     JSON.stringify(previous.displayConfig) !==
     JSON.stringify(next.displayConfig);
@@ -133,8 +195,9 @@ export function sliceChangedBundle(
     bundle: sliced,
     removed,
     settingsChanged,
+    siteRecords,
     displayConfigChanged,
-    empty: !any && !settingsChanged && !displayConfigChanged,
+    empty: !any && !settingsChanged && !recordsChanged && !displayConfigChanged,
   };
 }
 

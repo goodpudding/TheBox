@@ -5,12 +5,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { PageHero, PageShell } from "@/components/page-shell";
 import { useData } from "@/components/providers";
+import { TextBlock } from "@/components/text-block";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SHOP_LEAD_COMPLETED_TOOLS } from "@/lib/data";
-import { isLiveDataMode } from "@/lib/data/mode";
 import type {
   ContentPage,
   Machine,
@@ -18,8 +18,6 @@ import type {
   VolunteerRole,
 } from "@/lib/data";
 
-// Tool Champion terms are not persisted on the live site yet.
-const championsPersist = !isLiveDataMode();
 
 export default function VolunteerPage() {
   const { provider, currentUser, revision, bump } = useData();
@@ -48,7 +46,7 @@ export default function VolunteerPage() {
       setRoleContent(map);
       setVolunteeringPolicy(await provider.getContentBySlug("volunteering"));
       setMachines((await provider.listMachines()).filter((m) => m.active));
-      if (currentUser && championsPersist) {
+      if (currentUser) {
         setProgress(await provider.getToolChampionProgress(currentUser.id));
       } else {
         setProgress(null);
@@ -57,14 +55,15 @@ export default function VolunteerPage() {
   }, [provider, revision, currentUser]);
 
   const selectedRole = roles.find((r) => r.id === roleId);
-  const isToolChampion =
-    championsPersist && selectedRole?.slug === "tool-champion";
+  const isToolChampion = selectedRole?.slug === "tool-champion";
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // React clears currentTarget once the handler first waits, so keep the form.
+    const formEl = e.currentTarget;
     setError(null);
     setPending(true);
-    const form = new FormData(e.currentTarget);
+    const form = new FormData(formEl);
     try {
       const message = String(form.get("message") ?? "");
       const machineId = String(form.get("machineId") ?? "");
@@ -88,7 +87,7 @@ export default function VolunteerPage() {
       }
       setSubmitted(true);
       bump();
-      e.currentTarget.reset();
+      formEl.reset();
       setRoleId("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -103,7 +102,7 @@ export default function VolunteerPage() {
         <PageHero
           eyebrow="Get involved"
           title="Volunteer at the makerspace"
-          description="Cover open hours as a Shop Steward, or champion a machine for two months. Three completed championships unlock the Shop lead track."
+          description={<TextBlock slug="volunteer-hero" as="span" />}
         />
         <div className="relative aspect-[16/10] overflow-hidden bg-brown/10 lg:mb-1">
           <Image

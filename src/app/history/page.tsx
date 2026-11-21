@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { PageHero, PageShell } from "@/components/page-shell";
 import { useData } from "@/components/providers";
+import { TextBlock } from "@/components/text-block";
 import { Button } from "@/components/ui/button";
 import type { ContentPage } from "@/lib/data";
 
@@ -22,7 +23,7 @@ export default function HistoryPage() {
         <PageHero
           eyebrow="About"
           title="How the makerspace got here"
-          description="A public shop in downtown Burien, run by Discover Burien — from a Farmers Market problem to memberships, certs, and classes in this portal."
+          description={<TextBlock slug="history-hero" as="span" />}
         />
         <div className="relative aspect-[16/10] overflow-hidden bg-brown/10 lg:mb-1">
           <Image

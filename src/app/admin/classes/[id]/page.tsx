@@ -4,9 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { AdminShell } from "@/components/admin-shell";
+import { AdminNotice } from "@/components/admin/admin-notice";
 import { StatusPill } from "@/components/status-pill";
 import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { formatDateTime } from "@/lib/format";
 import { ClassForm } from "@/app/admin/classes/class-form";
 import type {
   BookingRosterRow,
@@ -36,6 +39,12 @@ export default function AdminClassDetailPage() {
   );
   const [roster, setRoster] = useState<BookingRosterRow[]>([]);
   const [staff, setStaff] = useState<User[]>([]);
+  const [members, setMembers] = useState<User[]>([]);
+  /** The class page's own text, loaded with the class. Null until then. */
+  const [description, setDescription] = useState<string | null>(null);
+  const [addUserId, setAddUserId] = useState("");
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
   const [certs, setCerts] = useState<Certification[]>([]);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -48,6 +57,14 @@ export default function AdminClassDetailPage() {
       provider.adminListMembers(),
       provider.listCertifications(),
     ]);
+    // "class-generic" is the wording every class without its own text shows.
+    // It is not this class's description, so the editor starts empty.
+    const page =
+      cls && cls.descriptionSlug !== "class-generic"
+        ? await provider.getContentBySlug(cls.descriptionSlug)
+        : null;
+    setDescription(page?.html ?? "");
+    setMembers(members);
     setSession(cls);
     setRoster(
       [...rows].sort((a, b) => {
@@ -76,7 +93,9 @@ export default function AdminClassDetailPage() {
   }, [reload, revision]);
 
   async function onSave(data: ClassSessionInput) {
+    setMessage(null);
     await provider.adminUpsertClass({ ...data, id });
+    setMessage("Class saved.");
     bump();
   }
 
@@ -87,6 +106,7 @@ export default function AdminClassDetailPage() {
     if (!currentUser) return;
     setBusyId(key);
     setActionError(null);
+    setMessage(null);
     try {
       await fn();
       bump();
@@ -121,6 +141,17 @@ export default function AdminClassDetailPage() {
   }
 
   const waitlisted = roster.filter((r) => r.status === "waitlisted").length;
+  const holdingSeat = roster.filter((r) =>
+    ["booked", "awaiting_payment"].includes(r.status),
+  ).length;
+  const onRoster = new Set(
+    roster
+      .filter((r) => !["cancelled", "expired", "no_show"].includes(r.status))
+      .map((r) => r.userId),
+  );
+  const addable = members
+    .filter((m) => !onRoster.has(m.id) && m.status !== "suspended")
+    .sort((a, b) => a.displayName.localeCompare(b.displayName));
 
   return (
     <AdminShell
@@ -133,14 +164,22 @@ export default function AdminClassDetailPage() {
       >
         ← All classes
       </Link>
+      <Link
+        href={`/classes/${id}`}
+        className="ml-6 font-display text-sm font-semibold text-primary-text hover:underline"
+      >
+        View the public page →
+      </Link>
 
       <div className="mt-8">
         <h2 className="font-display text-xl font-semibold text-brown">
           Details
         </h2>
         <div className="mt-5">
+          <AdminNotice message={message} error={null} />
           <ClassForm
             initial={session}
+            initialDescription={description ?? ""}
             staff={staff}
             certifications={certs}
             submitLabel="Save changes"
@@ -148,6 +187,88 @@ export default function AdminClassDetailPage() {
           />
         </div>
       </div>
+
+      <section className="mt-14 max-w-xl">
+        <h2 className="font-display text-xl font-semibold text-brown">
+          {session.cancelledAt ? "This class is cancelled" : "Cancel this class"}
+        </h2>
+        {session.cancelledAt ? (
+          <>
+            <p className="mt-3 text-sm text-charcoal">
+              Cancelled {formatDateTime(session.cancelledAt)}. It is off the
+              public calendar and cannot be booked.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-4"
+              disabled={busyId === "restore"}
+              onClick={() =>
+                runAction("restore", () => provider.adminRestoreClass(id))
+              }
+            >
+              {busyId === "restore" ? "Restoring…" : "Restore this class"}
+            </Button>
+          </>
+        ) : confirmingCancel ? (
+          <div className="mt-3 space-y-3 rounded-2xl border border-accent/40 bg-accent/15 px-4 py-4 text-sm text-brown">
+            <p>
+              {holdingSeat === 0
+                ? "Nobody is booked."
+                : `${holdingSeat} ${holdingSeat === 1 ? "person is" : "people are"} booked`}
+              {holdingSeat > 0 && waitlisted > 0
+                ? ` and ${waitlisted} on the waitlist.`
+                : holdingSeat > 0
+                  ? "."
+                  : waitlisted > 0
+                    ? ` ${waitlisted} on the waitlist.`
+                    : ""}{" "}
+              Nobody is told automatically, so contact them yourself.
+            </p>
+            <p>
+              Cancelling moves no money. Refund a Zeffy payment in Zeffy. Their
+              bookings stay on the roster below; cancel one there to give back
+              credits it was paid with.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Button
+                type="button"
+                disabled={busyId === "cancel-class"}
+                onClick={() =>
+                  runAction("cancel-class", async () => {
+                    await provider.adminCancelClass(id);
+                    setConfirmingCancel(false);
+                  })
+                }
+              >
+                {busyId === "cancel-class" ? "Cancelling…" : "Yes, cancel the class"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setConfirmingCancel(false)}
+              >
+                Keep it
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p className="mt-3 text-sm text-secondary">
+              Takes it off the public calendar. The hourly Zeffy sync will not
+              put it back.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-4"
+              onClick={() => setConfirmingCancel(true)}
+            >
+              Cancel this class
+            </Button>
+          </>
+        )}
+      </section>
 
       <section className="mt-14">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -177,6 +298,44 @@ export default function AdminClassDetailPage() {
           </p>
         ) : null}
 
+        {session.cancelledAt ? null : (
+          <div className="mt-5 max-w-xl space-y-2">
+            <Label htmlFor="add-booking">Add someone to this class</Label>
+            <div className="flex flex-wrap gap-3">
+              <select
+                id="add-booking"
+                value={addUserId}
+                onChange={(e) => setAddUserId(e.target.value)}
+                className="h-11 min-w-0 flex-1 rounded-full border border-border bg-surface px-4 text-charcoal"
+              >
+                <option value="">Choose a member…</option>
+                {addable.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.displayName} ({m.email})
+                  </option>
+                ))}
+              </select>
+              <Button
+                type="button"
+                disabled={!addUserId || busyId === "add-booking"}
+                onClick={() =>
+                  runAction("add-booking", async () => {
+                    await provider.adminAddBooking(id, addUserId);
+                    setAddUserId("");
+                  })
+                }
+              >
+                {busyId === "add-booking" ? "Adding…" : "Add"}
+              </Button>
+            </div>
+            <p className="text-xs text-secondary">
+              {session.priceCents > 0
+                ? "This is a paid class: the seat is held for payment. Use Mark paid once they have paid. Nothing is charged here."
+                : "This class is free, so they are booked straight away."}{" "}
+              A full class puts them on the waitlist.
+            </p>
+          </div>
+        )}
         {roster.length === 0 ? (
           <p className="mt-4 text-secondary">No bookings yet.</p>
         ) : (
@@ -282,6 +441,31 @@ export default function AdminClassDetailPage() {
                         No-show
                       </Button>
                     </>
+                  ) : null}
+                  {["booked", "awaiting_payment", "waitlisted"].includes(
+                    row.status,
+                  ) ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      disabled={busyId === `cancel-${row.id}`}
+                      aria-label={`Cancel ${row.user.displayName}’s booking`}
+                      onClick={() => {
+                        if (
+                          !window.confirm(
+                            `Cancel ${row.user.displayName}’s booking? Credits they paid with are returned. A Zeffy payment is refunded in Zeffy, not here.`,
+                          )
+                        ) {
+                          return;
+                        }
+                        void runAction(`cancel-${row.id}`, () =>
+                          provider.adminCancelBooking(row.id),
+                        );
+                      }}
+                    >
+                      Cancel booking
+                    </Button>
                   ) : null}
                 </div>
               </li>

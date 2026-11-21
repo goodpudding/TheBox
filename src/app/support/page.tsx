@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { PageHero, PageShell } from "@/components/page-shell";
 import { useData } from "@/components/providers";
+import { TextBlock } from "@/components/text-block";
 import type { ContentPage, OrgSettings, ScholarshipFundSummary } from "@/lib/data";
 
 export default function SupportPage() {
@@ -32,7 +33,7 @@ export default function SupportPage() {
         <PageHero
           eyebrow="Support"
           title="Fund the front door"
-          description="Give to the general fund, grow scholarship seats, or pick something concrete off the wishlist. Business sponsorships plug into Discover Burien’s existing member roster."
+          description={<TextBlock slug="support-hero" as="span" />}
         />
         <div className="relative aspect-[16/10] overflow-hidden bg-brown/10 lg:mb-1">
           <Image
@@ -86,21 +87,20 @@ export default function SupportPage() {
           <Link href="/join">Browse memberships</Link>
         </Button>
       </div>
-      <p className="mt-4 max-w-xl text-sm text-secondary">
-        Donations open on Zeffy (or your configured nonprofit checkout). Tax
-        deductibility depends on Discover Burien’s legal status — staff will
-        note that on the live form before public launch.
-      </p>
+      <TextBlock
+        slug="support-tax-note"
+        className="mt-4 max-w-xl text-sm text-secondary"
+      />
 
       <section className="mt-16 max-w-3xl">
         <p className="eyebrow">Wishlist</p>
         <h2 className="mt-2 font-display text-2xl font-semibold text-brown">
           Specific asks
         </h2>
-        <p className="mt-4 leading-relaxed text-secondary">
-          The live list is on its own page: stations, supplies, prices, and a
-          link to the exact product. Confirmed purchases come off that list.
-        </p>
+        <TextBlock
+          slug="support-wishlist"
+          className="mt-4 leading-relaxed text-secondary"
+        />
         {wishlist ? (
           <div
             className="prose-cms mt-4"

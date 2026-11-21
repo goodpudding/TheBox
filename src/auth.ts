@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { emailProvider } from "@/lib/auth/email-provider";
+import { clientSession } from "@/lib/auth/session-shape";
 import { prisma } from "@/lib/db";
 import { allowRequest, emailLimitKey } from "@/lib/rate-limit";
 import { SIGN_IN_LIMITED_PATH } from "@/lib/sign-in-email";
@@ -38,17 +39,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return (await allowRequest("signInEmailAddress", mailbox)) || SIGN_IN_LIMITED_PATH;
     },
     async session({ session, user }) {
-      if (session.user) {
-        session.user.id = user.id;
-        const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-        if (dbUser) {
-          session.user.name = dbUser.displayName || session.user.name;
-          session.user.email = dbUser.email;
-          session.user.role = dbUser.role;
-          session.user.status = dbUser.status;
-        }
-      }
-      return session;
+      const dbUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { id: true, email: true, displayName: true, role: true, status: true },
+      });
+      // Only these fields leave the server. See session-shape.ts.
+      return clientSession(session, user.id, dbUser) as unknown as typeof session;
     },
   },
   trustHost: true,

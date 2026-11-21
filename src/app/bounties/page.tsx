@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PageHero, PageShell } from "@/components/page-shell";
 import { StatusPill } from "@/components/status-pill";
 import { useData } from "@/components/providers";
+import { TextBlock } from "@/components/text-block";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -141,7 +142,7 @@ export default function BountiesPage() {
       <PageHero
         eyebrow="Make for the neighborhood"
         title="Bounty board"
-        description="Ask members to make something custom in the shop — signs, small runs, embroidered gear. Members claim a request so it isn’t double-booked."
+        description={<TextBlock slug="bounties-hero" as="span" />}
       />
 
       <div className="mt-8 flex flex-wrap gap-3">
@@ -184,11 +185,7 @@ export default function BountiesPage() {
           <h2 className="font-display text-xl font-semibold text-charcoal">
             What should we make?
           </h2>
-          <p className="text-sm text-secondary">
-            No payment on this board — it’s a handshake with a member who can
-            make it during shop hours. Share enough detail that someone can
-            decide whether to claim it.
-          </p>
+          <TextBlock slug="bounties-request-note" className="text-sm text-secondary" />
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="title">What do you want made?</Label>

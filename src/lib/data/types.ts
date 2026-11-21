@@ -1,3 +1,5 @@
+import type { RateCard } from "@/lib/rate-card";
+
 /** Shared domain types for the Discover Burien Makerspace portal. Fixtures and Prisma mirror these. */
 
 export type ISODateTime = string;
@@ -5,6 +7,8 @@ export type ISODate = string;
 
 export type Role = "member" | "staff" | "admin";
 export type MembershipStatus = "active" | "lapsed" | "suspended" | "pending";
+
+export type UserRole = "member" | "staff" | "admin";
 
 /** Product ladder — base Maker rates unchanged; new tiers sit beside them. */
 export type MembershipTier =
@@ -101,6 +105,30 @@ export type AccessDenyReason =
   | "reservation_required";
 
 export type AuditAction =
+  | "rate_card_changed"
+  | "volunteer_role_saved"
+  | "badge_registered"
+  | "badge_deactivated"
+  | "badge_reactivated"
+  | "bounty_edited_by_staff"
+  | "bounty_hidden"
+  | "bounty_unhidden"
+  | "bounty_reopened"
+  | "bounty_removed"
+  | "maintenance_updated"
+  | "maintenance_removed"
+  | "area_stewards_changed"
+  | "learning_lesson_removed"
+  | "learning_video_removed"
+  | "learning_question_removed"
+  | "class_cancelled"
+  | "class_restored"
+  | "booking_added_by_staff"
+  | "booking_cancelled_by_staff"
+  | "member_role_changed"
+  | "member_updated"
+  | "content_page_created"
+  | "content_page_updated"
   | "waiver_signed"
   | "policy_acknowledged"
   | "cert_knowledge_passed"
@@ -569,6 +597,8 @@ export type ContentCategory =
   | "volunteer"
   | "hours"
   | "faq"
+  /** A piece of text on a page. The slug is one of TEXT_BLOCKS. */
+  | "block"
   | "other";
 
 export interface ContentPage extends Timestamps {
@@ -608,6 +638,30 @@ export interface Person extends Timestamps {
   bio: string;
   sortOrder: number;
   published: boolean;
+}
+
+/** One picture in the "Made at the makerspace" gallery. */
+export interface Project extends Timestamps {
+  id: string;
+  title: string;
+  maker: string;
+  /** Free text: "Laser", "Woodshop". */
+  area: string;
+  caption: string;
+  /** A path on this site (an uploaded photo, or a file under /images) or an https address. */
+  imageSrc: string;
+  imageAlt: string;
+  sortOrder: number;
+  published: boolean;
+}
+
+/** Facts about the shop shown in the footer and wherever social links appear. */
+export interface SiteInfo {
+  orgName: string;
+  addressLine: string;
+  blurb: string;
+  facebookUrl: string;
+  instagramUrl: string;
 }
 
 export interface VolunteerInterest extends Timestamps {
@@ -961,6 +1015,10 @@ export interface MockFixtureBundle {
   volunteerRoles: VolunteerRole[];
   volunteerInterests: VolunteerInterest[];
   people: Person[];
+  projects: Project[];
+  siteInfo: SiteInfo;
+  /** Machine prices. See src/lib/rate-card.ts. */
+  rateCard: RateCard;
   bounties: Bounty[];
   wishlistZones: WishlistZone[];
   wishlistItems: WishlistItem[];

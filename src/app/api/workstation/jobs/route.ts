@@ -15,8 +15,8 @@ export async function POST(request: NextRequest) {
     if (!parsed.ok) {
       return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
-    // The filament price is the shop's, set in src/lib/credits.ts. It is not
-    // read from the request.
+    // Every price is the shop's, from the rate card in the database. None is
+    // read from the request: the desk sends grams, minutes or prints only.
     const job = await recordEquipmentJob({
       userId: actor.user.id,
       machineId: parsed.job.machineId,

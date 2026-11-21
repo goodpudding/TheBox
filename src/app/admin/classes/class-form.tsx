@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,12 +29,15 @@ const selectClassName =
 
 export function ClassForm({
   initial,
+  initialDescription = "",
   staff,
   certifications,
   submitLabel,
   onSubmit,
 }: {
   initial?: Partial<ClassSession> | null;
+  /** What the class page says about this session today, as HTML. */
+  initialDescription?: string;
   staff: User[];
   certifications: Certification[];
   submitLabel: string;
@@ -45,6 +49,8 @@ export function ClassForm({
     initial?.prerequisiteCertificationIds ?? [],
   );
   const [published, setPublished] = useState(initial?.published ?? true);
+  /** Set once staff change the description. Left alone, it is not sent. */
+  const [description, setDescription] = useState<string | undefined>(undefined);
 
   function togglePrereq(id: string) {
     setPrereqs((prev) =>
@@ -74,6 +80,7 @@ export function ClassForm({
         location: String(form.get("location") ?? "").trim() || "Discover Burien Makerspace",
         prerequisiteCertificationIds: prereqs,
         published,
+        description,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save class");
@@ -126,6 +133,25 @@ export function ClassForm({
             </option>
           ))}
         </select>
+      </div>
+
+      <div className="space-y-2">
+        <p
+          id="class-description-label"
+          className="font-display text-sm font-medium text-brown"
+        >
+          Description
+        </p>
+        <RichTextEditor
+          initialHtml={initialDescription}
+          labelledBy="class-description-label"
+          onChange={setDescription}
+        />
+        <p className="text-xs text-secondary">
+          Shown on this session’s page: what people will make, what to bring,
+          who it suits. Each session has its own, so paste it again for a
+          repeat. Leave it empty to show the standard wording.
+        </p>
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">

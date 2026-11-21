@@ -6,6 +6,7 @@ import Link from "next/link";
 import { PageHero, PageShell } from "@/components/page-shell";
 import { StatusPill } from "@/components/status-pill";
 import { useData } from "@/components/providers";
+import { TextBlock } from "@/components/text-block";
 import type { Machine, MachineArea } from "@/lib/data";
 
 const AREA_ORDER: MachineArea[] = [
@@ -65,7 +66,7 @@ export default function EquipmentIndexPage() {
         <PageHero
           eyebrow="Shop floor"
           title="Equipment"
-          description="Everything available in the makerspace and where it lives. Scan the QR on a machine for certifications, a getting-started video, and reservations."
+          description={<TextBlock slug="equipment-hero" as="span" />}
         />
         <div className="relative aspect-[16/10] overflow-hidden bg-brown/10 lg:mb-1">
           <Image

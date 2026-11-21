@@ -198,4 +198,44 @@ describe("planClassSync", () => {
     expect(plan.upserts[0]?.fields.instructorId).toBe("u-teacher");
     expect(plan.upserts[0]?.fields.zeffyUrl).toContain("single");
   });
+
+  it("leaves a class staff cancelled alone, and takes over again once they restore it", () => {
+    const base = {
+      now: NOW,
+      defaultInstructorId: "u-admin",
+      defaultCapacity: 8,
+      campaigns: [campaign({ id: "single", title: "Still on in Zeffy" })],
+    };
+    const cancelledAt = "2026-10-30T18:00:00.000Z";
+    // Admin → Classes → Cancel this class marks the field as staff-owned.
+    const staffCancelled = planClassSync({
+      ...base,
+      existing: [
+        row({
+          id: "cancelled-by-staff",
+          zeffyCampaignId: "single",
+          zeffyOccurrenceId: "default",
+          cancelledAt,
+          staffEditedFields: ["cancelledAt"],
+        }),
+      ],
+    });
+    expect(staffCancelled.upserts[0]?.fields.cancelledAt).toBe(cancelledAt);
+    expect(staffCancelled.cancelIds).toEqual([]);
+
+    // Restoring clears both, so Zeffy decides again.
+    const restored = planClassSync({
+      ...base,
+      existing: [
+        row({
+          id: "restored",
+          zeffyCampaignId: "single",
+          zeffyOccurrenceId: "default",
+          cancelledAt: null,
+          staffEditedFields: null,
+        }),
+      ],
+    });
+    expect(restored.upserts[0]?.fields.cancelledAt).toBeNull();
+  });
 });

@@ -9,8 +9,7 @@ import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
 import { formatTier } from "@/lib/utils";
-import { canScheduleMaintenance, SHOP_LEAD_COMPLETED_TOOLS } from "@/lib/data";
-import { isLiveDataMode } from "@/lib/data/mode";
+import { SHOP_LEAD_COMPLETED_TOOLS } from "@/lib/data";
 import type {
   Booking,
   ClassInterestBoardView,
@@ -273,15 +272,7 @@ function DashboardBody() {
           text: `Scholarship seat runs through ${formatDateTime(currentUser.scholarshipExpiresAt)}.`,
         });
       }
-      // Tool Champion terms are not persisted on the live site yet.
-      const champ = isLiveDataMode()
-        ? {
-            completedCount: 0,
-            shopLeadEligible: false,
-            canScheduleMaintenance: canScheduleMaintenance(currentUser),
-            activeMachineIds: [] as string[],
-          }
-        : await provider.getToolChampionProgress(currentUser.id);
+      const champ = await provider.getToolChampionProgress(currentUser.id);
       setChampionProgress({
         completedCount: champ.completedCount,
         shopLeadEligible: champ.shopLeadEligible,

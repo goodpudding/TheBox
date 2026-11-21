@@ -104,6 +104,38 @@ button,
   text-underline-offset: 2px;
 }
 
+/* A piece of page text staff edit (TextBlock). It takes the classes of the
+   paragraph it replaced; these rules cover what staff can add to it. */
+.page-text > * + * {
+  margin-top: 0.75rem;
+}
+
+.page-text a {
+  color: var(--color-primary-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.page-text ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+}
+
+.page-text ol {
+  list-style: decimal;
+  padding-left: 1.25rem;
+}
+
+.page-text li + li {
+  margin-top: 0.75rem;
+}
+
+/* A list that was drawn without bullets before it became editable. */
+.page-text.page-text-plain-list ul {
+  list-style: none;
+  padding-left: 0;
+}
+
 .prose-cms .todo-flag {
   display: inline-block;
   margin-top: 0.5rem;

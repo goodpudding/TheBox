@@ -6,6 +6,7 @@ import Link from "next/link";
 import { PageHero, PageShell } from "@/components/page-shell";
 import { StatusPill } from "@/components/status-pill";
 import { useData } from "@/components/providers";
+import { TextBlock } from "@/components/text-block";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +18,6 @@ import {
   WISHLIST_PRICE_BANDS,
   type WishlistPriceBandId,
 } from "@/lib/data/wishlist";
-import { isLiveDataMode } from "@/lib/data/mode";
 import type {
   OrgSettings,
   WishlistCatalog,
@@ -62,7 +62,6 @@ export default function WishlistPage() {
 
   const isStaff = canMarkWishlistPurchased(currentUser);
   // Purchase reports and item status are not persisted on the live site yet.
-  const canReport = !isLiveDataMode();
 
   useEffect(() => {
     let cancelled = false;
@@ -144,7 +143,7 @@ export default function WishlistPage() {
         <PageHero
           eyebrow="Support · Wishlist"
           title="Help build the shop, item by item"
-          description="Everything the makerspace still needs, with a link to the exact product we picked. Give a whole station, or grab a $15 spool of filament. Every piece ends up in members’ hands at the bench."
+          description={<TextBlock slug="wishlist-hero" as="span" />}
         />
         <div className="relative aspect-[16/10] overflow-hidden bg-brown/10 lg:mb-1">
           <Image
@@ -210,12 +209,10 @@ export default function WishlistPage() {
             <h3 className="mt-2 font-display text-lg font-semibold text-brown">
               Pick something
             </h3>
-            <p className="mt-2 text-sm leading-relaxed text-secondary">
-              Filter by area or by price. Each link goes to the exact product we
-              picked, so everything in the space matches. Please buy that model;
-              the same model from another store is fine. For lumber and paint, a
-              Home Depot gift card works too.
-            </p>
+            <TextBlock
+              slug="wishlist-step-1"
+              className="mt-2 text-sm leading-relaxed text-secondary"
+            />
           </div>
           <div className="rounded-2xl border border-border bg-surface p-5">
             <p className="font-display text-xs font-semibold uppercase tracking-wider text-primary-text">
@@ -224,20 +221,11 @@ export default function WishlistPage() {
             <h3 className="mt-2 font-display text-lg font-semibold text-brown">
               Tell us first
             </h3>
-            <p className="mt-2 text-sm leading-relaxed text-secondary">
-              So two people don’t buy the same saw. Email{" "}
-              <a
-                className="text-primary-text underline"
-                href={`mailto:${contact}`}
-              >
-                {contact}
-              </a>
-              , talk to staff in the shop, or message us on the makerspace
-              Discord.
-              {canReport
-                ? " You can also tap “I bought this” below — that stays pending until staff confirm, so the item stays on the list."
-                : null}
-            </p>
+            <TextBlock
+              slug="wishlist-step-2"
+              values={{ contactEmail: contact }}
+              className="mt-2 text-sm leading-relaxed text-secondary"
+            />
           </div>
           <div className="rounded-2xl border border-border bg-surface p-5">
             <p className="font-display text-xs font-semibold uppercase tracking-wider text-primary-text">
@@ -246,28 +234,18 @@ export default function WishlistPage() {
             <h3 className="mt-2 font-display text-lg font-semibold text-brown">
               Ship it or drop it off
             </h3>
-            <p className="mt-2 text-sm leading-relaxed text-secondary">
-              We’ll give you the shipping address when you check in. Staff mark
-              it purchased once it lands, then send a gift receipt for your
-              taxes.
-            </p>
+            <TextBlock
+              slug="wishlist-step-3"
+              className="mt-2 text-sm leading-relaxed text-secondary"
+            />
           </div>
         </div>
         {donateUrl ? (
-          <p className="mt-4 text-sm text-secondary">
-            Rather give cash toward a station?{" "}
-            <a
-              className="text-primary-text underline"
-              href={donateUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Donate here
-            </a>
-            . Big-ticket items (table saw, fume extractor, UV printer) also work
-            as named sponsorships — ask about putting your business’s name on a
-            station.
-          </p>
+          <TextBlock
+            slug="wishlist-cash-and-sponsors"
+            values={{ donateUrl }}
+            className="mt-4 text-sm text-secondary"
+          />
         ) : null}
         <div className="mt-4 flex flex-wrap gap-3">
           <Button asChild variant="outline">
@@ -350,7 +328,6 @@ export default function WishlistPage() {
                   key={item.id}
                   item={item}
                   isStaff={isStaff}
-                  canReport={canReport}
                   contactEmail={contact}
                   currentUser={currentUser}
                   reporting={reportingId === item.id}
@@ -392,12 +369,10 @@ export default function WishlistPage() {
         </section>
       ) : null}
 
-      <p className="mt-16 max-w-3xl text-sm leading-relaxed text-secondary">
-        Prices are US retail as checked September–October 2026, before sales
-        tax. They move with sales, so the store page is the final word. Prices
-        marked “about” depend on the local store (lumber, pegboard) or haven’t
-        been confirmed yet.
-      </p>
+      <TextBlock
+        slug="wishlist-prices-note"
+        className="mt-16 max-w-3xl text-sm leading-relaxed text-secondary"
+      />
     </PageShell>
   );
 }
@@ -405,7 +380,6 @@ export default function WishlistPage() {
 function WishlistRow({
   item,
   isStaff,
-  canReport,
   contactEmail,
   currentUser,
   reporting,
@@ -416,7 +390,6 @@ function WishlistRow({
 }: {
   item: WishlistItemView;
   isStaff: boolean;
-  canReport: boolean;
   contactEmail: string;
   currentUser: { displayName: string; email: string } | null;
   reporting: boolean;
@@ -481,23 +454,10 @@ function WishlistRow({
             <a href={`mailto:${contactEmail}`}>Talk to us</a>
           </Button>
         )}
-        {canReport ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={onToggleReport}
-          >
-            I bought this
-          </Button>
-        ) : (
-          <Button asChild size="sm" variant="ghost">
-            <a href={`mailto:${contactEmail}?subject=${encodeURIComponent(`I bought: ${item.name}`)}`}>
-              I bought this — email us
-            </a>
-          </Button>
-        )}
-        {isStaff && canReport ? (
+        <Button type="button" size="sm" variant="outline" onClick={onToggleReport}>
+          I bought this
+        </Button>
+        {isStaff ? (
           <Button
             type="button"
             size="sm"
@@ -509,7 +469,7 @@ function WishlistRow({
           </Button>
         ) : null}
       </div>
-      {reporting && canReport ? (
+      {reporting ? (
         <form
           onSubmit={onReport}
           className="mt-5 max-w-xl space-y-3 rounded-2xl border border-border bg-surface/60 p-5"

@@ -30,13 +30,13 @@ export function CreditWalletPanel({
       </div>
       <p className="mt-2 max-w-2xl text-sm text-secondary leading-relaxed">
         One wallet in this app — Zeffy never holds it. Spend on machine time or
-        a class. If a job runs past zero, you still finish; next month’s $50
-        Plus grant pays the debt first.
+        a class. If a job runs past zero, you still finish; next month’s
+        Membership Plus machine credit pays the debt first.
       </p>
       {negative ? (
         <p className="mt-3 max-w-2xl text-sm text-brown leading-relaxed">
-          Balance is negative from a finished job. The next Membership Plus $50
-          grant pays this down first; leftover is spendable. You can also pay
+          Balance is negative from a finished job. The next Membership Plus
+          machine credit pays this down first; leftover is spendable. You can also pay
           us back at the desk (staff grant or a Zeffy payment applied as
           credit). This app never charges your card.
         </p>

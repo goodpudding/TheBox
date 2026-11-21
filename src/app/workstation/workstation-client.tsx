@@ -7,9 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StatusPill } from "@/components/status-pill";
+import { readJson } from "@/lib/read-json";
 import { formatDateTime } from "@/lib/format";
 import { formatMoneyExact, formatTier } from "@/lib/utils";
 import { quoteMachineJob } from "@/lib/credits";
+import { jobMachineIdFor } from "@/lib/workstation/job-machine";
+import type { RateCard } from "@/lib/rate-card";
 import type { MachineArea, MembershipTier } from "@/lib/data/types";
 import { idleAction } from "@/lib/workstation/idle";
 import { isTauriShell, nativeInvoke } from "@/lib/workstation/native";
@@ -42,6 +45,8 @@ type Job = {
 };
 
 type Me = {
+  /** The shop's prices as of this sign-in. */
+  rateCard?: RateCard;
   user: {
     id: string;
     email: string;
@@ -82,6 +87,8 @@ type Me = {
 };
 
 type Config = {
+  /** The shop's prices, so the estimate here matches what the server charges. */
+  rateCard?: RateCard;
   workstation: {
     id: string;
     name: string;
@@ -149,6 +156,7 @@ export function WorkstationClient() {
   const params = useSearchParams();
   const device = params.get("device") || "BOX-PC-1";
   const [config, setConfig] = useState<Config | null>(null);
+  const [configError, setConfigError] = useState<string | null>(null);
   const [me, setMe] = useState<Me | null>(null);
   const [tab, setTab] = useState<"pin" | "qr">("pin");
   const [email, setEmail] = useState("");
@@ -199,7 +207,9 @@ export function WorkstationClient() {
       const stored = await nativeInvoke<string>("get_session_token");
       if (stored) writeStoredToken(stored);
       const cfg = await fetch(`/api/workstations/${encodeURIComponent(device)}/config`);
-      if (cfg.ok) setConfig((await cfg.json()) as Config);
+      const body = await readJson<Config & { error?: string }>(cfg);
+      if (cfg.ok && body) setConfig(body);
+      else setConfigError(body?.error ?? "This desk could not load. Ask staff.");
       await refreshMe();
     })();
   }, [device, refreshMe]);
@@ -405,11 +415,13 @@ export function WorkstationClient() {
 
   async function sendJob(e: React.FormEvent) {
     e.preventDefault();
-    const machineId =
-      jobMachineId ||
-      printers[0]?.machineId ||
-      billing?.machineId ||
-      "";
+    // The same machine the estimate on screen is for.
+    const machineId = jobMachineIdFor({
+      chosenMachineId: jobMachineId,
+      deskMachineId: billing?.machineId,
+      deskBillsByGram: billing?.mode === "per_gram",
+      firstPrinterId: printers[0]?.machineId,
+    });
     if (!machineId) {
       setLaunchNote("Pick a machine.");
       return;
@@ -471,9 +483,12 @@ export function WorkstationClient() {
     (config?.equipment ?? []).find(
       (eq) =>
         eq.machineId ===
-        (jobMachineId ||
-          (billing?.mode === "per_gram" ? printers[0]?.machineId : undefined) ||
-          billing?.machineId),
+        jobMachineIdFor({
+          chosenMachineId: jobMachineId,
+          deskMachineId: billing?.machineId,
+          deskBillsByGram: billing?.mode === "per_gram",
+          firstPrinterId: printers[0]?.machineId,
+        }),
     ) ?? null;
   const jobQuote =
     me && jobMachine
@@ -493,6 +508,7 @@ export function WorkstationClient() {
             ? Number(runtimeMinutes) * 60
             : null,
           prints: Number(prints) || null,
+          rates: me.rateCard ?? config?.rateCard,
         })
       : null;
 
@@ -508,7 +524,13 @@ export function WorkstationClient() {
   if (!config) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-page px-6">
-        <p className="text-secondary">Loading {device}…</p>
+        {configError ? (
+          <p role="alert" className="max-w-md text-center font-display text-lg text-brown">
+            {configError}
+          </p>
+        ) : (
+          <p className="text-secondary">Loading {device}…</p>
+        )}
       </div>
     );
   }
