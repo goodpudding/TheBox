@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { loadFixtures } from "./load-fixtures";
+import { DEFAULT_SITE_INFO } from "./site-info";
 import { MockDataProvider } from "./mock-provider";
 import type { DataProvider } from "./provider";
 import {
@@ -882,6 +883,11 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
       siteRecords.single<MockFixtureBundle["displayConfig"]>("displayConfig") ??
       loadFixtures().displayConfig,
     people: siteRecords.list("people"),
+    projects: siteRecords.list("projects"),
+    siteInfo: {
+      ...DEFAULT_SITE_INFO,
+      ...(siteRecords.single<Partial<MockFixtureBundle["siteInfo"]>>("siteInfo") ?? {}),
+    },
     creditLedgerEntries: (
       creditLedgerRows as Array<Record<string, unknown>>
     ).map(

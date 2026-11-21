@@ -100,12 +100,13 @@ export const RECORD_KEYS = [
   "wishlistPurchaseReports",
   "toolChampionTerms",
   "promoSlides",
+  "projects",
 ] as const;
 
 export type RecordKey = (typeof RECORD_KEYS)[number];
 
 /** Single objects kept the same way, under the row id "default". */
-export const RECORD_SINGLETONS = ["displayConfig"] as const;
+export const RECORD_SINGLETONS = ["displayConfig", "siteInfo"] as const;
 
 export type RecordSingleton = (typeof RECORD_SINGLETONS)[number];
 

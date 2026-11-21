@@ -809,6 +809,7 @@ async function main() {
     wishlistZones: "wishlist-zones.json",
     wishlistItems: "wishlist-items.json",
     promoSlides: "promos.json",
+    projects: "projects.json",
   };
   for (const [collection, file] of Object.entries(siteCollections)) {
     for (const row of readJson<Array<Record<string, unknown>>>(file)) {

@@ -612,6 +612,30 @@ export interface Person extends Timestamps {
   published: boolean;
 }
 
+/** One picture in the "Made at The Box" gallery. */
+export interface Project extends Timestamps {
+  id: string;
+  title: string;
+  maker: string;
+  /** Free text: "Laser", "Woodshop". */
+  area: string;
+  caption: string;
+  /** A path on this site (an uploaded photo, or a file under /images) or an https address. */
+  imageSrc: string;
+  imageAlt: string;
+  sortOrder: number;
+  published: boolean;
+}
+
+/** Facts about the shop shown in the footer and wherever social links appear. */
+export interface SiteInfo {
+  orgName: string;
+  addressLine: string;
+  blurb: string;
+  facebookUrl: string;
+  instagramUrl: string;
+}
+
 export interface VolunteerInterest extends Timestamps {
   id: string;
   name: string;
@@ -942,6 +966,8 @@ export interface MockFixtureBundle {
   volunteerRoles: VolunteerRole[];
   volunteerInterests: VolunteerInterest[];
   people: Person[];
+  projects: Project[];
+  siteInfo: SiteInfo;
   bounties: Bounty[];
   wishlistZones: WishlistZone[];
   wishlistItems: WishlistItem[];

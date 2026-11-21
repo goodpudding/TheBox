@@ -9,6 +9,9 @@ import type {
   ClassCategory,
   ContentCategory,
   ContentPage,
+  WishlistItemTier,
+  SiteInfo,
+  Project,
   DisplayConfig,
   ISODate,
   ISODateTime,
@@ -363,6 +366,42 @@ export interface ContentPageInput {
    */
   version?: string;
   published?: boolean;
+}
+
+export interface PersonInput {
+  id?: string;
+  name: string;
+  roleTitle: string;
+  kind: PersonKind;
+  bio: string;
+  sortOrder?: number;
+  published?: boolean;
+}
+
+export interface ProjectInput {
+  id?: string;
+  title: string;
+  maker: string;
+  area: string;
+  caption: string;
+  imageSrc: string;
+  imageAlt?: string;
+  sortOrder?: number;
+  published?: boolean;
+}
+
+export interface WishlistItemInput {
+  id?: string;
+  zoneId: string;
+  name: string;
+  model?: string;
+  qty: number;
+  priceCents: number;
+  estimated?: boolean;
+  url?: string | null;
+  note?: string | null;
+  tier?: WishlistItemTier;
+  sortOrder?: number;
 }
 
 export interface UsageFilters {
@@ -1050,6 +1089,24 @@ export interface DataProvider {
   adminListContentMappings(): Promise<ContentPage[]>;
   adminSyncContent(): Promise<{ syncedAt: ISODateTime; count: number }>;
   adminSaveContentPage(input: ContentPageInput): Promise<ContentPage>;
+
+  /** Staff directory, including people who are hidden. */
+  adminListPeople(): Promise<Person[]>;
+  adminSavePerson(input: PersonInput): Promise<Person>;
+  adminDeletePerson(id: string): Promise<void>;
+
+  /** The "Made at The Box" gallery. */
+  listProjects(): Promise<Project[]>;
+  adminListProjects(): Promise<Project[]>;
+  adminSaveProject(input: ProjectInput): Promise<Project>;
+  adminDeleteProject(id: string): Promise<void>;
+
+  adminSaveWishlistItem(input: WishlistItemInput): Promise<WishlistItem>;
+  adminDeleteWishlistItem(id: string): Promise<void>;
+
+  /** Shop name, address and social links shown in the footer. */
+  getSiteInfo(): Promise<SiteInfo>;
+  adminSaveSiteInfo(input: Partial<SiteInfo>): Promise<SiteInfo>;
   adminUpdateSettings(data: Partial<OrgSettings>): Promise<OrgSettings>;
   adminListAuditEvents(subjectUserId?: string): Promise<AuditEvent[]>;
 

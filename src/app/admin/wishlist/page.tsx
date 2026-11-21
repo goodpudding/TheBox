@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AdminShell } from "@/components/admin-shell";
+import { WishlistItemEditor } from "@/components/admin/wishlist-item-editor";
 import { StatusPill } from "@/components/status-pill";
 import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
@@ -209,6 +210,9 @@ export default function AdminWishlistPage() {
           </ul>
         )}
       </section>
+      {catalog ? (
+        <WishlistItemEditor zones={catalog.zones} items={catalog.items} />
+      ) : null}
     </AdminShell>
   );
 }

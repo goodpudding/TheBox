@@ -19,6 +19,8 @@ const LINKS = [
   { href: "/admin/volunteers", label: "Volunteers" },
   { href: "/admin/wishlist", label: "Wishlist" },
   { href: "/admin/content", label: "Content" },
+  { href: "/admin/people", label: "People" },
+  { href: "/admin/gallery", label: "Gallery" },
   { href: "/admin/display", label: "Display" },
   { href: "/admin/settings", label: "Settings" },
   { href: "/dev/reader", label: "Reader sim", devOnly: true },

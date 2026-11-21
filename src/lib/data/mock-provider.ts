@@ -22,6 +22,7 @@ import {
   contentSlug,
 } from "./content-html";
 import { cloneFixtures, loadFixtures } from "./load-fixtures";
+import { pictureAddress, webAddress } from "./site-info";
 import {
   computePublishReadiness,
   gradeQuizAttempt,
@@ -88,6 +89,9 @@ import type {
   WishlistPurchaseReportInput,
   WishlistPurchaseReportView,
   ContentPageInput,
+  PersonInput,
+  ProjectInput,
+  WishlistItemInput,
 } from "./provider";
 import { buildDisplayFeed, buildMachineStatuses } from "./display-feed";
 import {
@@ -176,6 +180,8 @@ import type {
   PhotoKind,
   WishlistItem,
   WishlistPurchaseReport,
+  Project,
+  SiteInfo,
 } from "./types";
 import {
   canInventory,
@@ -426,6 +432,11 @@ export function mergeStaffEdits(
     if (!same) owned.add(key);
   }
   return [...owned];
+}
+
+/** Ten past the largest order in the list, so a new row lands at the end. */
+function nextSortOrder(rows: { sortOrder: number }[]): number {
+  return rows.reduce((max, row) => Math.max(max, row.sortOrder), 0) + 10;
 }
 
 /** "SawStop Table Saw" → "sawstop-table-saw", for a made-up reader key. */
@@ -4218,6 +4229,201 @@ export class MockDataProvider implements DataProvider {
       this.touch(page);
     }
     return { syncedAt, count: this.state.contentPages.length };
+  }
+
+  // ── Lists staff keep: directory, gallery, wishlist, shop details ──────────
+
+  async adminListPeople(): Promise<Person[]> {
+    return [...this.state.people].sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+
+  async adminSavePerson(input: PersonInput): Promise<Person> {
+    const now = this.now();
+    const name = requiredText(input.name, "Name", NAME_MAX);
+    const roleTitle = optionalText(input.roleTitle, "Role", NAME_MAX) ?? "";
+    const bio = optionalText(input.bio, "Bio", MESSAGE_MAX) ?? "";
+    if (input.kind !== "staff" && input.kind !== "instructor") {
+      throw new Error("Choose staff or instructor.");
+    }
+    const existing = input.id
+      ? this.state.people.find((p) => p.id === input.id)
+      : undefined;
+    if (input.id && !existing) throw new Error("That person is no longer in the directory.");
+    if (existing) {
+      Object.assign(existing, {
+        name,
+        roleTitle,
+        bio,
+        kind: input.kind,
+        sortOrder: input.sortOrder ?? existing.sortOrder,
+        published: input.published ?? existing.published,
+        updatedAt: now,
+      });
+      return { ...existing };
+    }
+    const person: Person = {
+      id: this.id("person"),
+      slug: contentSlug(name) || this.id("p"),
+      name,
+      roleTitle,
+      kind: input.kind,
+      bio,
+      sortOrder: input.sortOrder ?? nextSortOrder(this.state.people),
+      published: input.published ?? true,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.state.people.push(person);
+    return { ...person };
+  }
+
+  async adminDeletePerson(id: string): Promise<void> {
+    this.state.people = this.state.people.filter((p) => p.id !== id);
+  }
+
+  async listProjects(): Promise<Project[]> {
+    return this.state.projects
+      .filter((p) => p.published)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+
+  async adminListProjects(): Promise<Project[]> {
+    return [...this.state.projects].sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+
+  async adminSaveProject(input: ProjectInput): Promise<Project> {
+    const now = this.now();
+    const title = requiredText(input.title, "Title", NAME_MAX);
+    const fields = {
+      title,
+      maker: optionalText(input.maker, "Maker", NAME_MAX) ?? "",
+      area: optionalText(input.area, "Area", NAME_MAX) ?? "",
+      caption: optionalText(input.caption, "Caption", 500) ?? "",
+      imageSrc: pictureAddress(input.imageSrc),
+      imageAlt: optionalText(input.imageAlt, "Picture description", 300) ?? title,
+    };
+    const existing = input.id
+      ? this.state.projects.find((p) => p.id === input.id)
+      : undefined;
+    if (input.id && !existing) throw new Error("That project is no longer in the gallery.");
+    if (existing) {
+      Object.assign(existing, fields, {
+        sortOrder: input.sortOrder ?? existing.sortOrder,
+        published: input.published ?? existing.published,
+        updatedAt: now,
+      });
+      return { ...existing };
+    }
+    const project: Project = {
+      id: this.id("proj"),
+      ...fields,
+      sortOrder: input.sortOrder ?? nextSortOrder(this.state.projects),
+      published: input.published ?? true,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.state.projects.push(project);
+    return { ...project };
+  }
+
+  async adminDeleteProject(id: string): Promise<void> {
+    this.state.projects = this.state.projects.filter((p) => p.id !== id);
+  }
+
+  async adminSaveWishlistItem(input: WishlistItemInput): Promise<WishlistItem> {
+    const now = this.now();
+    const name = requiredText(input.name, "Item name", NAME_MAX);
+    if (!this.state.wishlistZones.some((z) => z.id === input.zoneId)) {
+      throw new Error("Choose a wishlist zone for this item.");
+    }
+    const priceCents = Math.round(Number(input.priceCents));
+    if (!Number.isFinite(priceCents) || priceCents < 0 || priceCents > 100_000_00) {
+      throw new Error("Enter a price of zero or more.");
+    }
+    const qty = Math.round(Number(input.qty));
+    if (!Number.isFinite(qty) || qty < 1 || qty > 1000) {
+      throw new Error("Quantity must be at least 1.");
+    }
+    const link = typeof input.url === "string" ? input.url.trim() : "";
+    if (link && (link.length > 1000 || !/^https?:\/\/[^\s<>"]+$/i.test(link))) {
+      throw new Error("The link must be a web address that starts with https://");
+    }
+    const fields = {
+      zoneId: input.zoneId,
+      name,
+      model: optionalText(input.model, "Model", 200) ?? "",
+      qty,
+      priceCents,
+      estimated: input.estimated ?? false,
+      url: link || null,
+      note: optionalText(input.note, "Note", 500),
+      tier: input.tier === "stretch" ? ("stretch" as const) : ("core" as const),
+    };
+    const existing = input.id
+      ? this.state.wishlistItems.find((i) => i.id === input.id)
+      : undefined;
+    if (input.id && !existing) throw new Error("That item is no longer on the wishlist.");
+    if (existing) {
+      Object.assign(existing, fields, {
+        sortOrder: input.sortOrder ?? existing.sortOrder,
+        updatedAt: now,
+      });
+      return { ...existing };
+    }
+    const item: WishlistItem = {
+      id: this.id("wl"),
+      ...fields,
+      status: "needed",
+      fulfilledAt: null,
+      fulfilledBy: null,
+      sortOrder:
+        input.sortOrder ??
+        nextSortOrder(this.state.wishlistItems.filter((i) => i.zoneId === input.zoneId)),
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.state.wishlistItems.push(item);
+    return { ...item };
+  }
+
+  async adminDeleteWishlistItem(id: string): Promise<void> {
+    this.state.wishlistItems = this.state.wishlistItems.filter((i) => i.id !== id);
+    // A report about an item that is gone has nothing left to confirm.
+    this.state.wishlistPurchaseReports = this.state.wishlistPurchaseReports.filter(
+      (r) => r.itemId !== id,
+    );
+  }
+
+  async getSiteInfo(): Promise<SiteInfo> {
+    return { ...this.state.siteInfo };
+  }
+
+  async adminSaveSiteInfo(input: Partial<SiteInfo>): Promise<SiteInfo> {
+    const current = this.state.siteInfo;
+    const next: SiteInfo = {
+      orgName:
+        input.orgName === undefined
+          ? current.orgName
+          : requiredText(input.orgName, "Shop name", 200),
+      addressLine:
+        input.addressLine === undefined
+          ? current.addressLine
+          : (optionalText(input.addressLine, "Address", 300) ?? ""),
+      blurb:
+        input.blurb === undefined
+          ? current.blurb
+          : (optionalText(input.blurb, "Description", 600) ?? ""),
+      facebookUrl:
+        input.facebookUrl === undefined
+          ? current.facebookUrl
+          : webAddress(input.facebookUrl, "The Facebook link"),
+      instagramUrl:
+        input.instagramUrl === undefined
+          ? current.instagramUrl
+          : webAddress(input.instagramUrl, "The Instagram link"),
+    };
+    this.state.siteInfo = next;
+    return { ...next };
   }
 
   async adminSaveContentPage(input: ContentPageInput): Promise<ContentPage> {

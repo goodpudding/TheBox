@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { AdminShell } from "@/components/admin-shell";
+import { SiteDetailsForm } from "@/components/admin/site-details-form";
 import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -313,6 +314,7 @@ export default function AdminSettingsPage() {
           {pending ? "Saving…" : "Save settings"}
         </Button>
       </form>
+      <SiteDetailsForm />
     </AdminShell>
   );
 }
