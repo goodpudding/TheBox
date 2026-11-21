@@ -592,3 +592,66 @@ describe("lists that have no table of their own", () => {
     expect(await provider.listPeople()).toEqual([]);
   });
 });
+
+describe("removals staff make from the admin", () => {
+  function deletes(model: string): string[] {
+    return calls
+      .filter((c) => c.model === model && c.method === "deleteMany")
+      .flatMap((c) => (c.args as { where: { id: { in: string[] } } }).where.id.in);
+  }
+
+  it("really deletes a removed bounty, and only that one", async () => {
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    const [spam, keep] = await admin.adminListBounties();
+    await admin.adminDeleteBounty(spam!.id);
+    expect(deletes("bounty")).toEqual([spam!.id]);
+    const later = await createPrismaDataProvider("u-admin", { fresh: true });
+    const ids = (await later.adminListBounties()).map((b) => b.id);
+    expect(ids).not.toContain(spam!.id);
+    expect(ids).toContain(keep!.id);
+  });
+
+  it("keeps a hidden bounty in the database, marked hidden", async () => {
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    const bounty = (await admin.adminListBounties())[0]!;
+    await admin.adminUpdateBounty(bounty.id, { hidden: true });
+    expect(deletes("bounty")).toEqual([]);
+    expect(table("bounty").get(bounty.id)?.deletedAt).toBeInstanceOf(Date);
+    const later = await createPrismaDataProvider(null, { fresh: true });
+    expect((await later.listBounties()).map((b) => b.id)).not.toContain(bounty.id);
+  });
+
+  it("really deletes a removed maintenance block", async () => {
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    const block = (await admin.adminListMaintenanceBlocks())[0]!;
+    await admin.adminDeleteMaintenanceBlock(block.id);
+    expect(deletes("maintenanceBlock")).toEqual([block.id]);
+    const later = await createPrismaDataProvider("u-admin", { fresh: true });
+    expect((await later.adminListMaintenanceBlocks()).map((b) => b.id)).not.toContain(block.id);
+  });
+
+  it("adds and removes area stewards as rows", async () => {
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    const area = (await admin.listInventoryAreas())[0]!;
+    await admin.adminSetAreaStewards(area.id, ["u-maya", "u-quinn"]);
+    const maya = (await admin.listAreaStewards()).find(
+      (s) => s.areaId === area.id && s.userId === "u-maya",
+    )!;
+    expect(table("areaSteward").has(maya.id)).toBe(true);
+    calls.length = 0;
+    await admin.adminSetAreaStewards(area.id, ["u-quinn"]);
+    expect(deletes("areaSteward")).toContain(maya.id);
+    expect(table("areaSteward").has(maya.id)).toBe(false);
+    const later = await createPrismaDataProvider("u-admin", { fresh: true });
+    const after = (await later.listAreaStewards()).filter((s) => s.areaId === area.id);
+    expect(after.map((s) => s.userId)).toEqual(["u-quinn"]);
+  });
+});

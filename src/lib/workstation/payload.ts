@@ -149,6 +149,7 @@ export async function workstationConfigPayload(workstationId: string) {
       name: ws.name,
       deviceId: ws.deviceId,
       location: ws.location,
+      active: ws.active,
       idleLockMinutes: ws.idleLockMinutes,
       idleLogoutMinutes: ws.idleLogoutMinutes,
       billedMachineId: ws.billedMachineId,

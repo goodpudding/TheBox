@@ -21,6 +21,7 @@ import {
   contentHtmlHasText,
   contentSlug,
 } from "./content-html";
+import { isBadgeUid, normalizeBadgeUid } from "./badge-uid";
 import { cloneFixtures, loadFixtures } from "./load-fixtures";
 import { pictureAddress, webAddress } from "./site-info";
 import { isTextBlockSlug } from "./text-blocks";
@@ -95,6 +96,8 @@ import type {
   PersonInput,
   ProjectInput,
   WishlistItemInput,
+  BountyModeration,
+  VolunteerRoleInput,
 } from "./provider";
 import { buildDisplayFeed, buildMachineStatuses } from "./display-feed";
 import {
@@ -188,6 +191,7 @@ import type {
   UserRole,
   MembershipTier,
   VideoRole,
+  AreaSteward,
 } from "./types";
 import {
   canInventory,
@@ -2493,6 +2497,90 @@ export class MockDataProvider implements DataProvider {
       .sort((a, b) => a.sortOrder - b.sortOrder);
   }
 
+  async adminListVolunteerRoles(): Promise<VolunteerRole[]> {
+    return [...this.state.volunteerRoles].sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+
+  async adminSaveVolunteerRole(input: VolunteerRoleInput): Promise<VolunteerRole> {
+    const now = this.now();
+    const title = requiredText(input.title, "Title", NAME_MAX);
+    const existing = input.id
+      ? this.state.volunteerRoles.find((r) => r.id === input.id)
+      : undefined;
+    if (input.id && !existing) throw new Error("That role no longer exists.");
+    const sameTitle = this.state.volunteerRoles.find(
+      (r) => r.id !== existing?.id && r.title.trim().toLowerCase() === title.toLowerCase(),
+    );
+    if (sameTitle) throw new Error(`There is already a role called "${sameTitle.title}".`);
+
+    let role: VolunteerRole;
+    if (existing) {
+      Object.assign(existing, {
+        title,
+        active: input.active ?? existing.active,
+        sortOrder: input.sortOrder ?? existing.sortOrder,
+        updatedAt: now,
+      });
+      role = existing;
+    } else {
+      // The address and the description page keep their names for good, so
+      // a later rename does not break the sign-up form or the page link.
+      let slug = contentSlug(title).slice(0, 48).replace(/-+$/g, "") || "role";
+      const taken = (candidate: string) =>
+        this.state.volunteerRoles.some((r) => r.slug === candidate) ||
+        this.state.contentPages.some((p) => p.slug === `volunteer-${candidate}`);
+      for (let n = 2; taken(slug); n += 1) {
+        slug = `${slug.replace(/-\d+$/, "")}-${n}`;
+      }
+      role = {
+        id: this.id("vr"),
+        slug,
+        title,
+        contentSlug: `volunteer-${slug}`,
+        active: input.active ?? true,
+        sortOrder: input.sortOrder ?? nextSortOrder(this.state.volunteerRoles),
+        createdAt: now,
+        updatedAt: now,
+      };
+      this.state.volunteerRoles.push(role);
+    }
+
+    if (input.descriptionHtml !== undefined) {
+      const html = cleanContentHtml(input.descriptionHtml);
+      const page = this.state.contentPages.find((p) => p.slug === role.contentSlug);
+      if (page) {
+        if (page.html !== html || page.title !== title || !page.published) {
+          Object.assign(page, {
+            html,
+            title,
+            published: contentHtmlHasText(html),
+            updatedAt: now,
+          });
+        }
+      } else if (contentHtmlHasText(html)) {
+        this.state.contentPages.push({
+          id: this.id("content"),
+          slug: role.contentSlug,
+          title,
+          html,
+          category: "volunteer",
+          version: "1",
+          published: true,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+    }
+    this.pushAudit({
+      action: "volunteer_role_saved",
+      actorId: this.currentUserId ?? null,
+      entityType: "VolunteerRole",
+      entityId: role.id,
+      metadata: { title: role.title, active: role.active },
+    });
+    return { ...role };
+  }
+
   async submitVolunteerInterest(
     input: VolunteerInterestInput,
   ): Promise<VolunteerInterest> {
@@ -2577,6 +2665,63 @@ export class MockDataProvider implements DataProvider {
   async getBounty(id: string): Promise<BountyView | null> {
     const bounty = this.state.bounties.find((b) => b.id === id && !b.deletedAt);
     return bounty ? this.toBountyView(bounty) : null;
+  }
+
+  async adminListBounties(): Promise<Bounty[]> {
+    return this.state.bounties
+      .map((b) => ({ ...b }))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async adminUpdateBounty(id: string, patch: BountyModeration): Promise<Bounty> {
+    const bounty = this.state.bounties.find((b) => b.id === id);
+    if (!bounty) throw new Error("That request no longer exists.");
+    const actorId = this.currentUserId ?? null;
+    const now = this.now();
+    const note = (action: AuditAction) =>
+      this.pushAudit({ action, actorId, entityType: "Bounty", entityId: id });
+
+    if (patch.title !== undefined || patch.description !== undefined) {
+      const title = (patch.title ?? bounty.title).trim();
+      const description = (patch.description ?? bounty.description).trim();
+      if (title.length < 3 || title.length > 120) {
+        throw new Error("Title should be between 3 and 120 characters");
+      }
+      if (description.length < 10 || description.length > 2000) {
+        throw new Error("The description should be between 10 and 2000 characters");
+      }
+      if (title !== bounty.title || description !== bounty.description) {
+        bounty.title = title;
+        bounty.description = description;
+        note("bounty_edited_by_staff");
+      }
+    }
+    if (patch.hidden !== undefined && patch.hidden !== Boolean(bounty.deletedAt)) {
+      bounty.deletedAt = patch.hidden ? now : null;
+      note(patch.hidden ? "bounty_hidden" : "bounty_unhidden");
+    }
+    if (patch.reopen && bounty.status !== "open") {
+      bounty.status = "open";
+      bounty.claimedByUserId = null;
+      bounty.claimedAt = null;
+      bounty.completedAt = null;
+      note("bounty_reopened");
+    }
+    bounty.updatedAt = now;
+    return { ...bounty };
+  }
+
+  async adminDeleteBounty(id: string): Promise<void> {
+    const bounty = this.state.bounties.find((b) => b.id === id);
+    if (!bounty) throw new Error("That request is already gone.");
+    this.state.bounties = this.state.bounties.filter((b) => b.id !== id);
+    this.pushAudit({
+      action: "bounty_removed",
+      actorId: this.currentUserId ?? null,
+      entityType: "Bounty",
+      entityId: id,
+      metadata: { title: bounty.title },
+    });
   }
 
   async submitBountyRequest(input: BountyRequestInput): Promise<Bounty> {
@@ -3258,6 +3403,66 @@ export class MockDataProvider implements DataProvider {
       entityId: badgeId,
     });
     return badge;
+  }
+
+  async adminRegisterBadge(
+    userId: string,
+    input: { uid: string; label?: string },
+  ): Promise<Badge> {
+    const member = this.requireUser(userId);
+    const uid = normalizeBadgeUid(typeof input.uid === "string" ? input.uid : "");
+    if (!isBadgeUid(uid)) {
+      throw new Error(
+        "That does not look like a badge number. Type the letters and digits printed on the fob, or tap it on a reader.",
+      );
+    }
+    const existing = this.state.badges.find((b) => normalizeBadgeUid(b.uid) === uid);
+    if (existing) {
+      const owner = existing.userId
+        ? this.state.users.find((u) => u.id === existing.userId)
+        : undefined;
+      throw new Error(
+        owner
+          ? `That badge is already registered to ${owner.displayName}.`
+          : "That badge is already registered. Link it to this member from the list.",
+      );
+    }
+    const now = this.now();
+    const badge: Badge = {
+      id: this.id("badge"),
+      uid,
+      label: optionalText(input.label, "Label", NAME_MAX) ?? undefined,
+      userId: member.id,
+      active: true,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.state.badges.push(badge);
+    this.pushAudit({
+      action: "badge_registered",
+      actorId: this.currentUserId ?? null,
+      subjectUserId: member.id,
+      entityType: "Badge",
+      entityId: badge.id,
+    });
+    return { ...badge };
+  }
+
+  async adminSetBadgeActive(badgeId: string, active: boolean): Promise<Badge> {
+    const badge = this.state.badges.find((b) => b.id === badgeId);
+    if (!badge) throw new Error("Badge not found");
+    if (badge.active !== active) {
+      badge.active = active;
+      this.touch(badge);
+      this.pushAudit({
+        action: active ? "badge_reactivated" : "badge_deactivated",
+        actorId: this.currentUserId ?? null,
+        subjectUserId: badge.userId,
+        entityType: "Badge",
+        entityId: badge.id,
+      });
+    }
+    return { ...badge };
   }
 
   async adminRecordCheckoff(input: CheckoffInput): Promise<UserCertification> {
@@ -4055,7 +4260,17 @@ export class MockDataProvider implements DataProvider {
     if (data.id) {
       const existing = this.state.maintenanceBlocks.find((m) => m.id === data.id);
       if (existing) {
-        Object.assign(existing, data, { updatedAt: now });
+        // Who first scheduled it stays on the block. The edit is in the audit trail.
+        Object.assign(existing, data, {
+          createdById: existing.createdById,
+          updatedAt: now,
+        });
+        this.pushAudit({
+          action: "maintenance_updated",
+          actorId: data.createdById,
+          entityType: "MaintenanceBlock",
+          entityId: existing.id,
+        });
         return existing;
       }
     }
@@ -4081,6 +4296,19 @@ export class MockDataProvider implements DataProvider {
 
   async adminListMaintenanceBlocks(): Promise<MaintenanceBlock[]> {
     return [...this.state.maintenanceBlocks];
+  }
+
+  async adminDeleteMaintenanceBlock(id: string): Promise<void> {
+    const block = this.state.maintenanceBlocks.find((m) => m.id === id);
+    if (!block) throw new Error("That maintenance block is already gone.");
+    this.state.maintenanceBlocks = this.state.maintenanceBlocks.filter((m) => m.id !== id);
+    this.pushAudit({
+      action: "maintenance_removed",
+      actorId: this.currentUserId ?? null,
+      entityType: "MaintenanceBlock",
+      entityId: id,
+      metadata: { machineId: block.machineId, startsAt: block.startsAt, endsAt: block.endsAt },
+    });
   }
 
   private toolChampionProgressFor(userId: string): ToolChampionProgress {
@@ -5083,6 +5311,13 @@ export class MockDataProvider implements DataProvider {
     } else if (data.defaultInstructorId === "") {
       data.defaultInstructorId = null;
     }
+    for (const key of ["hoursContentSlug", "memberExpectationsPolicySlug"] as const) {
+      const slug = data[key];
+      if (slug === undefined || slug === this.state.settings[key]) continue;
+      if (!this.state.contentPages.some((p) => p.slug === slug && p.published)) {
+        throw new Error("Choose a published page from the list.");
+      }
+    }
     Object.assign(this.state.settings, data, { updatedAt: this.now() });
     return { ...this.state.settings };
   }
@@ -5358,6 +5593,40 @@ export class MockDataProvider implements DataProvider {
 
   async listAreaStewards() {
     return this.state.areaStewards.slice();
+  }
+
+  async adminSetAreaStewards(areaId: string, userIds: string[]): Promise<AreaSteward[]> {
+    const area = this.state.inventoryAreas.find((a) => a.id === areaId);
+    if (!area) throw new Error("That inventory area no longer exists.");
+    const wanted = [...new Set(Array.isArray(userIds) ? userIds : [])];
+    for (const userId of wanted) {
+      if (!this.state.users.some((u) => u.id === userId && !u.deletedAt)) {
+        throw new Error("One of those people is not a member any more.");
+      }
+    }
+    const current = this.state.areaStewards.filter((s) => s.areaId === areaId);
+    const now = this.now();
+    // Rows for people who stay are kept as they are, so only real changes are written.
+    const kept = current.filter((s) => wanted.includes(s.userId));
+    const added: AreaSteward[] = wanted
+      .filter((userId) => !kept.some((s) => s.userId === userId))
+      .map((userId) => ({ id: this.id("as"), areaId, userId, createdAt: now }));
+    const removedCount = current.length - kept.length;
+    this.state.areaStewards = [
+      ...this.state.areaStewards.filter((s) => s.areaId !== areaId),
+      ...kept,
+      ...added,
+    ];
+    if (added.length > 0 || removedCount > 0) {
+      this.pushAudit({
+        action: "area_stewards_changed",
+        actorId: this.currentUserId ?? null,
+        entityType: "InventoryArea",
+        entityId: areaId,
+        metadata: { stewards: wanted },
+      });
+    }
+    return [...kept, ...added];
   }
 
   async upsertInventoryArea(

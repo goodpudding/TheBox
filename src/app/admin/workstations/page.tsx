@@ -2,12 +2,14 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { AdminShell } from "@/components/admin-shell";
+import { AdminNotice } from "@/components/admin/admin-notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StatusPill } from "@/components/status-pill";
 import { useData } from "@/components/providers";
 import { formatDateTime } from "@/lib/format";
+import { readJson } from "@/lib/read-json";
 import { formatMoneyExact } from "@/lib/utils";
 import type { Machine } from "@/lib/data";
 
@@ -45,11 +47,59 @@ type MapRow = {
   active: boolean;
 };
 
+type DeskDraft = {
+  id?: string;
+  name: string;
+  deviceId: string;
+  location: string;
+  billedMachineId: string;
+  idleLockMinutes: string;
+  idleLogoutMinutes: string;
+  active: boolean;
+};
+
+type MapDraft = {
+  id?: string;
+  displayName: string;
+  exeName: string;
+  exePath: string;
+  machineId: string;
+  workstationId: string;
+  sortOrder: string;
+  active: boolean;
+};
+
+const blankDesk = (machineId = ""): DeskDraft => ({
+  name: "",
+  deviceId: "",
+  location: "",
+  billedMachineId: machineId,
+  idleLockMinutes: "10",
+  idleLogoutMinutes: "30",
+  active: true,
+});
+
+const blankMap = (): MapDraft => ({
+  displayName: "",
+  exeName: "",
+  exePath: "",
+  machineId: "",
+  workstationId: "",
+  sortOrder: "0",
+  active: true,
+});
+
+const selectClass =
+  "flex h-11 w-full rounded-full border border-border bg-surface px-4 font-display text-sm";
+
 export default function AdminWorkstationsPage() {
   const { currentUser, provider, revision } = useData();
   const [rows, setRows] = useState<Row[]>([]);
   const [maps, setMaps] = useState<MapRow[]>([]);
   const [machines, setMachines] = useState<Machine[]>([]);
+  const [desk, setDesk] = useState<DeskDraft>(blankDesk());
+  const [map, setMap] = useState<MapDraft>(blankMap());
+  const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -65,13 +115,13 @@ export default function AdminWorkstationsPage() {
     const [ws, sm, m] = await Promise.all([
       fetch("/api/admin/workstations", { headers: headers() }),
       fetch("/api/admin/software-maps", { headers: headers() }),
-      provider.listMachines(),
+      provider.adminListMachines(),
     ]);
+    const desks = await readJson<{ workstations: Row[] }>(ws);
+    const mapList = await readJson<{ maps: MapRow[] }>(sm);
     return {
-      rows: ws.ok
-        ? ((await ws.json()) as { workstations: Row[] }).workstations
-        : null,
-      maps: sm.ok ? ((await sm.json()) as { maps: MapRow[] }).maps : null,
+      rows: ws.ok && desks ? desks.workstations : null,
+      maps: sm.ok && mapList ? mapList.maps : null,
       machines: m,
     };
   }
@@ -97,56 +147,106 @@ export default function AdminWorkstationsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, revision]);
 
-  async function onSave(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  const machineName = (id: string | null) =>
+    id ? (machines.find((m) => m.id === id)?.name ?? id) : null;
+  const deskName = (id: string | null) =>
+    id ? (rows.find((w) => w.id === id)?.name ?? id) : null;
+
+  /** POSTs JSON and reports the outcome. True when the server saved it. */
+  async function save(url: string, payload: unknown, done: string) {
+    setPending(true);
     setError(null);
     setMessage(null);
-    const form = new FormData(e.currentTarget);
-    const res = await fetch("/api/admin/workstations", {
-      method: "POST",
-      headers: headers(),
-      body: JSON.stringify({
-        id: String(form.get("id") || "") || undefined,
-        name: String(form.get("name") ?? "").trim(),
-        deviceId: String(form.get("deviceId") ?? "").trim(),
-        location: String(form.get("location") ?? "").trim(),
-        billedMachineId: String(form.get("billedMachineId") ?? "").trim(),
-        idleLockMinutes: Number(form.get("idleLockMinutes") || 10),
-        idleLogoutMinutes: Number(form.get("idleLogoutMinutes") || 30),
-      }),
-    });
-    const body = await res.json();
-    if (!res.ok) {
-      setError(body.error ?? "Could not save");
-      return;
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify(payload),
+      });
+      const body = await readJson<{ error?: string }>(res);
+      if (!res.ok) {
+        setError(body?.error ?? "Could not save. Please try again.");
+        return false;
+      }
+      setMessage(done);
+      await load();
+      return true;
+    } catch {
+      setError("Could not save. Please try again.");
+      return false;
+    } finally {
+      setPending(false);
     }
-    setMessage("Workstation saved.");
-    await load();
   }
 
-  async function onSaveMap(e: FormEvent<HTMLFormElement>) {
+  async function onSaveDesk(e: FormEvent) {
     e.preventDefault();
-    setError(null);
-    const form = new FormData(e.currentTarget);
-    const res = await fetch("/api/admin/software-maps", {
-      method: "POST",
-      headers: headers(),
-      body: JSON.stringify({
-        id: String(form.get("id") || "") || undefined,
-        displayName: String(form.get("displayName") ?? "").trim(),
-        exeName: String(form.get("exeName") ?? "").trim(),
-        exePath: String(form.get("exePath") ?? "").trim() || null,
-        machineId: String(form.get("machineId") ?? "").trim() || null,
-        workstationId: String(form.get("workstationId") ?? "").trim() || null,
-      }),
+    const ok = await save(
+      "/api/admin/workstations",
+      {
+        id: desk.id,
+        name: desk.name.trim(),
+        deviceId: desk.deviceId.trim(),
+        location: desk.location.trim(),
+        billedMachineId: desk.billedMachineId || machines[0]?.id || "",
+        idleLockMinutes: Number(desk.idleLockMinutes) || 10,
+        idleLogoutMinutes: Number(desk.idleLogoutMinutes) || 30,
+        active: desk.active,
+      },
+      desk.id ? "Workstation updated." : "Workstation registered.",
+    );
+    if (ok) setDesk(blankDesk());
+  }
+
+  async function onSaveMap(e: FormEvent) {
+    e.preventDefault();
+    const ok = await save(
+      "/api/admin/software-maps",
+      {
+        id: map.id,
+        displayName: map.displayName.trim(),
+        exeName: map.exeName.trim(),
+        exePath: map.exePath.trim() || null,
+        machineId: map.machineId || null,
+        workstationId: map.workstationId || null,
+        sortOrder: Number(map.sortOrder) || 0,
+        active: map.active,
+      },
+      map.id ? "Software updated." : "Software added.",
+    );
+    if (ok) setMap(blankMap());
+  }
+
+  function editDesk(w: Row) {
+    setDesk({
+      id: w.id,
+      name: w.name,
+      deviceId: w.deviceId,
+      location: w.location,
+      billedMachineId: w.billedMachineId,
+      idleLockMinutes: String(w.idleLockMinutes),
+      idleLogoutMinutes: String(w.idleLogoutMinutes),
+      active: w.active,
     });
-    const body = await res.json();
-    if (!res.ok) {
-      setError(body.error ?? "Could not save map");
-      return;
-    }
-    setMessage("Software map saved.");
-    await load();
+    setMessage(null);
+    setError(null);
+    document.getElementById("desk-form")?.scrollIntoView();
+  }
+
+  function editMap(m: MapRow) {
+    setMap({
+      id: m.id,
+      displayName: m.displayName,
+      exeName: m.exeName,
+      exePath: m.exePath ?? "",
+      machineId: m.machineId ?? "",
+      workstationId: m.workstationId ?? "",
+      sortOrder: String(m.sortOrder),
+      active: m.active,
+    });
+    setMessage(null);
+    setError(null);
+    document.getElementById("map-form")?.scrollIntoView();
   }
 
   return (
@@ -154,8 +254,7 @@ export default function AdminWorkstationsPage() {
       title="Workstations"
       description="Shared Windows PCs. Login is identity and which software they may open — it does not bill desk time. No ESP32 on these computers."
     >
-      {error ? <p className="mb-4 text-accent">{error}</p> : null}
-      {message ? <p className="mb-4 text-brown">{message}</p> : null}
+      <AdminNotice message={message} error={error} />
 
       <ul className="space-y-3">
         {rows.map((w) => (
@@ -167,11 +266,14 @@ export default function AdminWorkstationsPage() {
               <h2 className="font-display text-lg font-semibold text-brown">
                 {w.name}
               </h2>
-              <StatusPill tone={w.openSession ? "ok" : "muted"}>
-                {w.openSession
-                  ? `${w.openSession.displayName} since ${formatDateTime(w.openSession.startedAt)}`
-                  : "Idle"}
-              </StatusPill>
+              <div className="flex flex-wrap items-center gap-2">
+                {w.active ? null : <StatusPill tone="danger">Switched off</StatusPill>}
+                <StatusPill tone={w.openSession ? "ok" : "muted"}>
+                  {w.openSession
+                    ? `${w.openSession.displayName} since ${formatDateTime(w.openSession.startedAt)}`
+                    : "Idle"}
+                </StatusPill>
+              </div>
             </div>
             <p className="mt-1 text-sm text-secondary">
               {w.deviceId} · {w.location} · primary {w.billedMachineName} (
@@ -182,38 +284,203 @@ export default function AdminWorkstationsPage() {
                   : w.billing.mode}
               )
             </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="mt-3"
+              aria-label={`Edit ${w.name}`}
+              onClick={() => editDesk(w)}
+            >
+              Edit
+            </Button>
           </li>
         ))}
       </ul>
+      {rows.length === 0 ? (
+        <p className="text-secondary">No PCs registered yet.</p>
+      ) : null}
 
-      <form onSubmit={onSave} className="mt-10 grid gap-4 max-w-xl">
+      <form
+        id="desk-form"
+        onSubmit={(e) => void onSaveDesk(e)}
+        className="mt-10 grid max-w-xl gap-4 scroll-mt-24"
+      >
         <h2 className="font-display text-xl font-semibold text-brown">
-          Register or update a PC
+          {desk.id ? `Edit ${desk.name || "this PC"}` : "Register a PC"}
         </h2>
         <div className="space-y-2">
-          <Label htmlFor="id">Id (optional)</Label>
-          <Input id="id" name="id" placeholder="ws-pc-3" />
-        </div>
-        <div className="space-y-2">
           <Label htmlFor="name">Name</Label>
-          <Input id="name" name="name" required placeholder="Design PC 2" />
+          <Input
+            id="name"
+            required
+            placeholder="Design PC 2"
+            value={desk.name}
+            onChange={(e) => setDesk({ ...desk, name: e.target.value })}
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="deviceId">Windows device id</Label>
-          <Input id="deviceId" name="deviceId" required placeholder="BOX-PC-3" />
+          <Input
+            id="deviceId"
+            required
+            placeholder="BOX-PC-3"
+            value={desk.deviceId}
+            onChange={(e) => setDesk({ ...desk, deviceId: e.target.value })}
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="location">Location</Label>
-          <Input id="location" name="location" placeholder="3D lab" />
+          <Input
+            id="location"
+            placeholder="3D lab"
+            value={desk.location}
+            onChange={(e) => setDesk({ ...desk, location: e.target.value })}
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="billedMachineId">Primary machine at this desk</Label>
           <select
             id="billedMachineId"
-            name="billedMachineId"
             required
-            className="flex h-11 w-full rounded-full border border-border bg-surface px-4 font-display text-sm"
+            className={selectClass}
+            value={desk.billedMachineId || machines[0]?.id || ""}
+            onChange={(e) => setDesk({ ...desk, billedMachineId: e.target.value })}
           >
+            {machines.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+                {m.active ? "" : " (switched off)"}
+              </option>
+            ))}
+          </select>
+          {machines.length === 0 ? (
+            <p className="text-sm text-secondary">
+              Add the machine under Admin → Machines first.
+            </p>
+          ) : null}
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label htmlFor="idleLockMinutes">Lock minutes</Label>
+            <Input
+              id="idleLockMinutes"
+              type="number"
+              value={desk.idleLockMinutes}
+              onChange={(e) => setDesk({ ...desk, idleLockMinutes: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="idleLogoutMinutes">Logout minutes</Label>
+            <Input
+              id="idleLogoutMinutes"
+              type="number"
+              value={desk.idleLogoutMinutes}
+              onChange={(e) =>
+                setDesk({ ...desk, idleLogoutMinutes: e.target.value })
+              }
+            />
+          </div>
+        </div>
+        <label className="flex items-center gap-3 text-charcoal">
+          <input
+            type="checkbox"
+            className="size-5"
+            checked={desk.active}
+            onChange={(e) => setDesk({ ...desk, active: e.target.checked })}
+          />
+          In use (untick to retire this PC; nobody can sign in at it)
+        </label>
+        <div className="flex flex-wrap gap-3">
+          <Button type="submit" disabled={pending || machines.length === 0}>
+            {pending ? "Saving…" : "Save workstation"}
+          </Button>
+          {desk.id ? (
+            <Button type="button" variant="outline" onClick={() => setDesk(blankDesk())}>
+              Cancel
+            </Button>
+          ) : null}
+        </div>
+      </form>
+
+      <h2 className="mt-14 font-display text-xl font-semibold text-brown">
+        Software on the PCs
+      </h2>
+      <ul className="mt-4 divide-y divide-border border-y border-border">
+        {maps.map((m) => (
+          <li
+            key={m.id}
+            className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm"
+          >
+            <div className="min-w-0">
+              <span className="font-display font-medium text-brown">
+                {m.displayName}
+              </span>
+              <span className="text-secondary"> · {m.exeName}</span>{" "}
+              {m.active ? null : <StatusPill tone="muted">Switched off</StatusPill>}
+              <span className="block text-xs text-secondary">
+                {machineName(m.machineId) ?? "Any machine"} ·{" "}
+                {deskName(m.workstationId) ?? "every PC"}
+                {m.exePath ? ` · ${m.exePath}` : ""}
+              </span>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              aria-label={`Edit ${m.displayName}`}
+              onClick={() => editMap(m)}
+            >
+              Edit
+            </Button>
+          </li>
+        ))}
+      </ul>
+
+      <form
+        id="map-form"
+        onSubmit={(e) => void onSaveMap(e)}
+        className="mt-8 grid max-w-xl gap-4 scroll-mt-24"
+      >
+        <h3 className="font-display text-lg font-semibold text-brown">
+          {map.id ? `Edit ${map.displayName || "this program"}` : "Add a program"}
+        </h3>
+        <div className="space-y-2">
+          <Label htmlFor="displayName">Display name</Label>
+          <Input
+            id="displayName"
+            required
+            value={map.displayName}
+            onChange={(e) => setMap({ ...map, displayName: e.target.value })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="exeName">Exe name</Label>
+          <Input
+            id="exeName"
+            required
+            placeholder="bambu-studio.exe"
+            value={map.exeName}
+            onChange={(e) => setMap({ ...map, exeName: e.target.value })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="exePath">Full path (optional)</Label>
+          <Input
+            id="exePath"
+            value={map.exePath}
+            onChange={(e) => setMap({ ...map, exePath: e.target.value })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="machineId">Goes with machine</Label>
+          <select
+            id="machineId"
+            className={selectClass}
+            value={map.machineId}
+            onChange={(e) => setMap({ ...map, machineId: e.target.value })}
+          >
+            <option value="">Any machine (general software)</option>
             {machines.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.name}
@@ -221,64 +488,50 @@ export default function AdminWorkstationsPage() {
             ))}
           </select>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2">
-            <Label htmlFor="idleLockMinutes">Lock minutes</Label>
-            <Input
-              id="idleLockMinutes"
-              name="idleLockMinutes"
-              type="number"
-              defaultValue={10}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="idleLogoutMinutes">Logout minutes</Label>
-            <Input
-              id="idleLogoutMinutes"
-              name="idleLogoutMinutes"
-              type="number"
-              defaultValue={30}
-            />
-          </div>
-        </div>
-        <Button type="submit">Save workstation</Button>
-      </form>
-
-      <h2 className="mt-14 font-display text-xl font-semibold text-brown">
-        Software maps
-      </h2>
-      <ul className="mt-4 divide-y divide-border border-y border-border">
-        {maps.map((m) => (
-          <li key={m.id} className="py-3 text-sm">
-            <span className="font-display font-medium text-brown">
-              {m.displayName}
-            </span>
-            <span className="text-secondary"> · {m.exeName}</span>
-            {m.exePath ? (
-              <span className="block text-xs text-secondary">{m.exePath}</span>
-            ) : null}
-          </li>
-        ))}
-      </ul>
-
-      <form onSubmit={onSaveMap} className="mt-8 grid gap-4 max-w-xl">
         <div className="space-y-2">
-          <Label htmlFor="displayName">Display name</Label>
-          <Input id="displayName" name="displayName" required />
+          <Label htmlFor="workstationId">On which PC</Label>
+          <select
+            id="workstationId"
+            className={selectClass}
+            value={map.workstationId}
+            onChange={(e) => setMap({ ...map, workstationId: e.target.value })}
+          >
+            <option value="">Every PC</option>
+            {rows.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.name}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="exeName">Exe name</Label>
-          <Input id="exeName" name="exeName" required placeholder="bambu-studio.exe" />
+          <Label htmlFor="sortOrder">Order</Label>
+          <Input
+            id="sortOrder"
+            type="number"
+            value={map.sortOrder}
+            onChange={(e) => setMap({ ...map, sortOrder: e.target.value })}
+          />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="exePath">Full path (optional)</Label>
-          <Input id="exePath" name="exePath" />
+        <label className="flex items-center gap-3 text-charcoal">
+          <input
+            type="checkbox"
+            className="size-5"
+            checked={map.active}
+            onChange={(e) => setMap({ ...map, active: e.target.checked })}
+          />
+          Show on the PCs
+        </label>
+        <div className="flex flex-wrap gap-3">
+          <Button type="submit" disabled={pending}>
+            {pending ? "Saving…" : "Save program"}
+          </Button>
+          {map.id ? (
+            <Button type="button" variant="outline" onClick={() => setMap(blankMap())}>
+              Cancel
+            </Button>
+          ) : null}
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="machineId">Machine id (blank = general)</Label>
-          <Input id="machineId" name="machineId" placeholder="m-bambu-a1" />
-        </div>
-        <Button type="submit">Save software map</Button>
       </form>
     </AdminShell>
   );

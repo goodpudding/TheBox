@@ -17,6 +17,7 @@ const LINKS = [
   { href: "/inventory", label: "Inventory" },
   { href: "/admin/usage", label: "Usage" },
   { href: "/admin/volunteers", label: "Volunteers" },
+  { href: "/admin/bounties", label: "Bounties" },
   { href: "/admin/wishlist", label: "Wishlist" },
   { href: "/admin/content", label: "Content" },
   { href: "/admin/people", label: "People" },

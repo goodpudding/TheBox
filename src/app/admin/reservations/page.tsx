@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { format, parseISO } from "date-fns";
 import { AdminShell } from "@/components/admin-shell";
+import { MaintenanceBlockManager } from "@/components/admin/maintenance-block-manager";
 import { StatusPill } from "@/components/status-pill";
 import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
@@ -406,6 +407,7 @@ export default function AdminReservationsPage() {
           ))
         )}
       </section>
+      <MaintenanceBlockManager />
     </AdminShell>
   );
 }

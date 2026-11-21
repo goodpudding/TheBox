@@ -59,6 +59,7 @@ export function InventorySubnav() {
     },
     { href: "/inventory/labels", label: "Labels", show: staff },
     { href: "/inventory/import", label: "Import", show: staff },
+    { href: "/inventory/areas", label: "Areas", show: staff },
   ].filter((l) => l.show);
 
   return (

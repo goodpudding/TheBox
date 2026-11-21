@@ -21,7 +21,7 @@ The rule: how the site looks is code; what it says is edited in the admin. Every
 |---|---|
 | Waiver, hours, policies, FAQ, history, staff intro, support and lesson text | Admin → Content (rich-text editor; a new waiver version asks every member to sign again) |
 | The explanatory text on Join, Support, Wishlist, Staff, History, Events, Bounties, Volunteer, Equipment, Made here, a class page and Reserve | Admin → Content → Text on pages. Each piece starts with its built-in wording (`src/lib/data/text-blocks.ts`) and can go back to it |
-| Machines, certifications | Admin → Machines, Admin → Certifications (switched-off ones stay listed) |
+| Machines (incl. attended-only, longest booking, order) and certifications (incl. what each covers, prerequisites, order) | Admin → Machines, Admin → Certifications (switched-off ones stay listed) |
 | Classes: details, description, cancel or restore; add a member or cancel a booking | Admin → Classes (lists drafts, cancelled and past classes too). Cancelling moves no money: Zeffy refunds are made in Zeffy |
 | Learning modules: details, pass mark, attempts, equipment confirmed; lessons and their text; videos; quiz questions with one or several right answers | Admin → Learn → a module. Removing a lesson takes its videos and the watch and progress records with it; certifications members hold are untouched |
 | Staff and instructor directory | Admin → People |
@@ -29,7 +29,13 @@ The rule: how the site looks is code; what it says is edited in the admin. Every
 | Wishlist items, purchase reports | Admin → Wishlist |
 | Lobby display promos and settings | Admin → Display |
 | Shop name, address, footer text, social links, checkout links, limits | Admin → Settings |
-| A member's membership, shop access, staff note, and (admins only) role | Admin → Members → a member |
+| A member's membership, shop access, staff note, and (admins only) role; registering a badge for them and switching a lost one off | Admin → Members → a member |
+| Volunteer roles and what each involves | Admin → Volunteers → Roles |
+| Bounty board requests: fix the wording, hide, reopen, remove spam | Admin → Bounties |
+| Shared PCs and their software: edit, retire a PC, switch a program off | Admin → Workstations (a retired PC's kiosk screen says it is switched off) |
+| Maintenance blocks: change or remove | Admin → Reservations → Maintenance blocks |
+| Inventory areas (rename, switch off) and who stewards each | Inventory → Areas |
+| Which page is the hours and which policy new members agree to; the every-safety-question quiz rule | Admin → Settings |
 | Shop inventory with photos | Inventory → Add item |
 
 Lists with no table of their own (directory, gallery, wishlist, promos, display settings, shop details, tool champion terms) are rows in `SiteRecord`, one JSON row each (`src/lib/data/persist-delta.ts`). Uploaded pictures are rows in `StoredFile`, because a Worker has no disk; set `INVENTORY_PHOTO_STORAGE=drive` to send new photos to a Google shared drive instead (`src/lib/inventory/storage.ts`).

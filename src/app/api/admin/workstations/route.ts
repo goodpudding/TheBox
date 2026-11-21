@@ -93,7 +93,8 @@ export async function POST(request: NextRequest) {
         billedMachineId: body.billedMachineId,
         idleLockMinutes: body.idleLockMinutes ?? 10,
         idleLogoutMinutes: body.idleLogoutMinutes ?? 30,
-        active: body.active ?? true,
+        // A save that does not mention it must not switch a retired desk back on.
+        ...(typeof body.active === "boolean" ? { active: body.active } : {}),
       },
     });
     return NextResponse.json({ workstation: row });

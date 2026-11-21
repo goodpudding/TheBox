@@ -7,6 +7,7 @@ import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import type { Certification, User } from "@/lib/data";
 
 const selectClass =
@@ -55,6 +56,7 @@ export default function AdminCertificationsPage() {
     setMessage(null);
     const form = new FormData(formEl);
     const expiryRaw = String(form.get("expiryMonths") ?? "").trim();
+    const orderRaw = String(form.get("sortOrder") ?? "").trim();
     try {
       await provider.adminUpsertCertification({
         id: editing?.id,
@@ -63,7 +65,9 @@ export default function AdminCertificationsPage() {
         knowledgeOnly: form.get("knowledgeOnly") === "on",
         expiryMonths: expiryRaw ? Number(expiryRaw) : null,
         active: form.get("active") === "on",
-        description: editing?.description ?? "",
+        description: String(form.get("description") ?? "").trim(),
+        requiresCertificationIds: form.getAll("requires").map(String),
+        sortOrder: orderRaw ? Number(orderRaw) : editing?.sortOrder,
       });
       setEditing(null);
       bump();
@@ -222,6 +226,48 @@ export default function AdminCertificationsPage() {
               type="number"
               min={0}
               defaultValue={editing?.expiryMonths ?? ""}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="cert-description">What it covers</Label>
+            <Textarea
+              id="cert-description"
+              name="description"
+              rows={3}
+              defaultValue={editing?.description ?? ""}
+            />
+            <p className="text-sm text-secondary">
+              Shown on the page of every machine that needs this certification.
+            </p>
+          </div>
+          <fieldset className="space-y-2">
+            <legend className="font-display text-sm font-medium text-brown">
+              Needs these first
+            </legend>
+            {certs
+              .filter((c) => c.id !== editing?.id)
+              .map((c) => (
+                <label key={c.id} className="flex items-center gap-2 text-sm text-charcoal">
+                  <input
+                    type="checkbox"
+                    name="requires"
+                    value={c.id}
+                    defaultChecked={
+                      editing?.requiresCertificationIds.includes(c.id) ?? false
+                    }
+                    className="h-4 w-4 rounded border-border"
+                  />
+                  {c.name}
+                </label>
+              ))}
+          </fieldset>
+          <div className="space-y-2">
+            <Label htmlFor="cert-order">Order (lower comes first; blank = last)</Label>
+            <Input
+              id="cert-order"
+              name="sortOrder"
+              type="number"
+              defaultValue={editing?.sortOrder ?? ""}
             />
           </div>
           <label className="flex items-center gap-2 text-sm text-charcoal">

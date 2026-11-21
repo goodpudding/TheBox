@@ -1115,6 +1115,10 @@ export async function persistBundleToPrisma(
     ["lessons", "lesson"],
     ["questions", "question"],
     ["itemPhotos", "itemPhoto"],
+    // Staff removals from the admin. Nothing else points at these rows.
+    ["bounties", "bounty"],
+    ["maintenanceBlocks", "maintenanceBlock"],
+    ["areaStewards", "areaSteward"],
   ];
   for (const [key, model] of hardDeletes) {
     const ids = removed[key];

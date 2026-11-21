@@ -9,6 +9,7 @@ import type {
   ClassCategory,
   ContentCategory,
   ContentPage,
+  AreaSteward,
   MembershipTier,
   UserRole,
   WishlistItemTier,
@@ -420,6 +421,24 @@ export interface WishlistItemInput {
   note?: string | null;
   tier?: WishlistItemTier;
   sortOrder?: number;
+}
+
+export interface VolunteerRoleInput {
+  id?: string;
+  title: string;
+  /** What the role involves, shown on the Volunteer page. Left out keeps the text. */
+  descriptionHtml?: string;
+  active?: boolean;
+  sortOrder?: number;
+}
+
+export interface BountyModeration {
+  title?: string;
+  description?: string;
+  /** Off the public board without deleting it. */
+  hidden?: boolean;
+  /** Back to open: drops the claim and the completion. */
+  reopen?: boolean;
 }
 
 export interface UsageFilters {
@@ -1145,6 +1164,30 @@ export interface DataProvider {
   adminListContentMappings(): Promise<ContentPage[]>;
   adminSyncContent(): Promise<{ syncedAt: ISODateTime; count: number }>;
   adminSaveContentPage(input: ContentPageInput): Promise<ContentPage>;
+
+  /** Volunteer roles, including ones that are switched off. */
+  adminListVolunteerRoles(): Promise<VolunteerRole[]>;
+  /** Saves the role and its description page together. */
+  adminSaveVolunteerRole(input: VolunteerRoleInput): Promise<VolunteerRole>;
+
+  /** Creates a badge for a member. The UID is stored the way readers send it. */
+  adminRegisterBadge(
+    userId: string,
+    input: { uid: string; label?: string },
+  ): Promise<Badge>;
+  /** Switch a lost badge off at every reader, or back on. */
+  adminSetBadgeActive(badgeId: string, active: boolean): Promise<Badge>;
+
+  /** Every bounty with contact details, hidden ones included. */
+  adminListBounties(): Promise<Bounty[]>;
+  adminUpdateBounty(id: string, patch: BountyModeration): Promise<Bounty>;
+  /** Removes a request for good. For spam. */
+  adminDeleteBounty(id: string): Promise<void>;
+
+  adminDeleteMaintenanceBlock(id: string): Promise<void>;
+
+  /** Replaces the list of members who steward an inventory area. */
+  adminSetAreaStewards(areaId: string, userIds: string[]): Promise<AreaSteward[]>;
   /**
    * The pieces of page text staff have changed, by slug. A slug that is
    * missing shows its built-in wording (src/lib/data/text-blocks.ts).

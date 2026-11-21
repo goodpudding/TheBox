@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StatusPill } from "@/components/status-pill";
+import { readJson } from "@/lib/read-json";
 import { formatDateTime } from "@/lib/format";
 import { formatMoneyExact, formatTier } from "@/lib/utils";
 import { quoteMachineJob } from "@/lib/credits";
@@ -149,6 +150,7 @@ export function WorkstationClient() {
   const params = useSearchParams();
   const device = params.get("device") || "BOX-PC-1";
   const [config, setConfig] = useState<Config | null>(null);
+  const [configError, setConfigError] = useState<string | null>(null);
   const [me, setMe] = useState<Me | null>(null);
   const [tab, setTab] = useState<"pin" | "qr">("pin");
   const [email, setEmail] = useState("");
@@ -199,7 +201,9 @@ export function WorkstationClient() {
       const stored = await nativeInvoke<string>("get_session_token");
       if (stored) writeStoredToken(stored);
       const cfg = await fetch(`/api/workstations/${encodeURIComponent(device)}/config`);
-      if (cfg.ok) setConfig((await cfg.json()) as Config);
+      const body = await readJson<Config & { error?: string }>(cfg);
+      if (cfg.ok && body) setConfig(body);
+      else setConfigError(body?.error ?? "This desk could not load. Ask staff.");
       await refreshMe();
     })();
   }, [device, refreshMe]);
@@ -508,7 +512,13 @@ export function WorkstationClient() {
   if (!config) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-page px-6">
-        <p className="text-secondary">Loading {device}…</p>
+        {configError ? (
+          <p role="alert" className="max-w-md text-center font-display text-lg text-brown">
+            {configError}
+          </p>
+        ) : (
+          <p className="text-secondary">Loading {device}…</p>
+        )}
       </div>
     );
   }

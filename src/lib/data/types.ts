@@ -103,6 +103,18 @@ export type AccessDenyReason =
   | "reservation_required";
 
 export type AuditAction =
+  | "volunteer_role_saved"
+  | "badge_registered"
+  | "badge_deactivated"
+  | "badge_reactivated"
+  | "bounty_edited_by_staff"
+  | "bounty_hidden"
+  | "bounty_unhidden"
+  | "bounty_reopened"
+  | "bounty_removed"
+  | "maintenance_updated"
+  | "maintenance_removed"
+  | "area_stewards_changed"
   | "learning_lesson_removed"
   | "learning_video_removed"
   | "learning_question_removed"
