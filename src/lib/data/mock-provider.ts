@@ -24,6 +24,12 @@ import {
 import { isBadgeUid, normalizeBadgeUid } from "./badge-uid";
 import { cloneFixtures, loadFixtures } from "./load-fixtures";
 import { pictureAddress, webAddress } from "./site-info";
+import {
+  applyRateCardPatch,
+  normalizeRateCard,
+  rateCardChanges,
+  type RateCard,
+} from "../rate-card";
 import { isTextBlockSlug } from "./text-blocks";
 import {
   computePublishReadiness,
@@ -4939,12 +4945,15 @@ export class MockDataProvider implements DataProvider {
       sortOrder: data.sortOrder ?? this.state.machines.length + 1,
       hourlyRateCents:
         data.hourlyRateCents ??
-        hourlyRateCentsFor({
-          id: data.id ?? "m-new",
-          name: data.name,
-          area: data.area,
-          hourlyRateCents: null,
-        }),
+        hourlyRateCentsFor(
+          {
+            id: data.id ?? "m-new",
+            name: data.name,
+            area: data.area,
+            hourlyRateCents: null,
+          },
+          normalizeRateCard(this.state.rateCard),
+        ),
       createdAt: now,
       updatedAt: now,
     };
@@ -5173,6 +5182,27 @@ export class MockDataProvider implements DataProvider {
     this.state.wishlistPurchaseReports = this.state.wishlistPurchaseReports.filter(
       (r) => r.itemId !== id,
     );
+  }
+
+  async getRateCard(): Promise<RateCard> {
+    return normalizeRateCard(this.state.rateCard);
+  }
+
+  async adminSaveRateCard(patch: Partial<RateCard>): Promise<RateCard> {
+    const before = normalizeRateCard(this.state.rateCard);
+    // Throws on the first bad value, before anything is changed.
+    const after = applyRateCardPatch(before, patch);
+    const changes = rateCardChanges(before, after);
+    if (Object.keys(changes).length === 0) return before;
+    this.state.rateCard = after;
+    this.pushAudit({
+      action: "rate_card_changed",
+      actorId: this.currentUserId ?? null,
+      entityType: "rate_card",
+      entityId: "default",
+      metadata: changes,
+    });
+    return { ...after };
   }
 
   async getSiteInfo(): Promise<SiteInfo> {

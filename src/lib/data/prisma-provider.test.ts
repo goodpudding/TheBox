@@ -582,6 +582,47 @@ describe("lists that have no table of their own", () => {
     expect((await second.listPeople()).map((p) => p.name)).toContain("Renamed In The Database");
   });
 
+  it("keeps the machine rate card as one row and reads it back", async () => {
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    const before = await admin.getRateCard();
+    await admin.adminSaveRateCard({ laserMemberHourlyCents: 1800 });
+    expect(upserts("siteRecord").map((u) => u.where.id)).toEqual(["rateCard:default"]);
+    expect(JSON.parse(String(table("siteRecord").get("rateCard:default")?.data))).toEqual({
+      ...before,
+      laserMemberHourlyCents: 1800,
+    });
+
+    const later = await createPrismaDataProvider(null, { fresh: true });
+    expect((await later.getRateCard()).laserMemberHourlyCents).toBe(1800);
+  });
+
+  it("uses the default price for each rate card field the database has wrong", async () => {
+    await seedDatabase();
+    const { DEFAULT_RATE_CARD } = await import("@/lib/rate-card");
+    table("siteRecord").set("rateCard:default", {
+      id: "rateCard:default",
+      collection: "rateCard",
+      data: JSON.stringify({ laserMemberHourlyCents: 1800, cncMemberHourlyCents: "free", plasmaSetupCents: -1 }),
+    });
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const provider = await createPrismaDataProvider(null, { fresh: true });
+    expect(await provider.getRateCard()).toEqual({
+      ...DEFAULT_RATE_CARD,
+      laserMemberHourlyCents: 1800,
+    });
+  });
+
+  it("is the default rate card when the database has none", async () => {
+    await seedDatabase();
+    table("siteRecord").delete("rateCard:default");
+    const { DEFAULT_RATE_CARD } = await import("@/lib/rate-card");
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const provider = await createPrismaDataProvider(null, { fresh: true });
+    expect(await provider.getRateCard()).toEqual(DEFAULT_RATE_CARD);
+  });
+
   it("shows nothing, not sample rows, when the database has none", async () => {
     await seedDatabase();
     for (const id of [...table("siteRecord").keys()]) {

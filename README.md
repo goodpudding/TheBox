@@ -29,6 +29,7 @@ The rule: how the site looks is code; what it says is edited in the admin. Every
 | Wishlist items, purchase reports | Admin → Wishlist |
 | Lobby display promos and settings | Admin → Display |
 | Shop name, address, footer text, social links, checkout links, limits | Admin → Settings |
+| Machine rates: laser, CNC and plasma per hour, minimums, plasma setup fee and its last-weekend waiver, filament cost and markup, sublimation per print, run-time rounding | Admin → Settings → Machine rates |
 | A member's membership, shop access, staff note, and (admins only) role; registering a badge for them and switching a lost one off | Admin → Members → a member |
 | Volunteer roles and what each involves | Admin → Volunteers → Roles |
 | Bounty board requests: fix the wording, hide, reopen, remove spam | Admin → Bounties |
@@ -40,7 +41,7 @@ The rule: how the site looks is code; what it says is edited in the admin. Every
 
 Lists with no table of their own (directory, gallery, wishlist, promos, display settings, shop details, tool champion terms) are rows in `SiteRecord`, one JSON row each (`src/lib/data/persist-delta.ts`). Uploaded pictures are rows in `StoredFile`, because a Worker has no disk; set `INVENTORY_PHOTO_STORAGE=drive` to send new photos to a Google shared drive instead (`src/lib/inventory/storage.ts`).
 
-Still in code: page headings, button labels and the messages built from data (dashboard notices, quiz results, booking confirmations), the machine rate card (`src/lib/credits.ts`), and the class-category and machine-area lists. To make another paragraph editable, add it to `TEXT_BLOCKS` and draw it with `<TextBlock slug="…" />`.
+Still in code: page headings, button labels and the messages built from data (dashboard notices, quiz results, booking confirmations), which machines are included with membership and which bill by time, gram or print (`src/lib/credits.ts`), and the class-category and machine-area lists. To make another paragraph editable, add it to `TEXT_BLOCKS` and draw it with `<TextBlock slug="…" />`.
 
 ## Local development (mock UI — default)
 
@@ -116,7 +117,9 @@ npm run db:seed
 
 `/workstation?device=BOX-PC-1` is the kiosk UI (no public header/footer/Dev toolbar). PIN or phone QR logs in the same `User` row. Magic links stay for home use.
 
-Login is **identity + which software you may open**. Sitting at a desk URL does not start a clock or debit credits. Charge when a **job is sent** (estimate shown first). 3D: grams × (filament $/kg × 1.30 / 1000), default ~$12/kg PLA → ~1.56¢/g, min $1 member / $5 nonmember. Laser/CNC: estimated run time rounded up 5 min (member/nonmember rates). Vinyl, woodshop, sewing, hand tools: included. Sublimation $1/$2 per print. Unlimited: log the job at $0 machine time. Prints and spooler jobs are not cancelled on logout.
+Login is **identity + which software you may open**. Sitting at a desk URL does not start a clock or debit credits. Charge when a **job is sent** (estimate shown first).
+
+The prices are the shop's rate card, edited under Admin → Settings → Machine rates and kept in the database (`SiteRecord` row `rateCard:default`; `src/lib/rate-card.ts`). The numbers below are the defaults, which apply until staff save their own. 3D: grams × (filament $/kg × 1.30 / 1000), default ~$12/kg PLA → ~1.56¢/g, min $1 member / $5 nonmember. Laser/CNC: estimated run time rounded up 5 min (member/nonmember rates). Plasma: the same, plus a $50 setup fee that is waived on the last weekend of the month. Sublimation $1/$2 per print. Vinyl, woodshop, sewing, hand tools: included, and not on the card. Unlimited: log the job at $0 machine time. The server prices every job itself from the card (`src/lib/workstation/jobs.ts`); the desk only sends grams, minutes or prints. A changed rate applies from the next job sent, and jobs already sent keep what they were charged. `Machine.hourlyRateCents` is not read by billing. Prints and spooler jobs are not cancelled on logout.
 
 Tauri 2 shell: `apps/workstation-shell/` (autostart, Credential Manager, launch mapped `.exe`s after `POST /api/workstation/launch`).
 

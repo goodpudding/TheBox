@@ -630,7 +630,8 @@ export default function AdminMemberDetailPage() {
         <p className="eyebrow">Machine credits</p>
         <p className="mt-2 text-sm text-secondary leading-relaxed">
           In-app ledger only. Zeffy never holds this balance. Negative is
-          allowed (they finished a job). Next Plus $50 grant pays debt first.
+          allowed (they finished a job). The next Membership Plus machine credit
+          pays debt first.
           Amount can be negative to adjust.
         </p>
         <p className="mt-4 font-display text-2xl font-semibold text-brown">

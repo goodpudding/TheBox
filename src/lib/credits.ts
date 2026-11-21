@@ -1,35 +1,41 @@
 import type { Machine, MembershipProduct, MembershipTier } from "@/lib/data/types";
 import { isMakerProUpgradeName } from "@/lib/zeffy/upgrade";
+import { DEFAULT_RATE_CARD, type RateCard } from "@/lib/rate-card";
 
 /** Membership Plus ($75 Lamplab rate) grants this on each succeeded payment. */
 export const PLUS_CREDIT_GRANT_CENTS = 5000;
 
-/** Oct 2026 rate card (Trey). Single table — workstation code must not fork this. */
-export const FILAMENT_MARKUP = 1.3;
+/**
+ * The rate card as it stood in October 2026, under its old names. Prices are
+ * worked out from a `RateCard` (src/lib/rate-card.ts), which staff edit; every
+ * pricing function below takes one and falls back to the default card. These
+ * constants are that default card and nothing prices from them.
+ */
+export const FILAMENT_MARKUP = DEFAULT_RATE_CARD.filamentMarkup;
 /** Default Bambu PLA. */
-export const DEFAULT_FILAMENT_CENTS_PER_KG = 1200;
+export const DEFAULT_FILAMENT_CENTS_PER_KG = DEFAULT_RATE_CARD.filamentCentsPerKg;
 
 export const TREY_MACHINE_RATES = {
   woodshopHourlyCents: 0,
   vinylSheetCents: 0,
-  laserMemberHourlyCents: 1500,
-  laserNonmemberHourlyCents: 2500,
-  laserMinimumCents: 500,
-  cncMemberHourlyCents: 1000,
-  cncNonmemberHourlyCents: 2000,
-  cncMinimumCents: 1000,
-  plasmaMemberHourlyCents: 1500,
-  plasmaNonmemberHourlyCents: 2500,
-  plasmaSetupCents: 5000,
-  printerMemberMinimumCents: 100,
-  printerNonmemberMinimumCents: 500,
-  sublimationMemberCents: 100,
-  sublimationNonmemberCents: 200,
-  /** Member aliases used by occupancy helpers / older call sites. */
-  laserHourlyCents: 1500,
-  regularCncHourlyCents: 1000,
-  plasmaHourlyCents: 1500,
-  sublimationSheetCents: 100,
+  laserMemberHourlyCents: DEFAULT_RATE_CARD.laserMemberHourlyCents,
+  laserNonmemberHourlyCents: DEFAULT_RATE_CARD.laserNonmemberHourlyCents,
+  laserMinimumCents: DEFAULT_RATE_CARD.laserMinimumCents,
+  cncMemberHourlyCents: DEFAULT_RATE_CARD.cncMemberHourlyCents,
+  cncNonmemberHourlyCents: DEFAULT_RATE_CARD.cncNonmemberHourlyCents,
+  cncMinimumCents: DEFAULT_RATE_CARD.cncMinimumCents,
+  plasmaMemberHourlyCents: DEFAULT_RATE_CARD.plasmaMemberHourlyCents,
+  plasmaNonmemberHourlyCents: DEFAULT_RATE_CARD.plasmaNonmemberHourlyCents,
+  plasmaSetupCents: DEFAULT_RATE_CARD.plasmaSetupCents,
+  printerMemberMinimumCents: DEFAULT_RATE_CARD.printerMemberMinimumCents,
+  printerNonmemberMinimumCents: DEFAULT_RATE_CARD.printerNonmemberMinimumCents,
+  sublimationMemberCents: DEFAULT_RATE_CARD.sublimationMemberCents,
+  sublimationNonmemberCents: DEFAULT_RATE_CARD.sublimationNonmemberCents,
+  /** Member aliases used by older call sites. */
+  laserHourlyCents: DEFAULT_RATE_CARD.laserMemberHourlyCents,
+  regularCncHourlyCents: DEFAULT_RATE_CARD.cncMemberHourlyCents,
+  plasmaHourlyCents: DEFAULT_RATE_CARD.plasmaMemberHourlyCents,
+  sublimationSheetCents: DEFAULT_RATE_CARD.sublimationMemberCents,
 } as const;
 
 export type MachineBilling = {
@@ -52,16 +58,33 @@ type BillingMachine = Pick<
   sessionRateCents?: number | null;
 };
 
-/** ~1.56¢/g at $12/kg Bambu PLA with 30% markup. */
-export function centsPerGramFromFilament(
-  filamentCentsPerKg = DEFAULT_FILAMENT_CENTS_PER_KG,
-): number {
-  return (filamentCentsPerKg * FILAMENT_MARKUP) / 1000;
+/**
+ * These functions take the card as a second argument, and several are handed
+ * straight to `.map()`, which passes an index there. Anything that is not a
+ * card means the default card, so a price can never be read off a number.
+ */
+function cardOrDefault(rates: RateCard | undefined): RateCard {
+  return rates && typeof rates === "object" ? rates : DEFAULT_RATE_CARD;
 }
 
+/** ~1.56¢/g at $12/kg Bambu PLA with 30% markup, on the default card. */
+export function centsPerGramFromFilament(
+  filamentCentsPerKg = DEFAULT_RATE_CARD.filamentCentsPerKg,
+  markup = DEFAULT_RATE_CARD.filamentMarkup,
+): number {
+  return (filamentCentsPerKg * markup) / 1000;
+}
+
+/**
+ * How a machine is billed, from the rate card. Which machines bill at all,
+ * and by what, is decided here from the area and the name; the numbers come
+ * from the card.
+ */
 export function defaultBillingFor(
   machine: Pick<Machine, "id" | "name" | "area">,
+  given: RateCard = DEFAULT_RATE_CARD,
 ): MachineBilling {
+  const rates = cardOrDefault(given);
   const name = (machine.name ?? "").toLowerCase();
   const vinyl =
     machine.id === "m-vinyl-cutter" ||
@@ -69,9 +92,9 @@ export function defaultBillingFor(
 
   if (machine.area === "cnc_plasma") {
     return {
-      hourlyRateCents: TREY_MACHINE_RATES.plasmaMemberHourlyCents,
-      nonmemberHourlyCents: TREY_MACHINE_RATES.plasmaNonmemberHourlyCents,
-      setupFeeCents: TREY_MACHINE_RATES.plasmaSetupCents,
+      hourlyRateCents: rates.plasmaMemberHourlyCents,
+      nonmemberHourlyCents: rates.plasmaNonmemberHourlyCents,
+      setupFeeCents: rates.plasmaSetupCents,
       sessionRateCents: 0,
       nonmemberSessionRateCents: 0,
       sessionUnit: null,
@@ -82,15 +105,15 @@ export function defaultBillingFor(
   }
   if (/\bcnc\b/.test(name) && !/plasma/.test(name)) {
     return {
-      hourlyRateCents: TREY_MACHINE_RATES.cncMemberHourlyCents,
-      nonmemberHourlyCents: TREY_MACHINE_RATES.cncNonmemberHourlyCents,
+      hourlyRateCents: rates.cncMemberHourlyCents,
+      nonmemberHourlyCents: rates.cncNonmemberHourlyCents,
       setupFeeCents: 0,
       sessionRateCents: 0,
       nonmemberSessionRateCents: 0,
       sessionUnit: null,
       gramRateCents: 0,
-      minimumCents: TREY_MACHINE_RATES.cncMinimumCents,
-      nonmemberMinimumCents: TREY_MACHINE_RATES.cncMinimumCents,
+      minimumCents: rates.cncMinimumCents,
+      nonmemberMinimumCents: rates.cncMinimumCents,
     };
   }
   if (machine.area === "woodshop" || machine.area === "hand_tools") {
@@ -104,9 +127,12 @@ export function defaultBillingFor(
       sessionRateCents: 0,
       nonmemberSessionRateCents: 0,
       sessionUnit: "gram",
-      gramRateCents: centsPerGramFromFilament(),
-      minimumCents: TREY_MACHINE_RATES.printerMemberMinimumCents,
-      nonmemberMinimumCents: TREY_MACHINE_RATES.printerNonmemberMinimumCents,
+      gramRateCents: centsPerGramFromFilament(
+        rates.filamentCentsPerKg,
+        rates.filamentMarkup,
+      ),
+      minimumCents: rates.printerMemberMinimumCents,
+      nonmemberMinimumCents: rates.printerNonmemberMinimumCents,
     };
   }
   if (machine.area === "sublimation") {
@@ -114,8 +140,8 @@ export function defaultBillingFor(
       hourlyRateCents: 0,
       nonmemberHourlyCents: 0,
       setupFeeCents: 0,
-      sessionRateCents: TREY_MACHINE_RATES.sublimationMemberCents,
-      nonmemberSessionRateCents: TREY_MACHINE_RATES.sublimationNonmemberCents,
+      sessionRateCents: rates.sublimationMemberCents,
+      nonmemberSessionRateCents: rates.sublimationNonmemberCents,
       sessionUnit: "print",
       gramRateCents: 0,
       minimumCents: 0,
@@ -130,15 +156,15 @@ export function defaultBillingFor(
   }
   if (machine.area === "laser") {
     return {
-      hourlyRateCents: TREY_MACHINE_RATES.laserMemberHourlyCents,
-      nonmemberHourlyCents: TREY_MACHINE_RATES.laserNonmemberHourlyCents,
+      hourlyRateCents: rates.laserMemberHourlyCents,
+      nonmemberHourlyCents: rates.laserNonmemberHourlyCents,
       setupFeeCents: 0,
       sessionRateCents: 0,
       nonmemberSessionRateCents: 0,
       sessionUnit: null,
       gramRateCents: 0,
-      minimumCents: TREY_MACHINE_RATES.laserMinimumCents,
-      nonmemberMinimumCents: TREY_MACHINE_RATES.laserMinimumCents,
+      minimumCents: rates.laserMinimumCents,
+      nonmemberMinimumCents: rates.laserMinimumCents,
     };
   }
   return emptyBilling();
@@ -158,8 +184,16 @@ function emptyBilling(): MachineBilling {
   };
 }
 
-export function billingFor(machine: BillingMachine): MachineBilling {
-  return defaultBillingFor(machine);
+/**
+ * `Machine.hourlyRateCents` is not read. It is a copy of the area rate taken
+ * when the machine row was made, so honouring it would freeze each machine at
+ * the price of the day it was added. The card is the only price.
+ */
+export function billingFor(
+  machine: BillingMachine,
+  rates: RateCard = DEFAULT_RATE_CARD,
+): MachineBilling {
+  return defaultBillingFor(machine, rates);
 }
 
 export type CreditLedgerKind =
@@ -206,8 +240,11 @@ export function creditGrantCentsForProduct(
   });
 }
 
-export function hourlyRateCentsFor(machine: BillingMachine): number {
-  return billingFor(machine).hourlyRateCents;
+export function hourlyRateCentsFor(
+  machine: BillingMachine,
+  rates: RateCard = DEFAULT_RATE_CARD,
+): number {
+  return billingFor(machine, rates).hourlyRateCents;
 }
 
 export function durationHours(startedAt: string, endedAt: string): number {
@@ -224,8 +261,11 @@ export type MachineBillingMode =
 /** @deprecated alias — desk login is not a billing mode. */
 export type WorkstationBillingMode = MachineBillingMode;
 
-export function machineBillingMode(machine: BillingMachine): MachineBillingMode {
-  const b = billingFor(machine);
+export function machineBillingMode(
+  machine: BillingMachine,
+  rates: RateCard = DEFAULT_RATE_CARD,
+): MachineBillingMode {
+  const b = billingFor(machine, rates);
   if (b.sessionUnit === "gram") return "per_gram";
   if (b.sessionUnit === "print") return "per_print";
   if (b.hourlyRateCents <= 0 && b.setupFeeCents <= 0) return "free";
@@ -234,8 +274,9 @@ export function machineBillingMode(machine: BillingMachine): MachineBillingMode 
 
 export function workstationBillingMode(
   machine: BillingMachine,
+  rates: RateCard = DEFAULT_RATE_CARD,
 ): MachineBillingMode {
-  return machineBillingMode(machine);
+  return machineBillingMode(machine, rates);
 }
 
 export type JobPayer = {
@@ -255,10 +296,19 @@ export function unlimitedMachineTime(payer: JobPayer): boolean {
   return payer.tier === "unlimited";
 }
 
-/** Round estimated run time up to 5 minutes. */
-export function billedMinutesFromSeconds(runtimeSeconds: number): number {
+/** Round estimated run time up to the card's increment. */
+export function billedMinutes(runtimeSeconds: number, rates: RateCard): number {
   if (!Number.isFinite(runtimeSeconds) || runtimeSeconds <= 0) return 0;
-  return Math.ceil(runtimeSeconds / 60 / 5) * 5;
+  const step = rates.roundUpMinutes;
+  return Math.ceil(runtimeSeconds / 60 / step) * step;
+}
+
+/**
+ * Run time rounded up on the default card (5 minutes). One argument on
+ * purpose: it is handed to `.map()`, which would pass an index as a second.
+ */
+export function billedMinutesFromSeconds(runtimeSeconds: number): number {
+  return billedMinutes(runtimeSeconds, DEFAULT_RATE_CARD);
 }
 
 function lastSaturdayOfMonth(year: number, month: number): Date {
@@ -276,7 +326,10 @@ function sameYmd(a: Date, b: Date): boolean {
   );
 }
 
-/** Plasma $50 setup waived the last weekend of each month (last Saturday + following Sunday). */
+/**
+ * True on the last weekend of a month: the last Saturday and the Sunday after
+ * it. The plasma setup fee is waived then, when the card says so.
+ */
 export function plasmaSetupWaived(at: Date): boolean {
   const lastSat = lastSaturdayOfMonth(at.getFullYear(), at.getMonth());
   const prev = new Date(at.getFullYear(), at.getMonth() - 1, 1);
@@ -306,19 +359,24 @@ export type MachineJobQuote = {
 /**
  * Charge for sending a job. Desk login must not call this.
  * Unlimited members: log the job, $0 machine time.
+ *
+ * The estimate a member sees and the amount the server charges both come
+ * from this function with the same card. Pass `rates`: without it the
+ * default card is used, which is only right where no card has been saved.
  */
 export function quoteMachineJob(input: {
   machine: Pick<Machine, "id" | "name" | "area">;
   payer: JobPayer;
   filamentGrams?: number | null;
-  filamentCentsPerKg?: number;
   runtimeSeconds?: number | null;
   prints?: number | null;
   at?: Date;
+  rates?: RateCard;
 }): MachineJobQuote {
   const machine = input.machine;
-  const b = billingFor(machine);
-  const mode = machineBillingMode(machine);
+  const rates = input.rates ?? DEFAULT_RATE_CARD;
+  const b = billingFor(machine, rates);
+  const mode = machineBillingMode(machine, rates);
   const memberRate = usesMemberMachineRates(input.payer);
   const unlimited = unlimitedMachineTime(input.payer);
   const empty: MachineJobQuote = {
@@ -345,7 +403,10 @@ export function quoteMachineJob(input: {
   if (mode === "per_gram") {
     const grams = input.filamentGrams ?? 0;
     if (!Number.isFinite(grams) || grams <= 0) return empty;
-    const centsPerGram = centsPerGramFromFilament(input.filamentCentsPerKg);
+    const centsPerGram = centsPerGramFromFilament(
+      rates.filamentCentsPerKg,
+      rates.filamentMarkup,
+    );
     const raw = Math.round(grams * centsPerGram);
     const minimumCents = memberRate
       ? b.minimumCents
@@ -384,13 +445,15 @@ export function quoteMachineJob(input: {
     };
   }
 
-  const minutesBilled = billedMinutesFromSeconds(input.runtimeSeconds ?? 0);
+  const minutesBilled = billedMinutes(input.runtimeSeconds ?? 0, rates);
   if (minutesBilled <= 0) return empty;
   const hourly = memberRate ? b.hourlyRateCents : b.nonmemberHourlyCents;
   const timeCents = Math.round((minutesBilled / 60) * hourly);
   const at = input.at ?? new Date();
   const setupWaived =
-    b.setupFeeCents > 0 && plasmaSetupWaived(at);
+    b.setupFeeCents > 0 &&
+    rates.plasmaSetupWaivedLastWeekend &&
+    plasmaSetupWaived(at);
   const setupCents = setupWaived ? 0 : b.setupFeeCents;
   const minimumCents = memberRate ? b.minimumCents : b.nonmemberMinimumCents;
   const raw = setupCents + timeCents;
@@ -428,25 +491,37 @@ export function dollars(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-/** Copy for the kiosk: sitting here is not a charge. */
+/** "$1" for a round amount, "$1.50" otherwise. */
+function shortDollars(cents: number): string {
+  return cents % 100 === 0 ? `$${cents / 100}` : dollars(cents);
+}
+
+/** Copy for the kiosk: sitting here is not a charge. The prices are the card's. */
 export function deskChargeHint(
   machine: Pick<Machine, "name"> & BillingMachine,
+  given: RateCard = DEFAULT_RATE_CARD,
 ): string {
-  const b = billingFor(machine);
-  const mode = machineBillingMode(machine);
+  const rates = cardOrDefault(given);
+  const b = billingFor(machine, rates);
+  const mode = machineBillingMode(machine, rates);
   switch (mode) {
-    case "per_gram":
-      return `${machine.name} bills by grams of filament (cost + 30%, about ${centsPerGramFromFilament().toFixed(2)}¢/g; $1 member / $5 nonmember min). Sitting at this PC does not charge you — you’ll see the estimate before you send the job.`;
+    case "per_gram": {
+      const markupPercent = Math.round((rates.filamentMarkup - 1) * 100);
+      return `${machine.name} bills by grams of filament (cost + ${markupPercent}%, about ${b.gramRateCents.toFixed(2)}¢/g; ${shortDollars(b.minimumCents)} member / ${shortDollars(b.nonmemberMinimumCents)} nonmember min). Sitting at this PC does not charge you — you’ll see the estimate before you send the job.`;
+    }
     case "per_print":
       return `${machine.name} is ${dollars(b.sessionRateCents)}/print members, ${dollars(b.nonmemberSessionRateCents)} nonmembers. Sitting here does not charge you.`;
     case "hourly_job": {
+      const waived = rates.plasmaSetupWaivedLastWeekend
+        ? " (waived last weekend of the month)"
+        : "";
       const setup = b.setupFeeCents
-        ? ` plus ${dollars(b.setupFeeCents)} setup (waived last weekend of the month)`
+        ? ` plus ${dollars(b.setupFeeCents)} setup${waived}`
         : "";
       const min = b.minimumCents
         ? `, ${dollars(b.minimumCents)} minimum`
         : "";
-      return `${machine.name} is ${dollars(b.hourlyRateCents)}/hr members / ${dollars(b.nonmemberHourlyCents)}/hr nonmembers of estimated run time (round up 5 min${min})${setup}. Sitting here does not start a clock.`;
+      return `${machine.name} is ${dollars(b.hourlyRateCents)}/hr members / ${dollars(b.nonmemberHourlyCents)}/hr nonmembers of estimated run time (round up ${rates.roundUpMinutes} min${min})${setup}. Sitting here does not start a clock.`;
     }
     case "free":
       return `${machine.name} is included — no machine charge. Sitting here does not charge you.`;
@@ -457,8 +532,9 @@ export function printJobDebitCents(
   machine: BillingMachine,
   filamentGrams: number,
   payer: JobPayer = { shopAccess: true, status: "active" },
+  rates: RateCard = DEFAULT_RATE_CARD,
 ): number {
-  return quoteMachineJob({ machine, payer, filamentGrams }).billedCents;
+  return quoteMachineJob({ machine, payer, filamentGrams, rates }).billedCents;
 }
 
 export function printJobDebitNote(
@@ -480,12 +556,14 @@ export function jobRuntimeDebitCents(
   runtimeSeconds: number,
   payer: JobPayer = { shopAccess: true, status: "active" },
   at?: Date,
+  rates: RateCard = DEFAULT_RATE_CARD,
 ): number {
   return quoteMachineJob({
     machine,
     payer,
     runtimeSeconds,
     at,
+    rates,
   }).billedCents;
 }
 

@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { quoteMachineJob } from "@/lib/credits";
 import { mapMachineRow, mapUserRow } from "./mappers";
+import { loadRateCard } from "./rate-card";
 
 function newId(prefix: string): string {
   return `${prefix}_${randomBytes(8).toString("hex")}`;
@@ -35,6 +36,10 @@ async function payerFor(userId: string) {
 
 /**
  * Record a sent job and debit the wallet. Desk login is not a job.
+ *
+ * The price is worked out here, from the shop's rate card in the database
+ * and the amounts the desk sent (grams, minutes, prints). No rate and no
+ * total is ever taken from the caller.
  */
 export async function recordEquipmentJob(input: {
   userId: string;
@@ -42,7 +47,6 @@ export async function recordEquipmentJob(input: {
   workstationId?: string | null;
   workstationSessionId?: string | null;
   filamentGrams?: number | null;
-  filamentCentsPerKg?: number;
   sheets?: number | null;
   prints?: number | null;
   runtimeSeconds?: number | null;
@@ -59,14 +63,15 @@ export async function recordEquipmentJob(input: {
   }
   const machine = mapMachineRow(machineRow);
   const payer = await payerFor(input.userId);
+  const rates = await loadRateCard();
   const prints = input.prints ?? input.sheets ?? null;
   const quote = quoteMachineJob({
     machine,
     payer,
     filamentGrams: input.filamentGrams,
-    filamentCentsPerKg: input.filamentCentsPerKg,
     runtimeSeconds: input.runtimeSeconds,
     prints,
+    rates,
   });
 
   if (quote.mode === "per_gram") {

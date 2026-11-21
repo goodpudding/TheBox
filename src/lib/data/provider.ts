@@ -1,3 +1,4 @@
+import type { RateCard } from "@/lib/rate-card";
 import type {
   AccessLog,
   AuditEvent,
@@ -1209,6 +1210,11 @@ export interface DataProvider {
   adminDeleteWishlistItem(id: string): Promise<void>;
 
   /** Shop name, address and social links shown in the footer. */
+  /** Machine prices. Members see these; the kiosk and the server price jobs from them. */
+  getRateCard(): Promise<RateCard>;
+  /** Change some of the prices. Refuses the whole change if any value will not do. */
+  adminSaveRateCard(patch: Partial<RateCard>): Promise<RateCard>;
+
   getSiteInfo(): Promise<SiteInfo>;
   adminSaveSiteInfo(input: Partial<SiteInfo>): Promise<SiteInfo>;
   adminUpdateSettings(data: Partial<OrgSettings>): Promise<OrgSettings>;

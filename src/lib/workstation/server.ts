@@ -1,3 +1,4 @@
+import type { RateCard } from "@/lib/rate-card";
 import { randomBytes, randomInt } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
@@ -406,12 +407,19 @@ export async function walletBalanceCents(userId: string): Promise<number> {
   return entries.reduce((sum, e) => sum + e.amountCents, 0);
 }
 
-export function billingPayload(machineRow: {
-  id: string;
-  name: string;
-  area: string;
-  hourlyRateCents: number | null;
-}) {
+/**
+ * What a desk shows about its machine's price. `rates` is the shop's card,
+ * loaded once by the caller with loadRateCard().
+ */
+export function billingPayload(
+  machineRow: {
+    id: string;
+    name: string;
+    area: string;
+    hourlyRateCents: number | null;
+  },
+  rates: RateCard,
+) {
   const machine = mapMachineRow({
     ...machineRow,
     requiredCertificationIds: "[]",
@@ -428,8 +436,8 @@ export function billingPayload(machineRow: {
     updatedAt: new Date(),
     deletedAt: null,
   });
-  const billing = billingFor(machine);
-  const mode = machineBillingMode(machine);
+  const billing = billingFor(machine, rates);
+  const mode = machineBillingMode(machine, rates);
   return {
     machineId: machine.id,
     machineName: machine.name,
@@ -442,11 +450,14 @@ export function billingPayload(machineRow: {
     gramRateCents: billing.gramRateCents,
     minimumCents: billing.minimumCents,
     deskLoginBills: false as const,
-    hint: deskChargeHint({
-      id: machine.id,
-      name: machine.name,
-      area: machine.area,
-    }),
+    hint: deskChargeHint(
+      {
+        id: machine.id,
+        name: machine.name,
+        area: machine.area,
+      },
+      rates,
+    ),
   };
 }
 

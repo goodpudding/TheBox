@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { isStaffRequest } from "@/lib/workstation/server";
 import { jsonError } from "@/lib/workstation/errors";
 import { billingPayload } from "@/lib/workstation/server";
+import { loadRateCard } from "@/lib/workstation/rate-card";
 import { randomBytes } from "node:crypto";
 
 export const runtime = "nodejs";
@@ -13,6 +14,7 @@ export async function GET(request: NextRequest) {
   if (!staff) {
     return NextResponse.json({ error: "Staff only" }, { status: 401 });
   }
+  const rates = await loadRateCard();
   const rows = await prisma.workstation.findMany({
     where: { deletedAt: null },
     include: {
@@ -34,7 +36,7 @@ export async function GET(request: NextRequest) {
       active: w.active,
       billedMachineId: w.billedMachineId,
       billedMachineName: w.billedMachine.name,
-      billing: billingPayload(w.billedMachine),
+      billing: billingPayload(w.billedMachine, rates),
       idleLockMinutes: w.idleLockMinutes,
       idleLogoutMinutes: w.idleLogoutMinutes,
       lastSeenAt: w.lastSeenAt?.toISOString() ?? null,

@@ -6,6 +6,7 @@ import {
   walletBalanceCents,
 } from "./server";
 import { listUserJobs } from "./jobs";
+import { loadRateCard } from "./rate-card";
 
 export async function memberMePayload(input: {
   userId: string;
@@ -64,9 +65,13 @@ export async function memberMePayload(input: {
       deletedAt: null,
     },
   });
-  const billing = billingPayload(input.workstation.billedMachine);
+  const rateCard = await loadRateCard();
+  const billing = billingPayload(input.workstation.billedMachine, rateCard);
 
   return {
+    // Fresh at every sign-in, so the estimate the member sees uses the card
+    // the server will charge from. A desk page can stay open for days.
+    rateCard,
     user: {
       id: user.id,
       email: user.email,
@@ -142,8 +147,12 @@ export async function workstationConfigPayload(workstationId: string) {
       orderBy: { sortOrder: "asc" },
     }),
   ]);
-  const billing = billingPayload(ws.billedMachine);
+  const rateCard = await loadRateCard();
+  const billing = billingPayload(ws.billedMachine, rateCard);
   return {
+    // The desk works out its estimate from this, with the same function the
+    // server charges with. The server still prices every job itself.
+    rateCard,
     workstation: {
       id: ws.id,
       name: ws.name,

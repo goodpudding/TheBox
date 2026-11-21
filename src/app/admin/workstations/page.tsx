@@ -25,6 +25,7 @@ type Row = {
     mode: string;
     hourlyRateCents: number;
     setupFeeCents: number;
+    gramRateCents: number;
   };
   idleLockMinutes: number;
   idleLogoutMinutes: number;
@@ -280,7 +281,7 @@ export default function AdminWorkstationsPage() {
               {w.billing.mode === "hourly_job"
                 ? `${formatMoneyExact(w.billing.hourlyRateCents)}/hr of job time`
                 : w.billing.mode === "per_gram"
-                  ? "filament grams + 30%"
+                  ? `filament by the gram, ${w.billing.gramRateCents.toFixed(2)}¢/g`
                   : w.billing.mode}
               )
             </p>

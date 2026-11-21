@@ -1,3 +1,5 @@
+import type { RateCard } from "@/lib/rate-card";
+
 /** Shared domain types for The Box Portal. Fixtures and Prisma mirror these. */
 
 export type ISODateTime = string;
@@ -103,6 +105,7 @@ export type AccessDenyReason =
   | "reservation_required";
 
 export type AuditAction =
+  | "rate_card_changed"
   | "volunteer_role_saved"
   | "badge_registered"
   | "badge_deactivated"
@@ -993,6 +996,8 @@ export interface MockFixtureBundle {
   people: Person[];
   projects: Project[];
   siteInfo: SiteInfo;
+  /** Machine prices. See src/lib/rate-card.ts. */
+  rateCard: RateCard;
   bounties: Bounty[];
   wishlistZones: WishlistZone[];
   wishlistItems: WishlistItem[];

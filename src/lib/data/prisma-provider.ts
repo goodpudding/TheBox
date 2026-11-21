@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { loadFixtures } from "./load-fixtures";
 import { DEFAULT_SITE_INFO } from "./site-info";
+import { normalizeRateCard } from "../rate-card";
 import { MockDataProvider } from "./mock-provider";
 import type { DataProvider } from "./provider";
 import {
@@ -884,6 +885,8 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
       loadFixtures().displayConfig,
     people: siteRecords.list("people"),
     projects: siteRecords.list("projects"),
+    // A missing or damaged field takes its default, one field at a time.
+    rateCard: normalizeRateCard(siteRecords.single("rateCard")),
     siteInfo: {
       ...DEFAULT_SITE_INFO,
       ...(siteRecords.single<Partial<MockFixtureBundle["siteInfo"]>>("siteInfo") ?? {}),
