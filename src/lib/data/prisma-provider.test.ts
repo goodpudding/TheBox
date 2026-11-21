@@ -163,6 +163,42 @@ describe("persistBundleToPrisma", () => {
     ]);
   });
 
+  it("removes a lesson from the database after everything that points at it", async () => {
+    // D1 refuses to delete a lesson while a video or a progress row still
+    // names it, and a video while a watch record does.
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    const detail = await admin.getModule("shop-orientation");
+    const lesson = detail!.lessons.find((l) => l.videos.length > 0)!;
+    const videoIds = lesson.videos.map((v) => v.id);
+    await admin.markVideoWatched(videoIds[0]!, "u-maya");
+    await admin.markLessonComplete(lesson.id, "u-maya");
+    calls.length = 0;
+
+    await admin.adminDeleteLesson(lesson.id);
+
+    const deletes = calls
+      .filter((c) => c.method === "deleteMany")
+      .map((c) => c.model);
+    expect(deletes).toEqual(["videoWatch", "lessonVideo", "lessonProgress", "lesson"]);
+    expect(table("lesson").has(lesson.id)).toBe(false);
+    for (const id of videoIds) expect(table("lessonVideo").has(id)).toBe(false);
+    expect(
+      [...table("lessonProgress").values()].some((row) => row.lessonId === lesson.id),
+    ).toBe(false);
+    expect(
+      [...table("videoWatch").values()].some((row) => videoIds.includes(String(row.videoId))),
+    ).toBe(false);
+    // Nobody's certification is part of the removal.
+    expect(calls.some((c) => c.model === "userCertification")).toBe(false);
+
+    const later = await createPrismaDataProvider("u-admin", { fresh: true });
+    expect((await later.getModule("shop-orientation"))!.lessons.map((l) => l.id)).not.toContain(
+      lesson.id,
+    );
+  });
+
   it("a profile edit writes only the columns it changed", async () => {
     const { persistBundleToPrisma } = await import("./prisma-provider");
     const previous = cloneFixtures(loadFixtures());

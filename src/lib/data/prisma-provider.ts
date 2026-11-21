@@ -1105,10 +1105,14 @@ export async function persistBundleToPrisma(
   }
 
   // Only these collections are hard-deleted by the mock; everything else
-  // uses deletedAt. Children before parents (VideoWatch -> LessonVideo).
+  // uses deletedAt. Children before parents: a lesson cannot go while a
+  // video or a progress row still points at it, nor a video while a watch
+  // record does.
   const hardDeletes: Array<[keyof typeof removed, string]> = [
     ["videoWatches", "videoWatch"],
     ["lessonVideos", "lessonVideo"],
+    ["lessonProgress", "lessonProgress"],
+    ["lessons", "lesson"],
     ["questions", "question"],
     ["itemPhotos", "itemPhoto"],
   ];

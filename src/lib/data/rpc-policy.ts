@@ -147,6 +147,8 @@ export const RPC_RULES = {
   adminCompleteToolChampionTerm: { access: "staff", arg: 1 },
   adminUpsertModule: { access: "staff", arg: -1 },
   adminUpsertLesson: { access: "staff", arg: -1 },
+  adminDeleteLesson: { access: "staff", arg: -1 },
+  adminSaveLessonText: { access: "staff", arg: -1 },
   adminUpsertQuestion: { access: "staff", arg: -1 },
   adminDeleteQuestion: { access: "staff", arg: -1 },
   adminListQuestions: { access: "staff", arg: -1 },

@@ -23,6 +23,7 @@ The rule: how the site looks is code; what it says is edited in the admin. Every
 | The explanatory text on Join, Support, Wishlist, Staff, History, Events, Bounties, Volunteer, Equipment, Made here, a class page and Reserve | Admin → Content → Text on pages. Each piece starts with its built-in wording (`src/lib/data/text-blocks.ts`) and can go back to it |
 | Machines, certifications | Admin → Machines, Admin → Certifications (switched-off ones stay listed) |
 | Classes: details, description, cancel or restore; add a member or cancel a booking | Admin → Classes (lists drafts, cancelled and past classes too). Cancelling moves no money: Zeffy refunds are made in Zeffy |
+| Learning modules: details, pass mark, attempts, equipment confirmed; lessons and their text; videos; quiz questions with one or several right answers | Admin → Learn → a module. Removing a lesson takes its videos and the watch and progress records with it; certifications members hold are untouched |
 | Staff and instructor directory | Admin → People |
 | "Made at The Box" gallery | Admin → Gallery |
 | Wishlist items, purchase reports | Admin → Wishlist |

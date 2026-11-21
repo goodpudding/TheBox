@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   computePublishReadiness,
+  describePublishBlockers,
   gradeQuizAttempt,
   publishBlockersFromReadiness,
+  youtubeIdFrom,
 } from "./learning";
 import type {
   LearningModule,
@@ -214,5 +216,74 @@ describe("computePublishReadiness", () => {
     });
     expect(readiness.canPublish).toBe(true);
     expect(publishBlockersFromReadiness(readiness)).toEqual([]);
+  });
+});
+
+describe("youtubeIdFrom", () => {
+  it("reads the id out of the links staff paste", () => {
+    for (const link of [
+      "dQw4w9WgXcQ",
+      "https://youtu.be/dQw4w9WgXcQ",
+      "https://youtu.be/dQw4w9WgXcQ?t=42",
+      "https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PL123",
+      "youtube.com/watch?v=dQw4w9WgXcQ",
+      "https://m.youtube.com/watch?v=dQw4w9WgXcQ",
+      "https://www.youtube.com/embed/dQw4w9WgXcQ",
+      "https://www.youtube.com/shorts/dQw4w9WgXcQ",
+      "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+    ]) {
+      expect(youtubeIdFrom(link), link).toBe("dQw4w9WgXcQ");
+    }
+  });
+
+  it("returns nothing for a link that is not a YouTube video", () => {
+    for (const link of [
+      "",
+      "   ",
+      "https://example.com/watch?v=dQw4w9WgXcQ",
+      "https://youtube.com.evil.example/watch?v=dQw4w9WgXcQ",
+      "https://www.youtube.com/watch?v=short",
+      "https://www.youtube.com/channel/UC123",
+      "not a link",
+    ]) {
+      expect(youtubeIdFrom(link), link).toBeNull();
+    }
+  });
+});
+
+describe("describePublishBlockers", () => {
+  it("says nothing when the module is ready", () => {
+    const ready = computePublishReadiness({
+      module: baseModule,
+      lessons: [],
+      videos: [],
+      questions: [],
+    });
+    expect(describePublishBlockers(ready)).toEqual([]);
+  });
+
+  it("counts each thing that still blocks publishing", () => {
+    const readiness = computePublishReadiness({
+      module: { ...baseModule, equipmentStatus: "unconfirmed" },
+      lessons: [],
+      videos: [],
+      questions: [],
+    });
+    expect(describePublishBlockers(readiness)).toEqual([
+      "the equipment on the floor has not been confirmed to match",
+    ]);
+    expect(
+      describePublishBlockers({
+        ...readiness,
+        equipmentUnconfirmed: false,
+        answerPendingCount: 2,
+        unreviewedPrimaryVideoCount: 1,
+        gapLessonCount: 1,
+      }),
+    ).toEqual([
+      "2 questions are still marked as waiting for an answer",
+      "1 required video has not been reviewed by staff",
+      "1 lesson is still a placeholder",
+    ]);
   });
 });

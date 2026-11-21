@@ -26,6 +26,8 @@ import { pictureAddress, webAddress } from "./site-info";
 import { isTextBlockSlug } from "./text-blocks";
 import {
   computePublishReadiness,
+  describePublishBlockers,
+  youtubeIdFrom,
   gradeQuizAttempt,
   publishBlockersFromReadiness,
 } from "./learning";
@@ -185,6 +187,7 @@ import type {
   SiteInfo,
   UserRole,
   MembershipTier,
+  VideoRole,
 } from "./types";
 import {
   canInventory,
@@ -284,6 +287,15 @@ function endsAfterShopClosing(endsAt: string): boolean {
   if (!window) return true;
   const [, close] = window;
   return end.hour * 60 + end.minute > close * 60;
+}
+
+const VIDEO_ROLES: readonly VideoRole[] = ["primary", "supporting", "conditional"];
+
+/** A copy without the keys whose value is undefined, so an edit cannot blank a field it did not send. */
+function definedOnly<T extends object>(data: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(data).filter(([, value]) => value !== undefined),
+  ) as Partial<T>;
 }
 
 function questionCorrectIndexes(q: Question): number[] {
@@ -4215,54 +4227,138 @@ export class MockDataProvider implements DataProvider {
 
   async adminUpsertModule(data: ModuleInput): Promise<LearningModule> {
     const now = this.now();
-    if (data.id) {
-      const existing = this.state.learningModules.find((m) => m.id === data.id);
-      if (existing) {
-        Object.assign(existing, data, { updatedAt: now });
-        return existing;
+    const existing = data.id
+      ? this.state.learningModules.find((m) => m.id === data.id)
+      : undefined;
+    const settings = this.state.settings;
+
+    const title = (data.title ?? "").trim().slice(0, 200);
+    if (!title) throw new Error("Give the module a title.");
+    const slug = contentSlug(data.slug ?? existing?.slug ?? title);
+    if (!slug) {
+      throw new Error("Give the module an address made of letters or numbers.");
+    }
+    if (this.state.learningModules.some((m) => m.slug === slug && m.id !== existing?.id)) {
+      throw new Error(`Another module already uses the address "${slug}".`);
+    }
+    const certificationId = data.certificationId ?? existing?.certificationId;
+    if (!this.state.certifications.some((c) => c.id === certificationId)) {
+      throw new Error("Choose a certification for this module.");
+    }
+    if (data.passThresholdPercent !== undefined) {
+      const pct = data.passThresholdPercent;
+      if (!Number.isInteger(pct) || pct < 1 || pct > 100) {
+        throw new Error("The pass mark must be between 1 and 100 percent.");
       }
     }
-    const mod: LearningModule = {
-      id: data.id ?? this.id("mod"),
-      slug: data.slug,
-      title: data.title,
-      summary: data.summary ?? "",
-      certificationId: data.certificationId,
-      knowledgeOnly: data.knowledgeOnly ?? false,
-      published: data.published ?? false,
-      equipmentStatus: data.equipmentStatus ?? "confirmed",
+    if (data.attemptLimit !== undefined) {
+      const limit = data.attemptLimit;
+      if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
+        throw new Error("Members need at least 1 attempt.");
+      }
+    }
+    if (data.sortOrder !== undefined && !Number.isFinite(data.sortOrder)) {
+      throw new Error("The order must be a number.");
+    }
+    const equipmentStatus =
+      data.equipmentStatus ?? existing?.equipmentStatus ?? "confirmed";
+    if (equipmentStatus !== "confirmed" && equipmentStatus !== "unconfirmed") {
+      throw new Error("Say whether the equipment matches this module.");
+    }
+    const staysPublished = Boolean(existing?.published) && data.published !== false;
+    if (staysPublished && equipmentStatus !== "confirmed") {
+      throw new Error(
+        "Unpublish the module before marking its equipment as not confirmed.",
+      );
+    }
+
+    const next: LearningModule = {
+      id: existing?.id ?? data.id ?? this.id("mod"),
+      slug,
+      title,
+      summary: (data.summary ?? existing?.summary ?? "").trim().slice(0, 2000),
+      certificationId: certificationId as string,
+      knowledgeOnly: data.knowledgeOnly ?? existing?.knowledgeOnly ?? false,
+      published: staysPublished,
+      equipmentStatus,
       passThresholdPercent:
         data.passThresholdPercent ??
-        this.state.settings.quizPassThresholdPercent,
+        existing?.passThresholdPercent ??
+        settings.quizPassThresholdPercent,
       attemptLimit:
-        data.attemptLimit ?? this.state.settings.quizAttemptLimit,
-      sortOrder: data.sortOrder ?? this.state.learningModules.length + 1,
-      createdAt: now,
+        data.attemptLimit ?? existing?.attemptLimit ?? settings.quizAttemptLimit,
+      sortOrder:
+        data.sortOrder ??
+        existing?.sortOrder ??
+        this.state.learningModules.length + 1,
+      createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     };
-    this.state.learningModules.push(mod);
-    return mod;
+
+    // "Publish" here goes through the same guard as the Publish button. A
+    // module that is not ready stays a draft, and nothing is saved.
+    if (data.published === true && !existing?.published) {
+      const readiness = this.publishReadinessFor(next);
+      if (!readiness.canPublish) {
+        throw new Error(
+          `This module cannot be published yet: ${describePublishBlockers(readiness).join("; ")}.`,
+        );
+      }
+      next.published = true;
+    }
+
+    if (existing) {
+      Object.assign(existing, next);
+      return existing;
+    }
+    this.state.learningModules.push(next);
+    return next;
   }
 
   async adminUpsertLesson(data: LessonInput): Promise<Lesson> {
     const now = this.now();
-    if (data.id) {
-      const existing = this.state.lessons.find((l) => l.id === data.id);
-      if (existing) {
-        Object.assign(existing, data, { updatedAt: now });
-        return existing;
-      }
+    const existing = data.id
+      ? this.state.lessons.find((l) => l.id === data.id)
+      : undefined;
+    const title = (data.title ?? "").trim().slice(0, 200);
+    if (!title) throw new Error("Give the lesson a title.");
+    const moduleId = existing?.moduleId ?? data.moduleId;
+    if (!this.state.learningModules.some((m) => m.id === moduleId)) {
+      throw new Error("That module no longer exists.");
     }
+    const slug = contentSlug(data.slug ?? existing?.slug ?? title);
+    if (!slug) {
+      throw new Error("Give the lesson an address made of letters or numbers.");
+    }
+    if (
+      this.state.lessons.some(
+        (l) => l.moduleId === moduleId && l.slug === slug && l.id !== existing?.id,
+      )
+    ) {
+      throw new Error(`Another lesson in this module already uses the address "${slug}".`);
+    }
+    if (existing) {
+      // Only what was sent changes. A field the form left out stays as it is.
+      Object.assign(existing, definedOnly(data), {
+        moduleId,
+        title,
+        slug,
+        contentSlug: (data.contentSlug ?? "").trim() || existing.contentSlug,
+        updatedAt: now,
+      });
+      return existing;
+    }
+    const mod = this.state.learningModules.find((m) => m.id === moduleId);
     const lesson: Lesson = {
       id: data.id ?? this.id("les"),
-      moduleId: data.moduleId,
-      slug: data.slug,
-      title: data.title,
-      contentSlug: data.contentSlug,
+      moduleId,
+      slug,
+      title,
+      contentSlug:
+        (data.contentSlug ?? "").trim() || `lesson-${mod?.slug ?? "module"}-${slug}`,
       sortOrder:
         data.sortOrder ??
-        this.state.lessons.filter((l) => l.moduleId === data.moduleId).length +
-          1,
+        this.state.lessons.filter((l) => l.moduleId === moduleId).length + 1,
       estimatedMinutes: data.estimatedMinutes ?? 10,
       gap: data.gap ?? false,
       createdAt: now,
@@ -4272,31 +4368,152 @@ export class MockDataProvider implements DataProvider {
     return lesson;
   }
 
-  async adminUpsertQuestion(data: QuestionInput): Promise<Question> {
-    const now = this.now();
-    if (data.id) {
-      const existing = this.state.questions.find((q) => q.id === data.id);
-      if (existing) {
-        Object.assign(existing, data, { updatedAt: now });
-        if (
-          data.correctIndexes == null &&
-          data.correctIndex != null &&
-          existing.correctIndexes == null
-        ) {
-          existing.correctIndexes = [data.correctIndex];
-        }
-        return existing;
+  async adminDeleteLesson(id: string): Promise<void> {
+    const lesson = this.state.lessons.find((l) => l.id === id);
+    if (!lesson) throw new Error("That lesson no longer exists.");
+    const mod = this.state.learningModules.find((m) => m.id === lesson.moduleId);
+    const siblings = this.state.lessons.filter((l) => l.moduleId === lesson.moduleId);
+    if (mod?.published && siblings.length === 1) {
+      throw new Error(
+        "This is the only lesson in a published module. Unpublish the module first.",
+      );
+    }
+    // The lesson's videos go with it, and so do the records of who watched
+    // them and who finished the lesson: they describe something that no
+    // longer exists. A certification is a separate record and is not touched.
+    const videoIds = new Set(
+      this.state.lessonVideos.filter((v) => v.lessonId === id).map((v) => v.id),
+    );
+    this.state.videoWatches = this.state.videoWatches.filter(
+      (w) => !videoIds.has(w.videoId),
+    );
+    this.state.lessonVideos = this.state.lessonVideos.filter(
+      (v) => v.lessonId !== id,
+    );
+    for (const q of this.state.questions) {
+      if (q.sourceVideoId && videoIds.has(q.sourceVideoId)) {
+        q.sourceVideoId = null;
+        q.updatedAt = this.now();
       }
     }
-    const correctIndexes =
-      data.correctIndexes ??
-      (data.correctIndex != null ? [data.correctIndex] : [0]);
+    const progressRemoved = this.state.lessonProgress.filter(
+      (p) => p.lessonId === id,
+    ).length;
+    this.state.lessonProgress = this.state.lessonProgress.filter(
+      (p) => p.lessonId !== id,
+    );
+    this.state.lessons = this.state.lessons.filter((l) => l.id !== id);
+    this.pushAudit({
+      action: "learning_lesson_removed",
+      actorId: this.currentUserId ?? null,
+      entityType: "lesson",
+      entityId: id,
+      metadata: {
+        moduleId: lesson.moduleId,
+        title: lesson.title,
+        videos: videoIds.size,
+        progressRows: progressRemoved,
+      },
+    });
+  }
+
+  async adminSaveLessonText(lessonId: string, html: string): Promise<ContentPage> {
+    const lesson = this.state.lessons.find((l) => l.id === lessonId);
+    if (!lesson) throw new Error("That lesson no longer exists.");
+    const existing = this.state.contentPages.find(
+      (p) => p.slug === lesson.contentSlug,
+    );
+    if (existing) {
+      const saved = await this.adminSaveContentPage({
+        id: existing.id,
+        title: existing.title,
+        html,
+        published: true,
+      });
+      if (lesson.contentSlug !== saved.slug) {
+        lesson.contentSlug = saved.slug;
+        this.touch(lesson);
+      }
+      return saved;
+    }
+    // No page yet. Older lessons carry a path here ("learn/laser/safety")
+    // that a page address cannot be, so the lesson gets a page of its own
+    // and is pointed at it.
+    const mod = this.state.learningModules.find((m) => m.id === lesson.moduleId);
+    const base =
+      contentSlug(`lesson-${mod?.slug ?? "module"}-${lesson.slug}`) ||
+      `lesson-${this.id("text")}`;
+    const taken = new Set(this.state.contentPages.map((p) => p.slug));
+    let slug = base;
+    for (let n = 2; taken.has(slug); n += 1) slug = `${base}-${n}`;
+    const saved = await this.adminSaveContentPage({
+      title: lesson.title,
+      html,
+      slug,
+      category: "lesson",
+    });
+    lesson.contentSlug = saved.slug;
+    this.touch(lesson);
+    return saved;
+  }
+
+  async adminUpsertQuestion(data: QuestionInput): Promise<Question> {
+    const now = this.now();
+    const existing = data.id
+      ? this.state.questions.find((q) => q.id === data.id)
+      : undefined;
+    const prompt = (data.prompt ?? "").trim().slice(0, 1000);
+    if (!prompt) throw new Error("Write the question.");
+    const choices = (data.choices ?? existing?.choices ?? []).map((c) =>
+      String(c ?? "").trim().slice(0, 500),
+    );
+    if (choices.length < 2) throw new Error("A question needs at least 2 choices.");
+    if (choices.length > 6) throw new Error("A question can have at most 6 choices.");
+    if (choices.some((c) => !c)) {
+      throw new Error("Fill in every choice, or remove the empty one.");
+    }
+
+    // Which answers are right. A list sent with the save is what staff
+    // ticked. Without one, an edit keeps the answers the question has,
+    // unless the single answer sent is a different one.
+    const before = existing ? questionCorrectIndexes(existing) : null;
+    let indexes: number[];
+    if (data.correctIndexes != null) {
+      indexes = [...new Set(data.correctIndexes)].sort((a, b) => a - b);
+    } else if (before && (data.correctIndex == null || data.correctIndex === existing?.correctIndex)) {
+      indexes = [...before];
+    } else {
+      indexes = [data.correctIndex ?? 0];
+    }
+    if (
+      indexes.length === 0 ||
+      indexes.some((i) => !Number.isInteger(i) || i < 0 || i >= choices.length)
+    ) {
+      throw new Error("Tick at least one right answer from the choices.");
+    }
+    const unchanged =
+      before != null &&
+      before.length === indexes.length &&
+      [...before].sort((a, b) => a - b).every((v, i) => v === indexes[i]);
+    const correctIndexes = unchanged && existing?.correctIndexes ? existing.correctIndexes : indexes;
+    const correctIndex = unchanged && existing ? existing.correctIndex : indexes[0]!;
+
+    if (existing) {
+      Object.assign(existing, definedOnly(data), {
+        prompt,
+        choices,
+        correctIndex,
+        correctIndexes,
+        updatedAt: now,
+      });
+      return existing;
+    }
     const question: Question = {
       id: data.id ?? this.id("q"),
       moduleId: data.moduleId,
-      prompt: data.prompt,
-      choices: data.choices,
-      correctIndex: data.correctIndex ?? correctIndexes[0] ?? 0,
+      prompt,
+      choices,
+      correctIndex,
       correctIndexes,
       explanation: data.explanation,
       active: data.active ?? true,
@@ -4328,24 +4545,52 @@ export class MockDataProvider implements DataProvider {
     const now = this.now();
     const lesson = this.state.lessons.find((l) => l.id === data.lessonId);
     if (!lesson) throw new Error("Lesson not found");
-    if (data.id) {
-      const existing = this.state.lessonVideos.find((v) => v.id === data.id);
-      if (existing) {
-        Object.assign(existing, data, { updatedAt: now });
-        return existing;
-      }
+    const existing = data.id
+      ? this.state.lessonVideos.find((v) => v.id === data.id)
+      : undefined;
+    const title = (data.title ?? "").trim().slice(0, 300);
+    if (!title) throw new Error("Give the video a title.");
+    if (!VIDEO_ROLES.includes(data.role)) {
+      throw new Error("Choose whether the video is required, extra, or only for some members.");
+    }
+    // Staff paste a link. The id is read out of it; an id typed on its own
+    // still works, and an edit that sends neither keeps what the video has.
+    const typedId = (data.youtubeId ?? "").trim();
+    const link = (data.url ?? "").trim();
+    const youtubeId =
+      typedId || youtubeIdFrom(link) || (existing && !link ? existing.youtubeId : "");
+    if (!youtubeId) throw new Error("Paste the video's YouTube link.");
+    const url = link || `https://www.youtube.com/watch?v=${youtubeId}`;
+    const condition =
+      data.condition === undefined
+        ? (existing?.condition ?? null)
+        : (optionalText(data.condition, "Who should watch it", 300) ?? null);
+
+    if (existing) {
+      Object.assign(existing, definedOnly(data), {
+        title,
+        youtubeId,
+        url,
+        condition,
+        updatedAt: now,
+      });
+      return existing;
     }
     const video: LessonVideo = {
       id: data.id ?? this.id("vid"),
       lessonId: data.lessonId,
-      order: data.order,
+      order:
+        data.order ??
+        this.state.lessonVideos
+          .filter((v) => v.lessonId === data.lessonId)
+          .reduce((max, v) => Math.max(max, v.order), 0) + 1,
       provider: data.provider ?? "youtube",
-      youtubeId: data.youtubeId,
-      url: data.url,
-      title: data.title,
-      channel: data.channel,
+      youtubeId,
+      url,
+      title,
+      channel: (data.channel ?? "").trim(),
       role: data.role,
-      condition: data.condition ?? null,
+      condition,
       durationSeconds: data.durationSeconds ?? null,
       verifiedAt: data.verifiedAt ?? null,
       staffReviewed: data.staffReviewed ?? false,
@@ -4363,6 +4608,12 @@ export class MockDataProvider implements DataProvider {
     this.state.videoWatches = this.state.videoWatches.filter(
       (w) => w.videoId !== id,
     );
+    for (const q of this.state.questions) {
+      if (q.sourceVideoId === id) {
+        q.sourceVideoId = null;
+        q.updatedAt = this.now();
+      }
+    }
     this.state.lessonVideos.splice(idx, 1);
   }
 
@@ -4747,7 +4998,10 @@ export class MockDataProvider implements DataProvider {
       : undefined;
     if (input.id && !existing) throw new Error("That page no longer exists.");
 
-    const slug = contentSlug(input.slug ?? existing?.slug ?? title);
+    // A page that exists keeps its address exactly. Lessons and classes find
+    // their text by it, and some older addresses are paths ("learn/laser/safety")
+    // that tidying up would change.
+    const slug = existing ? existing.slug : contentSlug(input.slug ?? title);
     if (!slug) throw new Error("Give the page an address made of letters or numbers.");
     const clash = this.state.contentPages.find(
       (p) => p.slug === slug && p.id !== existing?.id,

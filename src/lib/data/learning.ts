@@ -55,6 +55,62 @@ export function publishBlockersFromReadiness(
   return reasons;
 }
 
+/** What still blocks publishing, as short phrases staff can act on. */
+export function describePublishBlockers(
+  readiness: ModulePublishReadiness,
+): string[] {
+  const out: string[] = [];
+  const plural = (n: number, one: string, many: string) =>
+    `${n} ${n === 1 ? one : many}`;
+  if (readiness.answerPendingCount > 0) {
+    out.push(
+      `${plural(readiness.answerPendingCount, "question is", "questions are")} still marked as waiting for an answer`,
+    );
+  }
+  if (readiness.unreviewedPrimaryVideoCount > 0) {
+    out.push(
+      `${plural(readiness.unreviewedPrimaryVideoCount, "required video has", "required videos have")} not been reviewed by staff`,
+    );
+  }
+  if (readiness.gapLessonCount > 0) {
+    out.push(
+      `${plural(readiness.gapLessonCount, "lesson is", "lessons are")} still a placeholder`,
+    );
+  }
+  if (readiness.equipmentUnconfirmed) {
+    out.push("the equipment on the floor has not been confirmed to match");
+  }
+  return out;
+}
+
+/**
+ * The 11-character id in a YouTube link, or in the id typed on its own.
+ * Null when the text is not something YouTube would recognise.
+ */
+export function youtubeIdFrom(value: string | null | undefined): string | null {
+  const text = (value ?? "").trim();
+  if (!text) return null;
+  if (/^[A-Za-z0-9_-]{11}$/.test(text)) return text;
+  let url: URL;
+  try {
+    url = new URL(/^https?:\/\//i.test(text) ? text : `https://${text}`);
+  } catch {
+    return null;
+  }
+  const host = url.hostname.replace(/^(www\.|m\.)/, "").toLowerCase();
+  let id: string | null = null;
+  if (host === "youtu.be") {
+    id = url.pathname.split("/")[1] ?? null;
+  } else if (host === "youtube.com" || host === "youtube-nocookie.com") {
+    if (url.pathname === "/watch") id = url.searchParams.get("v");
+    else {
+      const match = /^\/(?:embed|shorts|live|v)\/([^/]+)/.exec(url.pathname);
+      id = match?.[1] ?? null;
+    }
+  }
+  return id && /^[A-Za-z0-9_-]{11}$/.test(id) ? id : null;
+}
+
 function answersMatch(
   answer: number | number[] | null | undefined,
   indexes: number[],

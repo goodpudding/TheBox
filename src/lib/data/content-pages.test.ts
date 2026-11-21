@@ -111,4 +111,19 @@ describe("adminSaveContentPage", () => {
     });
     expect((await provider.getSettings()).currentWaiverVersion).toBe(before);
   });
+
+  it("keeps the address of a page whose address is an older path", async () => {
+    // Lessons find their text by this address. Tidying it on save would cut
+    // the lesson off from its own page.
+    const provider = createMockDataProvider();
+    const page = (await provider.adminListContentMappings()).find((p) =>
+      p.slug.includes("/"),
+    )!;
+    const saved = await provider.adminSaveContentPage({
+      id: page.id,
+      title: page.title,
+      html: "<p>Reworded.</p>",
+    });
+    expect(saved.slug).toBe(page.slug);
+  });
 });

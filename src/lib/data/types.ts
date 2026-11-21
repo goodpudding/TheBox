@@ -103,6 +103,9 @@ export type AccessDenyReason =
   | "reservation_required";
 
 export type AuditAction =
+  | "learning_lesson_removed"
+  | "learning_video_removed"
+  | "learning_question_removed"
   | "class_cancelled"
   | "class_restored"
   | "booking_added_by_staff"

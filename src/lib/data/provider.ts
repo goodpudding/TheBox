@@ -328,8 +328,13 @@ export interface ModuleInput extends Partial<LearningModule> {
 export interface LessonInput extends Partial<Lesson> {
   moduleId: string;
   title: string;
-  slug: string;
-  contentSlug: string;
+  /** The lesson's address inside its module. Made from the title when left out. */
+  slug?: string;
+  /**
+   * Which content page holds the lesson's text. Leave it out: a new lesson
+   * gets a pointer of its own, and `adminSaveLessonText` writes the page.
+   */
+  contentSlug?: string;
 }
 
 export interface QuestionInput extends Partial<Question> {
@@ -342,11 +347,16 @@ export interface QuestionInput extends Partial<Question> {
 export interface VideoInput extends Partial<LessonVideo> {
   lessonId: string;
   title: string;
-  youtubeId: string;
-  url: string;
-  channel: string;
   role: LessonVideo["role"];
-  order: number;
+  /**
+   * A YouTube link, or the id on its own in `youtubeId`. A new video needs
+   * one of the two; the id is read out of the link.
+   */
+  url?: string;
+  youtubeId?: string;
+  channel?: string;
+  /** Left out, a new video goes last in its lesson. */
+  order?: number;
 }
 
 export interface MachineInput extends Partial<Machine> {
@@ -1087,6 +1097,17 @@ export interface DataProvider {
 
   adminUpsertModule(data: ModuleInput): Promise<LearningModule>;
   adminUpsertLesson(data: LessonInput): Promise<Lesson>;
+  /**
+   * Remove a lesson with its videos and the watch and progress records for
+   * them. Certifications members hold are never touched. The only lesson of a
+   * published module is refused.
+   */
+  adminDeleteLesson(id: string): Promise<void>;
+  /**
+   * Save the text members read in a lesson. The text is a content page; a
+   * lesson that has none yet gets one and is pointed at it.
+   */
+  adminSaveLessonText(lessonId: string, html: string): Promise<ContentPage>;
   adminUpsertQuestion(data: QuestionInput): Promise<Question>;
   adminDeleteQuestion(id: string): Promise<void>;
   /** Quiz bank for a module (includes inactive). */

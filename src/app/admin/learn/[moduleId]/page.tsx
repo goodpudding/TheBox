@@ -4,12 +4,23 @@ import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { AdminShell } from "@/components/admin-shell";
+import {
+  AddVideoForm,
+  VIDEO_ROLE_LABEL,
+} from "@/components/admin/learn/add-video-form";
+import { LessonTextEditor } from "@/components/admin/learn/lesson-text-editor";
+import { ModuleSettingsForm } from "@/components/admin/learn/module-settings-form";
+import {
+  QuestionForm,
+  rightAnswers,
+} from "@/components/admin/learn/question-form";
 import { StatusPill } from "@/components/status-pill";
 import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type {
+  Certification,
   LearningModuleDetail,
   LearningModuleView,
   Lesson,
@@ -87,6 +98,9 @@ export default function AdminLearnModulePage() {
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(
     null,
   );
+  const [certs, setCerts] = useState<Certification[]>([]);
+  const [editingDetails, setEditingDetails] = useState(false);
+  const [textLessonId, setTextLessonId] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -101,12 +115,14 @@ export default function AdminLearnModulePage() {
         setReadiness(null);
         return;
       }
-      const [detail, qs, vids, ready] = await Promise.all([
+      const [detail, qs, vids, ready, certList] = await Promise.all([
         provider.getModule(view.slug),
         provider.adminListQuestions(moduleId),
         provider.adminListVideos(moduleId),
         provider.getModulePublishReadiness(moduleId),
+        provider.adminListCertifications(),
       ]);
+      setCerts(certList);
       setMod(detail);
       setQuestions(qs);
       setVideos(vids);
@@ -167,7 +183,9 @@ export default function AdminLearnModulePage() {
         moduleId: lesson.moduleId,
         title: String(form.get("title") ?? "").trim(),
         slug: String(form.get("slug") ?? "").trim(),
-        contentSlug: String(form.get("contentSlug") ?? "").trim(),
+        // The pointer to the lesson's text is kept as it is. "Edit lesson
+        // text" is how the text changes.
+        contentSlug: lesson.contentSlug,
         sortOrder: Number(form.get("sortOrder") ?? lesson.sortOrder),
         estimatedMinutes: Number(
           form.get("estimatedMinutes") ?? lesson.estimatedMinutes,
@@ -204,6 +222,7 @@ export default function AdminLearnModulePage() {
         order: Number(form.get("order") ?? video.order),
         durationSeconds: durationRaw === "" ? null : Number(durationRaw),
         notes: String(form.get("notes") ?? "") || null,
+        condition: String(form.get("condition") ?? ""),
         staffReviewed: form.get("staffReviewed") === "on",
       });
       setEditingVideoId(null);
@@ -216,37 +235,64 @@ export default function AdminLearnModulePage() {
     }
   }
 
-  async function saveQuestion(q: Question, form: FormData) {
+  /** A change one of the smaller forms made: show its line and load again. */
+  function changed(text: string) {
+    setError(null);
+    setBlockers(null);
+    setMessage(text);
+    bump();
+  }
+
+  async function remove(
+    question: string,
+    done: string,
+    action: () => Promise<void>,
+  ) {
+    if (!window.confirm(question)) return;
     setPending(true);
     setError(null);
     setMessage(null);
     try {
-      const choices = [0, 1, 2, 3].map((i) =>
-        String(form.get(`choice${i}`) ?? "").trim(),
-      );
-      const correctIndex = Number(form.get("correctIndex") ?? 0);
-      await provider.adminUpsertQuestion({
-        id: q.id,
-        moduleId: q.moduleId,
-        prompt: String(form.get("prompt") ?? "").trim(),
-        choices,
-        correctIndex,
-        correctIndexes: [correctIndex],
-        explanation: String(form.get("explanation") ?? ""),
-        active: form.get("active") === "on",
-        safetyCritical: form.get("safetyCritical") === "on",
-        answerPending: form.get("answerPending") === "on",
-        source: form.get("source") === "shop-policy" ? "shop-policy" : "video",
-        verifyAgainstVideo: form.get("verifyAgainstVideo") === "on",
-      });
+      await action();
+      setEditingLessonId(null);
+      setEditingVideoId(null);
       setEditingQuestionId(null);
+      setTextLessonId(null);
       bump();
-      setMessage("Question saved.");
+      setMessage(done);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save question");
+      setError(err instanceof Error ? err.message : "Could not remove it.");
     } finally {
       setPending(false);
     }
+  }
+
+  function removeLesson(lesson: Lesson, videoCount: number) {
+    const also =
+      videoCount > 0
+        ? ` Its ${videoCount === 1 ? "video goes" : `${videoCount} videos go`} with it, and so do the records of who watched and finished it.`
+        : " The records of who finished it go with it.";
+    return remove(
+      `Remove the lesson “${lesson.title}”?${also} Certifications members already hold are not affected.`,
+      "Lesson removed.",
+      () => provider.adminDeleteLesson(lesson.id),
+    );
+  }
+
+  function removeVideo(video: LessonVideo) {
+    return remove(
+      `Remove the video “${video.title}”? The records of who watched it go with it.`,
+      "Video removed.",
+      () => provider.adminDeleteVideo(video.id),
+    );
+  }
+
+  function removeQuestion(q: Question) {
+    return remove(
+      "Remove this question for good? To keep it but stop asking it, untick “In use” instead.",
+      "Question removed.",
+      () => provider.adminDeleteQuestion(q.id),
+    );
   }
 
   async function onAddLesson(e: FormEvent<HTMLFormElement>) {
@@ -262,8 +308,10 @@ export default function AdminLearnModulePage() {
       await provider.adminUpsertLesson({
         moduleId: mod.id,
         title: String(form.get("title") ?? "").trim(),
-        slug: String(form.get("slug") ?? "").trim(),
-        contentSlug: String(form.get("contentSlug") ?? "").trim(),
+        slug: String(form.get("slug") ?? "").trim() || undefined,
+        // Left blank: the lesson gets a page of its own when its text is
+        // first written.
+        contentSlug: "",
         sortOrder: Number(form.get("sortOrder") ?? 0) || undefined,
         estimatedMinutes:
           Number(form.get("estimatedMinutes") ?? 0) || undefined,
@@ -273,35 +321,6 @@ export default function AdminLearnModulePage() {
       formEl.reset();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not add lesson");
-    } finally {
-      setPending(false);
-    }
-  }
-
-  async function onAddQuestion(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    // React clears currentTarget once the handler first waits, so keep the form.
-    const formEl = e.currentTarget;
-    if (!mod) return;
-    setPending(true);
-    setError(null);
-    setMessage(null);
-    const form = new FormData(formEl);
-    const choices = [0, 1, 2, 3].map((i) =>
-      String(form.get(`choice${i}`) ?? "").trim(),
-    );
-    try {
-      await provider.adminUpsertQuestion({
-        moduleId: mod.id,
-        prompt: String(form.get("prompt") ?? "").trim(),
-        choices,
-        correctIndex: Number(form.get("correctIndex") ?? 0),
-      });
-      bump();
-      setMessage("Question added.");
-      formEl.reset();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not add question");
     } finally {
       setPending(false);
     }
@@ -350,7 +369,31 @@ export default function AdminLearnModulePage() {
         >
           {mod.published ? "Unpublish" : "Publish"}
         </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setEditingDetails((open) => !open)}
+          aria-expanded={editingDetails}
+        >
+          {editingDetails ? "Close module details" : "Edit module details"}
+        </Button>
       </div>
+
+      {editingDetails ? (
+        <div className="mb-8">
+          <ModuleSettingsForm
+            key={mod.id}
+            module={mod}
+            certifications={certs}
+            readiness={readiness}
+            onSaved={() => {
+              setBlockers(null);
+              bump();
+            }}
+          />
+        </div>
+      ) : null}
 
       {readiness ? (
         <div className="mb-6 flex flex-wrap gap-2">
@@ -403,7 +446,7 @@ export default function AdminLearnModulePage() {
       ) : null}
 
       <p className="mb-8 text-sm text-secondary">
-        Click a lesson, video, or question to edit it inline. Lesson minutes
+        Click a lesson, video, or question to change or remove it. Lesson minutes
         should reflect video runtime (plus a short reading pad); many YouTube
         lengths are still unknown, so those use an 8‑minute placeholder until
         you enter a duration.
@@ -439,7 +482,7 @@ export default function AdminLearnModulePage() {
                     </span>
                   </p>
                   <p className="text-sm text-secondary">
-                    {lesson.slug} · content {lesson.contentSlug} ·{" "}
+                    {lesson.slug} · {lesson.html ? "has text" : "no text yet"} ·{" "}
                     {lesson.estimatedMinutes} min stored
                     {lessonVids.length > 0 ? (
                       <>
@@ -478,17 +521,6 @@ export default function AdminLearnModulePage() {
                         id={`les-slug-${lesson.id}`}
                         name="slug"
                         defaultValue={lesson.slug}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor={`les-content-${lesson.id}`}>
-                        Content slug
-                      </Label>
-                      <Input
-                        id={`les-content-${lesson.id}`}
-                        name="contentSlug"
-                        defaultValue={lesson.contentSlug}
                         required
                       />
                     </div>
@@ -539,8 +571,38 @@ export default function AdminLearnModulePage() {
                       >
                         Cancel
                       </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setTextLessonId(
+                            textLessonId === lesson.id ? null : lesson.id,
+                          )
+                        }
+                      >
+                        Edit lesson text
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={pending}
+                        onClick={() =>
+                          void removeLesson(lesson, lessonVids.length)
+                        }
+                      >
+                        Remove lesson
+                      </Button>
                     </div>
                   </form>
+                ) : null}
+                {editing && textLessonId === lesson.id ? (
+                  <LessonTextEditor
+                    lesson={lesson}
+                    onSaved={changed}
+                    onCancel={() => setTextLessonId(null)}
+                  />
                 ) : null}
               </li>
             );
@@ -559,18 +621,17 @@ export default function AdminLearnModulePage() {
             <Input id="lesson-title" name="title" required />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="lesson-slug">Slug</Label>
-            <Input id="lesson-slug" name="slug" required />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="contentSlug">Content slug</Label>
+            <Label htmlFor="lesson-slug">Address (optional)</Label>
             <Input
-              id="contentSlug"
-              name="contentSlug"
-              required
-              placeholder="learn/module/lesson"
+              id="lesson-slug"
+              name="slug"
+              placeholder="made from the title"
             />
           </div>
+          <p className="text-sm text-secondary">
+            Add the lesson, then open it and choose “Edit lesson text” to
+            write what members read.
+          </p>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="sortOrder">Sort order</Label>
@@ -623,8 +684,11 @@ export default function AdminLearnModulePage() {
                       </span>
                     </p>
                     <p className="mt-1 text-sm text-secondary">
-                      {lessonTitle(video.lessonId)} · {video.role} ·{" "}
-                      {video.channel} · {formatDuration(video.durationSeconds)}
+                      {lessonTitle(video.lessonId)} ·{" "}
+                      {VIDEO_ROLE_LABEL[video.role].split(":")[0]}
+                      {video.channel ? ` · ${video.channel}` : ""} ·{" "}
+                      {formatDuration(video.durationSeconds)}
+                      {video.condition ? ` · ${video.condition}` : ""}
                     </p>
                   </button>
                   <label
@@ -664,7 +728,6 @@ export default function AdminLearnModulePage() {
                         id={`vid-channel-${video.id}`}
                         name="channel"
                         defaultValue={video.channel}
-                        required
                       />
                     </div>
                     <div className="space-y-2">
@@ -738,6 +801,16 @@ export default function AdminLearnModulePage() {
                       />
                     </div>
                     <div className="space-y-2">
+                      <Label htmlFor={`vid-condition-${video.id}`}>
+                        Who should watch it (for a video only some members need)
+                      </Label>
+                      <Input
+                        id={`vid-condition-${video.id}`}
+                        name="condition"
+                        defaultValue={video.condition ?? ""}
+                      />
+                    </div>
+                    <div className="space-y-2">
                       <Label htmlFor={`vid-notes-${video.id}`}>Notes</Label>
                       <textarea
                         id={`vid-notes-${video.id}`}
@@ -767,6 +840,15 @@ export default function AdminLearnModulePage() {
                       >
                         Cancel
                       </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={pending}
+                        onClick={() => void removeVideo(video)}
+                      >
+                        Remove video
+                      </Button>
                     </div>
                   </form>
                 ) : null}
@@ -777,6 +859,7 @@ export default function AdminLearnModulePage() {
             <li className="py-4 text-secondary">No videos yet.</li>
           ) : null}
         </ul>
+        <AddVideoForm lessons={mod.lessons} onSaved={changed} />
       </section>
 
       <section className="mt-14">
@@ -807,131 +890,26 @@ export default function AdminLearnModulePage() {
                     ) : null}
                   </div>
                   <p className="mt-1 text-sm text-secondary">
-                    Correct:{" "}
-                    {q.choices[q.correctIndex] ?? `index ${q.correctIndex}`}
+                    {rightAnswers(q).length > 1 ? "Right answers: " : "Right answer: "}
+                    {rightAnswers(q)
+                      .map((i) => q.choices[i] ?? `choice ${i + 1}`)
+                      .join(" · ")}
                     {q.active ? "" : " · inactive"}
                     {q.safetyCritical ? " · safety-critical" : ""}
                   </p>
                 </button>
                 {editing ? (
-                  <form
-                    className="mt-4 max-w-xl space-y-3 rounded-2xl border border-border bg-surface/60 p-4"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      void saveQuestion(q, new FormData(e.currentTarget));
+                  <QuestionForm
+                    key={q.id}
+                    moduleId={q.moduleId}
+                    question={q}
+                    onSaved={(text) => {
+                      setEditingQuestionId(null);
+                      changed(text);
                     }}
-                  >
-                    <div className="space-y-2">
-                      <Label htmlFor={`q-prompt-${q.id}`}>Prompt</Label>
-                      <textarea
-                        id={`q-prompt-${q.id}`}
-                        name="prompt"
-                        className={textareaClass}
-                        defaultValue={q.prompt}
-                        required
-                      />
-                    </div>
-                    {[0, 1, 2, 3].map((i) => (
-                      <div key={i} className="space-y-2">
-                        <Label htmlFor={`q-choice-${q.id}-${i}`}>
-                          Choice {i + 1}
-                          {i === q.correctIndex ? " (current correct)" : ""}
-                        </Label>
-                        <Input
-                          id={`q-choice-${q.id}-${i}`}
-                          name={`choice${i}`}
-                          defaultValue={q.choices[i] ?? ""}
-                          required
-                        />
-                      </div>
-                    ))}
-                    <div className="space-y-2">
-                      <Label htmlFor={`q-correct-${q.id}`}>
-                        Correct choice
-                      </Label>
-                      <select
-                        id={`q-correct-${q.id}`}
-                        name="correctIndex"
-                        className={selectClass}
-                        defaultValue={String(q.correctIndex)}
-                      >
-                        <option value="0">Choice 1</option>
-                        <option value="1">Choice 2</option>
-                        <option value="2">Choice 3</option>
-                        <option value="3">Choice 4</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor={`q-expl-${q.id}`}>Explanation</Label>
-                      <textarea
-                        id={`q-expl-${q.id}`}
-                        name="explanation"
-                        className={textareaClass}
-                        defaultValue={q.explanation ?? ""}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor={`q-source-${q.id}`}>Source</Label>
-                      <select
-                        id={`q-source-${q.id}`}
-                        name="source"
-                        className={selectClass}
-                        defaultValue={q.source}
-                      >
-                        <option value="video">video</option>
-                        <option value="shop-policy">shop-policy</option>
-                      </select>
-                    </div>
-                    <label className="flex items-center gap-2 font-display text-sm text-brown">
-                      <input
-                        type="checkbox"
-                        name="safetyCritical"
-                        className="size-4"
-                        defaultChecked={q.safetyCritical}
-                      />
-                      Safety-critical
-                    </label>
-                    <label className="flex items-center gap-2 font-display text-sm text-brown">
-                      <input
-                        type="checkbox"
-                        name="answerPending"
-                        className="size-4"
-                        defaultChecked={q.answerPending}
-                      />
-                      Answer pending (blocks publish)
-                    </label>
-                    <label className="flex items-center gap-2 font-display text-sm text-brown">
-                      <input
-                        type="checkbox"
-                        name="verifyAgainstVideo"
-                        className="size-4"
-                        defaultChecked={q.verifyAgainstVideo}
-                      />
-                      Verify against video
-                    </label>
-                    <label className="flex items-center gap-2 font-display text-sm text-brown">
-                      <input
-                        type="checkbox"
-                        name="active"
-                        className="size-4"
-                        defaultChecked={q.active}
-                      />
-                      Active in bank
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="submit" disabled={pending} size="sm">
-                        Save question
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setEditingQuestionId(null)}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </form>
+                    onCancel={() => setEditingQuestionId(null)}
+                    onRemove={() => void removeQuestion(q)}
+                  />
                 ) : null}
               </li>
             );
@@ -941,38 +919,7 @@ export default function AdminLearnModulePage() {
           ) : null}
         </ul>
 
-        <form onSubmit={onAddQuestion} className="mt-6 max-w-xl space-y-4">
-          <h3 className="font-display text-lg font-semibold text-brown">
-            Add question
-          </h3>
-          <div className="space-y-2">
-            <Label htmlFor="prompt">Prompt</Label>
-            <Input id="prompt" name="prompt" required />
-          </div>
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="space-y-2">
-              <Label htmlFor={`choice${i}`}>Choice {i + 1}</Label>
-              <Input id={`choice${i}`} name={`choice${i}`} required />
-            </div>
-          ))}
-          <div className="space-y-2">
-            <Label htmlFor="correctIndex">Correct choice</Label>
-            <select
-              id="correctIndex"
-              name="correctIndex"
-              className={selectClass}
-              defaultValue="0"
-            >
-              <option value="0">Choice 1</option>
-              <option value="1">Choice 2</option>
-              <option value="2">Choice 3</option>
-              <option value="3">Choice 4</option>
-            </select>
-          </div>
-          <Button type="submit" disabled={pending}>
-            Add question
-          </Button>
-        </form>
+        <QuestionForm moduleId={mod.id} onSaved={changed} />
       </section>
     </AdminShell>
   );
