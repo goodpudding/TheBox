@@ -30,10 +30,13 @@ import {
 
 const TZ = "America/Los_Angeles";
 
-/** Opening hours [openHour, closeHour) in America/Los_Angeles. 0 = Sunday. */
-export const DISPLAY_OPENING_HOURS: Record<number, [number, number]> = {
+/**
+ * Opening hours [openHour, closeHour) in America/Los_Angeles, or null on a
+ * day the shop does not open. 0 = Sunday. Closed on Mondays.
+ */
+export const DISPLAY_OPENING_HOURS: Record<number, [number, number] | null> = {
   0: [11, 17],
-  1: [16, 20],
+  1: null,
   2: [16, 20],
   3: [15, 20],
   4: [11, 20],
@@ -245,11 +248,12 @@ export function buildDisplayFeed(input: {
   const now = input.now ?? new Date();
   const nowIso = now.toISOString();
   const parts = laParts(now);
-  const [openHour, closeHour] = DISPLAY_OPENING_HOURS[parts.weekday] ?? [
-    11, 17,
-  ];
-  const isOpen = parts.hour >= openHour && parts.hour < closeHour;
-  const hoursLabel = `${DAY_NAMES[parts.weekday]} ${formatHourLabel(openHour)} – ${formatHourLabel(closeHour)}`;
+  const window = DISPLAY_OPENING_HOURS[parts.weekday] ?? null;
+  const [openHour, closeHour] = window ?? [0, 0];
+  const isOpen = window != null && parts.hour >= openHour && parts.hour < closeHour;
+  const hoursLabel = window
+    ? `${DAY_NAMES[parts.weekday]} ${formatHourLabel(openHour)} – ${formatHourLabel(closeHour)}`
+    : `${DAY_NAMES[parts.weekday]} · Closed`;
 
   const mode = input.displayConfig.nameDisplayMode;
   const todayKey = parts.dateKey;
@@ -425,6 +429,7 @@ export function buildDisplayFeed(input: {
       label: hoursLabel,
       openHour,
       closeHour,
+      closed: window == null,
     },
     isOpen,
     todaySessions,

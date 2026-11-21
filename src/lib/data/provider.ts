@@ -546,8 +546,11 @@ export interface ClassInterestBoardView
 
 export interface DisplayHoursToday {
   label: string;
+  /** Both 0 on a day the shop does not open. */
   openHour: number;
   closeHour: number;
+  /** True on a day the shop does not open at all. */
+  closed: boolean;
 }
 
 export interface DisplayTodaySession {

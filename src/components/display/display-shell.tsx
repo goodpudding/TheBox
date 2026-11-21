@@ -38,7 +38,9 @@ export function DisplayShell({
     month: "long",
     day: "numeric",
   }).format(new Date(feed.now));
-  const hours = `${hourLabel(feed.hours.openHour)} – ${hourLabel(feed.hours.closeHour)}`;
+  const hours = feed.hours.closed
+    ? "Closed today"
+    : `${hourLabel(feed.hours.openHour)} – ${hourLabel(feed.hours.closeHour)}`;
   const calm = feed.config.motion === "calm";
   const style = { "--display-cadence": `${cadenceMs}ms` } as CSSProperties;
 
@@ -56,10 +58,10 @@ export function DisplayShell({
         <header className="flex shrink-0 items-start justify-between gap-[2vw]">
           <div className="min-w-0">
             <p className="truncate text-[1.3vw] font-bold uppercase tracking-[0.18em] text-display-gold">
-              Discover Burien Makerspace
+              Discover Burien
             </p>
             <p className="text-[3vw] font-extrabold leading-none text-display-ink">
-              The Box
+              Makerspace
             </p>
           </div>
           <div className="shrink-0 text-right">

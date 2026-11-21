@@ -26,7 +26,7 @@ export function PanelToday({ feed }: { feed: DisplayFeed }) {
 
   return (
     <>
-      <SlideHeading lead="Today" accent="at The Box" />
+      <SlideHeading lead="Happening" accent="today" />
 
       <div className="mt-[2.2vh] flex min-h-0 flex-1 flex-col">
         <SectionLabel>

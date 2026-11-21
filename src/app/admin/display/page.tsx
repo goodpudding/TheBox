@@ -22,7 +22,7 @@ import type {
 } from "@/lib/data";
 
 const PANEL_LABELS: Record<DisplayPanelId, string> = {
-  today: "Today at The Box",
+  today: "Happening today",
   machines: "Machine status",
   upcoming: "Coming up",
   certs: "Get certified",

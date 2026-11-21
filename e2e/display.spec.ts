@@ -43,7 +43,7 @@ test.describe("Lobby display", () => {
 
   test("display page renders with token", async ({ page }) => {
     await page.goto(`/display?token=${encodeURIComponent(TOKEN)}`);
-    await expect(page.getByText("The Box").first()).toBeVisible({
+    await expect(page.getByText("Makerspace", { exact: true }).first()).toBeVisible({
       timeout: 15_000,
     });
     await expect(
@@ -56,7 +56,7 @@ test.describe("Lobby display", () => {
     // drive the page's timers instead of waiting minutes of real time.
     await page.clock.install();
     await page.goto(`/display?token=${encodeURIComponent(TOKEN)}`);
-    await expect(page.getByText("The Box").first()).toBeVisible({
+    await expect(page.getByText("Makerspace", { exact: true }).first()).toBeVisible({
       timeout: 15_000,
     });
 
@@ -89,7 +89,7 @@ test.describe("Lobby display", () => {
     });
 
     await page.goto(`/display?token=${encodeURIComponent(TOKEN)}`);
-    await expect(page.getByText("The Box").first()).toBeVisible({
+    await expect(page.getByText("Makerspace", { exact: true }).first()).toBeVisible({
       timeout: 15_000,
     });
     // Machine panel rotates in; wait for status grid copy.
@@ -108,6 +108,29 @@ test.describe("Lobby display", () => {
       await page.waitForTimeout(1000);
     }
     expect(sawStatus).toBe(true);
+  });
+
+  test("is branded Discover Burien Makerspace, with no mention of The Box", async ({
+    page,
+  }) => {
+    await page.route("**/api/display/feed*", async (route) => {
+      const feed = await (await route.fetch()).json();
+      feed.config.panelOrder = ["today"];
+      feed.config.pinnedPanel = null;
+      await route.fulfill({ json: feed });
+    });
+    await page.goto(`/display?token=${encodeURIComponent(TOKEN)}`);
+    const root = page.getByTestId("display-root");
+    await expect(root.getByText("Discover Burien", { exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(root.getByText("Makerspace", { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Happening today" }),
+    ).toBeVisible();
+    // The sample photo has a caption, so its label is on screen too.
+    await expect(root.getByText("At the makerspace")).toBeVisible();
+    await expect(root).not.toContainText(/the box/i);
   });
 
   test("shows a photo beside the slide", async ({ page }) => {
@@ -173,7 +196,7 @@ test.describe("Lobby display", () => {
   const LONG =
     "Introduction to Hand-Cut Dovetails and Traditional Joinery for Absolute Beginners";
   const PANELS = [
-    ["today", "Today at The Box"],
+    ["today", "Happening today"],
     ["machines", "Machine status"],
     ["upcoming", "Coming up"],
     ["certs", "Get certified"],

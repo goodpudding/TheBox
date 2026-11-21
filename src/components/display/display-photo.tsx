@@ -112,7 +112,7 @@ export function DisplayPhotoSide({
           {caption ? (
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#3a2408]/90 via-[#3a2408]/55 to-transparent px-[2.4vw] pb-[4.5vh] pt-[16vh] text-white">
               <p className="text-[1.3vw] font-bold uppercase tracking-[0.18em] text-[#fbc84b]">
-                At The Box
+                At the makerspace
               </p>
               <p className="mt-[0.6vh] line-clamp-2 text-[2.4vw] font-bold leading-[1.12]">
                 {caption}
