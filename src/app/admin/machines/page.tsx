@@ -311,15 +311,19 @@ export default function AdminMachinesPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="readerKey">Reader key</Label>
+            <Label htmlFor="readerKey">Reader key (optional)</Label>
             <Input
               id="readerKey"
-              required
               value={form.readerKey}
               onChange={(e) =>
                 setForm((f) => ({ ...f, readerKey: e.target.value }))
               }
+              aria-describedby="readerKey-help"
             />
+            <p id="readerKey-help" className="text-sm text-secondary">
+              Only needed when a badge reader is wired to this machine. Leave
+              it blank and one is made up for you.
+            </p>
           </div>
 
           <fieldset className="space-y-3">

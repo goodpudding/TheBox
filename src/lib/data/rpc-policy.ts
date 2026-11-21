@@ -1,6 +1,7 @@
 import type { DataProvider } from "./provider";
 import type { User } from "./types";
 import { isStaffRole } from "./access";
+import { databaseErrorMessage } from "./db-errors";
 import { shouldPersistAfter } from "./persist-delta";
 
 export type DataMethod = keyof DataProvider;
@@ -335,6 +336,11 @@ export async function handleDataRpc(input: {
     const result = staff ? raw : withoutStaffNotes(raw);
     return { status: 200, body: { ok: true, result } };
   } catch (err) {
+    const database = databaseErrorMessage(err);
+    if (database) {
+      console.error(JSON.stringify({ rpc: method, databaseError: String(err) }));
+      return { status: 200, body: { ok: false, error: database } };
+    }
     const message = err instanceof Error ? err.message : "Request failed";
     return { status: 200, body: { ok: false, error: message } };
   }

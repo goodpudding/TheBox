@@ -421,6 +421,17 @@ export function mergeStaffEdits(
   return [...owned];
 }
 
+/** "SawStop Table Saw" → "sawstop-table-saw", for a made-up reader key. */
+function readerSlug(name: string): string {
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40)
+    .replace(/-+$/g, "");
+  return slug || "machine";
+}
+
 export class MockDataProvider implements DataProvider {
   private state: MockFixtureBundle;
   private currentUserId: string | null;
@@ -4081,19 +4092,36 @@ export class MockDataProvider implements DataProvider {
 
   async adminUpsertMachine(data: MachineInput): Promise<Machine> {
     const now = this.now();
-    if (data.id) {
-      const existing = this.state.machines.find((m) => m.id === data.id);
-      if (existing) {
-        Object.assign(existing, data, { updatedAt: now });
-        return existing;
-      }
+    const name = (data.name ?? "").trim();
+    if (!name) throw new Error("Give the machine a name.");
+    const existing = data.id
+      ? this.state.machines.find((m) => m.id === data.id)
+      : undefined;
+    // A shop without badge readers has nothing to type here, and the
+    // database wants a different key on every machine. Blank keeps the key a
+    // machine already has, or makes one up for a new machine.
+    const readerKey =
+      (data.readerKey ?? "").trim() ||
+      existing?.readerKey ||
+      `reader-${readerSlug(name)}-${this.id("k").slice(-4)}`;
+    const clash = this.state.machines.find(
+      (m) => m.readerKey === readerKey && m.id !== existing?.id,
+    );
+    if (clash) {
+      throw new Error(
+        `Reader key "${readerKey}" is already used by ${clash.name}. Give this machine a different one, or leave it blank.`,
+      );
+    }
+    if (existing) {
+      Object.assign(existing, data, { name, readerKey, updatedAt: now });
+      return existing;
     }
     const machine: Machine = {
       id: data.id ?? this.id("m"),
-      name: data.name,
+      name,
       area: data.area,
-      requiredCertificationIds: data.requiredCertificationIds,
-      readerKey: data.readerKey,
+      requiredCertificationIds: data.requiredCertificationIds ?? [],
+      readerKey,
       active: data.active ?? true,
       reservationRecommended: data.reservationRecommended ?? false,
       reservationRequired: data.reservationRequired ?? false,
