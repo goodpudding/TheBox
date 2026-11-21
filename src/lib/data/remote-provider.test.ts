@@ -9,14 +9,14 @@ describe("RemoteDataProvider", () => {
   it("posts the method name and args", async () => {
     const fetchMock = vi.fn(
       async () =>
-        new Response(JSON.stringify({ ok: true, result: { orgName: "The Box" } }), {
+        new Response(JSON.stringify({ ok: true, result: { orgName: "Discover Burien Makerspace" } }), {
           status: 200,
         }),
     );
     vi.stubGlobal("fetch", fetchMock);
     const provider = createRemoteDataProvider();
     const result = await provider.getSettings();
-    expect(result).toMatchObject({ orgName: "The Box" });
+    expect(result).toMatchObject({ orgName: "Discover Burien Makerspace" });
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(JSON.parse(String(init.body))).toEqual({
       method: "getSettings",

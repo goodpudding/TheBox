@@ -22,12 +22,12 @@ const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 export const metadata: Metadata = {
   title: {
     default: isDemo
-      ? "The Box · Demo (not live)"
-      : "The Box · Discover Burien Makerspace",
-    template: "%s · The Box",
+      ? "Discover Burien Makerspace · Demo (not live)"
+      : "Discover Burien Makerspace",
+    template: "%s · Discover Burien Makerspace",
   },
   description:
-    "Member portal for The Box, the community makerspace run by Discover Burien.",
+    "Member portal for Discover Burien Makerspace, the community makerspace run by Discover Burien.",
   robots: isDemo ? { index: false, follow: false } : undefined,
 };
 

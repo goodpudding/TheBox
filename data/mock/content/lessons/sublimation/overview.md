@@ -1,6 +1,6 @@
 # Sublimation overview
 
-Sublimation turns printed dye into a gas under heat and bonds it into polyester (or polymer-coated blanks). Best-practice settings; confirm The Box's posted temperatures at the press.
+Sublimation turns printed dye into a gas under heat and bonds it into polyester (or polymer-coated blanks). Best-practice settings; confirm the makerspace's posted temperatures at the press.
 
 ## Hard rules
 

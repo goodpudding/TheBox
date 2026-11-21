@@ -137,7 +137,7 @@ describe("sliceChangedBundle", () => {
   it("a settings-only change carries no user rows", () => {
     const previous = cloneFixtures(loadFixtures());
     const next = structuredClone(previous);
-    next.settings.orgName = "The Box (renamed)";
+    next.settings.orgName = "Burien Makers (renamed)";
     const sliced = sliceChangedBundle(previous, next);
     expect(sliced.settingsChanged).toBe(true);
     expect(sliced.bundle.users).toEqual([]);

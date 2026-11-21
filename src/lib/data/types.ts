@@ -1,4 +1,4 @@
-/** Shared domain types for The Box Portal. Fixtures and Prisma mirror these. */
+/** Shared domain types for the Discover Burien Makerspace portal. Fixtures and Prisma mirror these. */
 
 export type ISODateTime = string;
 export type ISODate = string;

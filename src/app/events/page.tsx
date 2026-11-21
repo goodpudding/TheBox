@@ -29,7 +29,7 @@ export default function EventsPage() {
     <PageShell className="max-w-6xl">
       <PageHero
         eyebrow="Calendar"
-        title="Upcoming at The Box"
+        title="Upcoming at the makerspace"
         description="Classes, workshops, orientation, and open studio. Toggle calendar or list view, filter by type, and register when a checkout link is available."
       />
 

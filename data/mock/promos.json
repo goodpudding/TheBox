@@ -1,7 +1,7 @@
 [
   {
     "id": "promo-welcome",
-    "title": "Welcome to The Box",
+    "title": "Welcome to the makerspace",
     "body": "Discover Burien’s community makerspace — tools, classes, and people who make things.",
     "imageUrl": null,
     "qrUrl": "/join",
@@ -28,7 +28,7 @@
   {
     "id": "promo-volunteer",
     "title": "Volunteer with us",
-    "body": "Front desk, shop steward, and event roles keep The Box humming. Sign up in a few minutes.",
+    "body": "Front desk, shop steward, and event roles keep the makerspace humming. Sign up in a few minutes.",
     "imageUrl": null,
     "qrUrl": "/volunteer",
     "startsAt": "2026-06-01T00:00:00-07:00",

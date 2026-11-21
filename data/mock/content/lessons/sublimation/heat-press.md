@@ -1,6 +1,6 @@
 # Heat press
 
-Typical garment starting point (edit when The Box posts its chart): about **380–400°F**, firm pressure, ~45–60 seconds on 100% polyester — then peel carefully while hot surfaces stay hot.
+Typical garment starting point (edit when the makerspace posts its chart): about **380–400°F**, firm pressure, ~45–60 seconds on 100% polyester — then peel carefully while hot surfaces stay hot.
 
 ## Every press
 

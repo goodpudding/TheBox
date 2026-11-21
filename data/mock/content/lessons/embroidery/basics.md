@@ -1,6 +1,6 @@
 # Embroidery machine basics
 
-Best-practice path for The Box's embroidery station (Brother-class single-needle; confirm the exact model at the machine). Hands-on checkoff is still required.
+Best-practice path for the makerspace's embroidery station (Brother-class single-needle; confirm the exact model at the machine). Hands-on checkoff is still required.
 
 ## Core habits
 

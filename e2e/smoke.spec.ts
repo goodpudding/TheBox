@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { switchUser } from "./helpers";
 
-test.describe("The Box Portal critical paths (mock)", () => {
+test.describe("Makerspace portal critical paths (mock)", () => {
   test("onboarding: Avery completes profile → waiver → expectations", async ({
     page,
   }) => {
@@ -126,4 +126,38 @@ test.describe("The Box Portal critical paths (mock)", () => {
       timeout: 15_000,
     });
   });
+
+  // The makerspace dropped the name "The Box". The waiver keeps its signed
+  // wording, so pages that print the waiver are not in this list.
+  for (const path of [
+    "/join",
+    "/events",
+    "/equipment",
+    "/made",
+    "/bounties",
+    "/history",
+    "/staff",
+    "/wishlist",
+    "/support",
+    "/volunteer",
+    "/login",
+  ]) {
+    test(`${path} is branded Discover Burien Makerspace, not The Box`, async ({
+      page,
+    }) => {
+      await page.goto(path);
+      await expect(page.getByText("Dev · Switch user")).toBeVisible({
+        timeout: 20_000,
+      });
+      await expect(page).toHaveTitle(/Discover Burien Makerspace/);
+      await expect(page.locator("header").first()).toContainText("Makerspace");
+      await expect(page.locator("footer")).toContainText(
+        "Discover Burien Makerspace",
+      );
+      // Let the page's own content arrive before reading it.
+      await page.waitForLoadState("networkidle");
+      await expect(page.locator("body")).not.toContainText(/the box/i);
+    });
+  }
 });
+

@@ -17,7 +17,7 @@ type EmailEnv = {
  * Both only ever get one bare address to write to (normalizeSignInEmail).
  */
 export function emailProvider(env: EmailEnv): EmailConfig {
-  const from = env.AUTH_EMAIL_FROM ?? "The Box <thebox@discoverburien.org>";
+  const from = env.AUTH_EMAIL_FROM ?? "Discover Burien Makerspace <thebox@discoverburien.org>";
   if (env.AUTH_RESEND_KEY) {
     return Resend({
       id: "email",

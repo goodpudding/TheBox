@@ -1,6 +1,6 @@
 /**
  * Import Winter 2026 Schedule CSV → data/mock/class-sessions.json
- * Source: The Box Nov/Dec 2026 spreadsheet (Schedule tab).
+ * Source: the makerspace Nov/Dec 2026 spreadsheet (Schedule tab).
  *
  * Usage: node scripts/import-winter-schedule.mjs
  */
@@ -281,7 +281,7 @@ for (const r of scheduleRows.slice(1)) {
     priceCents,
     zeffyUrl: null,
     prerequisiteCertificationIds: prereqsFor(category, title),
-    location: "The Box",
+    location: "Discover Burien Makerspace",
     cancellationCutoffHours: kind === "Open shop" ? 12 : 24,
     published: true,
     createdAt: NOW,

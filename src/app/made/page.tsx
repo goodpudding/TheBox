@@ -10,7 +10,7 @@ export default function MadeHerePage() {
     <PageShell>
       <PageHero
         eyebrow="Community builds"
-        title="Made at The Box"
+        title="Made at the makerspace"
         description="Projects from members learning, teaching, and making in Burien’s shop. Follow us on social for more — and share your own when you’re ready."
       />
 

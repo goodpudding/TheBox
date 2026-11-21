@@ -48,7 +48,7 @@ function fixtureSvg(key: string): Buffer {
   <rect fill="hsl(${hue} 42% 78%)" width="800" height="600"/>
   <rect fill="hsl(${hue} 38% 32%)" x="40" y="40" width="720" height="520" rx="24" opacity="0.18"/>
   <text x="400" y="300" text-anchor="middle" font-family="system-ui,sans-serif" font-size="36" fill="#3a2408">${escapeXml(label)}</text>
-  <text x="400" y="350" text-anchor="middle" font-family="system-ui,sans-serif" font-size="18" fill="#645e5e">The Box inventory</text>
+  <text x="400" y="350" text-anchor="middle" font-family="system-ui,sans-serif" font-size="18" fill="#645e5e">Makerspace inventory</text>
 </svg>`;
   return Buffer.from(svg, "utf8");
 }

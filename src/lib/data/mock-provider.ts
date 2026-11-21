@@ -3234,7 +3234,7 @@ export class MockDataProvider implements DataProvider {
       cancelledAt: data.cancelledAt ?? null,
       staffEditedFields: data.staffEditedFields ?? null,
       prerequisiteCertificationIds: data.prerequisiteCertificationIds ?? [],
-      location: data.location ?? "The Box",
+      location: data.location ?? "Discover Burien Makerspace",
       cancellationCutoffHours: data.cancellationCutoffHours ?? null,
       published: data.published ?? true,
       createdAt: now,

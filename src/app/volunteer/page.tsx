@@ -102,13 +102,13 @@ export default function VolunteerPage() {
       <div className="grid items-end gap-8 lg:grid-cols-[1.1fr_0.9fr]">
         <PageHero
           eyebrow="Get involved"
-          title="Volunteer at The Box"
+          title="Volunteer at the makerspace"
           description="Cover open hours as a Shop Steward, or champion a machine for two months. Three completed championships unlock the Shop lead track."
         />
         <div className="relative aspect-[16/10] overflow-hidden bg-brown/10 lg:mb-1">
           <Image
             src="/images/the-box-exterior.jpg"
-            alt="Looking toward The Box from the surrounding parking area"
+            alt="Looking toward the makerspace from the surrounding parking area"
             fill
             sizes="(max-width: 1024px) 100vw, 40vw"
             className="object-cover object-[center_30%]"

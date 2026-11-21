@@ -139,14 +139,14 @@ describe("persistBundleToPrisma", () => {
     const instructor = previous.users[0]!;
     previous.settings.defaultInstructorId = instructor.id;
     const next = structuredClone(previous);
-    next.settings.orgName = "The Box (renamed)";
+    next.settings.orgName = "Burien Makers (renamed)";
 
     await persistBundleToPrisma(next, previous);
 
     const [upsert] = upserts("orgSettings");
     expect(upsert).toBeTruthy();
     expect(upsert!.create.defaultInstructorId).toBe(instructor.id);
-    expect(upsert!.update).toEqual({ orgName: "The Box (renamed)" });
+    expect(upsert!.update).toEqual({ orgName: "Burien Makers (renamed)" });
     expect(calls.some((c) => c.model === "user")).toBe(false);
   });
 
