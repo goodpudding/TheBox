@@ -128,10 +128,12 @@ export default function AdminReservationsPage() {
 
   async function onCreateReservation(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // React clears currentTarget once the handler first waits, so keep the form.
+    const formEl = e.currentTarget;
     if (!currentUser) return;
     setBusy(true);
     setError(null);
-    const form = new FormData(e.currentTarget);
+    const form = new FormData(formEl);
     try {
       await provider.adminCreateReservation({
         userId: String(form.get("userId") ?? ""),
@@ -140,7 +142,7 @@ export default function AdminReservationsPage() {
         endsAt: fromDatetimeLocalValue(String(form.get("endsAt") ?? "")),
         createdById: currentUser.id,
       });
-      e.currentTarget.reset();
+      formEl.reset();
       bump();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create reservation");
@@ -151,10 +153,12 @@ export default function AdminReservationsPage() {
 
   async function onCreateMaintenance(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // React clears currentTarget once the handler first waits, so keep the form.
+    const formEl = e.currentTarget;
     if (!currentUser) return;
     setBusy(true);
     setError(null);
-    const form = new FormData(e.currentTarget);
+    const form = new FormData(formEl);
     try {
       await provider.adminUpsertMaintenanceBlock({
         machineId: String(form.get("machineId") ?? ""),
@@ -163,7 +167,7 @@ export default function AdminReservationsPage() {
         reason: String(form.get("reason") ?? "").trim(),
         createdById: currentUser.id,
       });
-      e.currentTarget.reset();
+      formEl.reset();
       bump();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create maintenance");

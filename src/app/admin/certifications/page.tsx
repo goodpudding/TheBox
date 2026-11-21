@@ -47,11 +47,13 @@ export default function AdminCertificationsPage() {
 
   async function onUpsert(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // React clears currentTarget once the handler first waits, so keep the form.
+    const formEl = e.currentTarget;
     if (!currentUser) return;
     setPending(true);
     setError(null);
     setMessage(null);
-    const form = new FormData(e.currentTarget);
+    const form = new FormData(formEl);
     const expiryRaw = String(form.get("expiryMonths") ?? "").trim();
     try {
       await provider.adminUpsertCertification({
@@ -66,7 +68,7 @@ export default function AdminCertificationsPage() {
       setEditing(null);
       bump();
       setMessage(editing ? "Certification updated." : "Certification created.");
-      e.currentTarget.reset();
+      formEl.reset();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save certification");
     } finally {

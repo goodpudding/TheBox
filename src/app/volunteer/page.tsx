@@ -58,9 +58,11 @@ export default function VolunteerPage() {
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // React clears currentTarget once the handler first waits, so keep the form.
+    const formEl = e.currentTarget;
     setError(null);
     setPending(true);
-    const form = new FormData(e.currentTarget);
+    const form = new FormData(formEl);
     try {
       const message = String(form.get("message") ?? "");
       const machineId = String(form.get("machineId") ?? "");
@@ -84,7 +86,7 @@ export default function VolunteerPage() {
       }
       setSubmitted(true);
       bump();
-      e.currentTarget.reset();
+      formEl.reset();
       setRoleId("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");

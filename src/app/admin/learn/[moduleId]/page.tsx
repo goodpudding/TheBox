@@ -251,11 +251,13 @@ export default function AdminLearnModulePage() {
 
   async function onAddLesson(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // React clears currentTarget once the handler first waits, so keep the form.
+    const formEl = e.currentTarget;
     if (!mod) return;
     setPending(true);
     setError(null);
     setMessage(null);
-    const form = new FormData(e.currentTarget);
+    const form = new FormData(formEl);
     try {
       await provider.adminUpsertLesson({
         moduleId: mod.id,
@@ -268,7 +270,7 @@ export default function AdminLearnModulePage() {
       });
       bump();
       setMessage("Lesson added.");
-      e.currentTarget.reset();
+      formEl.reset();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not add lesson");
     } finally {
@@ -278,11 +280,13 @@ export default function AdminLearnModulePage() {
 
   async function onAddQuestion(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // React clears currentTarget once the handler first waits, so keep the form.
+    const formEl = e.currentTarget;
     if (!mod) return;
     setPending(true);
     setError(null);
     setMessage(null);
-    const form = new FormData(e.currentTarget);
+    const form = new FormData(formEl);
     const choices = [0, 1, 2, 3].map((i) =>
       String(form.get(`choice${i}`) ?? "").trim(),
     );
@@ -295,7 +299,7 @@ export default function AdminLearnModulePage() {
       });
       bump();
       setMessage("Question added.");
-      e.currentTarget.reset();
+      formEl.reset();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not add question");
     } finally {

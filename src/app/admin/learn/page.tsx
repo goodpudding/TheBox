@@ -82,10 +82,12 @@ export default function AdminLearnPage() {
 
   async function onCreate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // React clears currentTarget once the handler first waits, so keep the form.
+    const formEl = e.currentTarget;
     setPending(true);
     setError(null);
     setMessage(null);
-    const form = new FormData(e.currentTarget);
+    const form = new FormData(formEl);
     try {
       await provider.adminUpsertModule({
         title: String(form.get("title") ?? "").trim(),
@@ -96,7 +98,7 @@ export default function AdminLearnPage() {
       });
       bump();
       setMessage("Module created.");
-      e.currentTarget.reset();
+      formEl.reset();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create module");
     } finally {

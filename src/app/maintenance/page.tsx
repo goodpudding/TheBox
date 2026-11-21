@@ -75,10 +75,12 @@ function MaintenanceBody() {
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // React clears currentTarget once the handler first waits, so keep the form.
+    const formEl = e.currentTarget;
     if (!currentUser) return;
     setPending(true);
     setError(null);
-    const form = new FormData(e.currentTarget);
+    const form = new FormData(formEl);
     try {
       await provider.adminUpsertMaintenanceBlock({
         machineId: String(form.get("machineId") ?? ""),
@@ -88,7 +90,7 @@ function MaintenanceBody() {
         createdById: currentUser.id,
       });
       bump();
-      e.currentTarget.reset();
+      formEl.reset();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save");
     } finally {
