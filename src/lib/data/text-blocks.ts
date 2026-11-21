@@ -74,7 +74,7 @@ export const TEXT_BLOCKS: readonly TextBlock[] = [
   {
     slug: "wishlist-hero",
     title: "Wishlist page: line under the heading",
-    html: "<p>Everything The Box still needs, with a link to the exact product we picked. Give a whole station, or grab a $15 spool of filament. Every piece ends up in members’ hands at the bench.</p>",
+    html: "<p>Everything the makerspace still needs, with a link to the exact product we picked. Give a whole station, or grab a $15 spool of filament. Every piece ends up in members’ hands at the bench.</p>",
   },
   {
     slug: "wishlist-step-1",
@@ -106,7 +106,7 @@ export const TEXT_BLOCKS: readonly TextBlock[] = [
   {
     slug: "staff-hero",
     title: "Staff page: line under the heading",
-    html: "<p>Who keeps The Box open, and who teaches on the calendar. A program of Discover Burien.</p>",
+    html: "<p>Who keeps the makerspace open, and who teaches on the calendar. A program of Discover Burien.</p>",
   },
   {
     slug: "staff-teaching",
@@ -148,7 +148,7 @@ export const TEXT_BLOCKS: readonly TextBlock[] = [
   {
     slug: "equipment-hero",
     title: "Equipment page: line under the heading",
-    html: "<p>Everything available in The Box and where it lives. Scan the QR on a machine for certifications, a getting-started video, and reservations.</p>",
+    html: "<p>Everything available in the makerspace and where it lives. Scan the QR on a machine for certifications, a getting-started video, and reservations.</p>",
   },
 
   // Made here

@@ -1,6 +1,6 @@
 import type { RateCard } from "@/lib/rate-card";
 
-/** Shared domain types for The Box Portal. Fixtures and Prisma mirror these. */
+/** Shared domain types for the Discover Burien Makerspace portal. Fixtures and Prisma mirror these. */
 
 export type ISODateTime = string;
 export type ISODate = string;
@@ -640,7 +640,7 @@ export interface Person extends Timestamps {
   published: boolean;
 }
 
-/** One picture in the "Made at The Box" gallery. */
+/** One picture in the "Made at the makerspace" gallery. */
 export interface Project extends Timestamps {
   id: string;
   title: string;
@@ -803,7 +803,8 @@ export type DisplayPanelId =
   | "certs"
   | "bounties"
   | "promos"
-  | "membership";
+  | "membership"
+  | "findus";
 
 export type NameDisplayMode = "none" | "first" | "firstLast";
 
@@ -825,13 +826,33 @@ export interface PromoSlide extends Timestamps {
   sortOrder: number;
 }
 
+/** How much the lobby display animates. "calm" is for a slow kiosk. */
+export type DisplayMotion = "full" | "calm";
+
 export interface DisplayConfig {
   panelOrder: DisplayPanelId[];
   cadenceSeconds: number;
   pinnedPanel: DisplayPanelId | null;
   nameDisplayMode: NameDisplayMode;
   membershipEveryNRotations: number;
+  motion: DisplayMotion;
   updatedAt: ISODateTime;
+}
+
+/**
+ * A photo the lobby display rotates through. The image bytes are stored apart
+ * from this row and served by id.
+ */
+export interface DisplayPhoto extends Timestamps {
+  id: string;
+  caption: string | null;
+  active: boolean;
+  sortOrder: number;
+  mimeType: string;
+  width: number | null;
+  height: number | null;
+  /** Dev fixtures only: a file under /public. Uploaded photos are served by id. */
+  staticPath?: string | null;
 }
 
 /** Shop inventory — tools, machines, materials. Not Zeffy billing. */
@@ -1016,4 +1037,5 @@ export interface MockFixtureBundle {
   settings: OrgSettings;
   promoSlides: PromoSlide[];
   displayConfig: DisplayConfig;
+  displayPhotos: DisplayPhoto[];
 }

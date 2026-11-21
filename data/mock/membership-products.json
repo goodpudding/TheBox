@@ -97,7 +97,7 @@
   {
     "id": "mp-friend",
     "tier": "friend",
-    "name": "Friend of The Box",
+    "name": "Friend of the Makerspace",
     "summary": "No shop access. Newsletter, member-night invites, 10% off classes, and a sticker — for neighbors and supporters who want to belong without making.",
     "priceCents": 1000,
     "billingInterval": "monthly",

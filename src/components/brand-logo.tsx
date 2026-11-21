@@ -32,11 +32,12 @@ export function BrandMark({
       />
       <span
         className={cn(
-          "min-w-0 block font-display font-semibold tracking-tight text-brown truncate",
+          // The name is short and is never cut off: the menu gives way first.
+          "block shrink-0 whitespace-nowrap font-display font-semibold tracking-tight text-brown",
           compact ? "text-lg" : "text-lg sm:text-xl",
         )}
       >
-        The Box
+        Makerspace
       </span>
     </Link>
   );

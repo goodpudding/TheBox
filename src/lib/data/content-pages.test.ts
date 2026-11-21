@@ -92,10 +92,10 @@ describe("adminSaveContentPage", () => {
       id: waiver.id,
       title: waiver.title,
       html: "<p>New waiver text reviewed by counsel.</p>",
-      version: "2026.2",
+      version: "2026.3",
     });
-    expect(saved.version).toBe("2026.2");
-    expect((await provider.getSettings()).currentWaiverVersion).toBe("2026.2");
+    expect(saved.version).toBe("2026.3");
+    expect((await provider.getSettings()).currentWaiverVersion).toBe("2026.3");
     expect((await provider.getWaiver()).html).toContain("reviewed by counsel");
     expect((await provider.getOnboardingState(signer.id)).waiverSignedCurrent).toBe(false);
   });

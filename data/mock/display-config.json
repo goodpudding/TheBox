@@ -4,6 +4,7 @@
     "bounties",
     "machines",
     "upcoming",
+    "findus",
     "certs",
     "promos",
     "membership"
@@ -12,5 +13,6 @@
   "pinnedPanel": null,
   "nameDisplayMode": "first",
   "membershipEveryNRotations": 3,
+  "motion": "full",
   "updatedAt": "2026-09-04T12:00:00-07:00"
 }

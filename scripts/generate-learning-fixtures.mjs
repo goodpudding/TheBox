@@ -64,7 +64,7 @@ for (const [mi, mod] of videosSrc.modules.entries()) {
     id: mod.id,
     slug: mod.slug,
     title: mod.title,
-    summary: mod.summary ?? `${mod.title} knowledge path for The Box.`,
+    summary: mod.summary ?? `${mod.title} knowledge path for the makerspace.`,
     certificationId: mod.certificationId,
     knowledgeOnly: Boolean(mod.knowledgeOnly),
     published: Boolean(mod.published),

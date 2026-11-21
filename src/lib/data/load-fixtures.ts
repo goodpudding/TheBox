@@ -45,6 +45,7 @@ import itemEvents from "../../../data/mock/item-events.json";
 import settings from "../../../data/mock/settings.json";
 import promoSlides from "../../../data/mock/promos.json";
 import displayConfig from "../../../data/mock/display-config.json";
+import displayPhotos from "../../../data/mock/display-photos.json";
 
 function isoOffset(msFromNow: number): string {
   return new Date(Date.now() + msFromNow).toISOString();
@@ -132,7 +133,7 @@ function withDisplayLiveOverlays(
     priceCents: 0,
     zeffyUrl: null,
     prerequisiteCertificationIds: [] as string[],
-    location: "The Box — Main Floor",
+    location: "Discover Burien Makerspace — Main Floor",
     cancellationCutoffHours: 24,
     published: true,
     createdAt: isoOffset(-24 * hour),
@@ -172,7 +173,7 @@ function withDisplayLiveOverlays(
     priceCents: 3500,
     zeffyUrl: "https://www.zeffy.com/en-US/donation-form/example-the-box",
     prerequisiteCertificationIds: ["cert-shop-orientation"],
-    location: "The Box — 3D Corner",
+    location: "Discover Burien Makerspace — 3D Corner",
     cancellationCutoffHours: 24,
     published: true,
     createdAt: isoOffset(-24 * hour),
@@ -320,6 +321,7 @@ export function loadFixtures(): MockFixtureBundle {
     },
     promoSlides: promoSlides as MockFixtureBundle["promoSlides"],
     displayConfig: displayConfig as MockFixtureBundle["displayConfig"],
+    displayPhotos: displayPhotos as MockFixtureBundle["displayPhotos"],
   };
   return withDisplayLiveOverlays(base);
 }

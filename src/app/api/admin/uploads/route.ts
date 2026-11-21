@@ -11,9 +11,11 @@ import {
 export const runtime = "nodejs";
 
 /**
- * A picture for a lobby promo slide. Staff only on the live site; local dev
- * and demo builds run on fixtures with no session. The picture is kept with
- * the other uploaded photos and served from the same route.
+ * A picture staff add from an admin screen: a gallery project today. Staff
+ * only on the live site; local dev and demo builds run on fixtures with no
+ * session. It is kept with the inventory photos and served from the same
+ * route. Lobby display photos and promo pictures have their own upload
+ * (`/api/display/photos`).
  */
 export async function POST(request: NextRequest) {
   if (devToolsLocked()) {
@@ -47,7 +49,7 @@ export async function POST(request: NextRequest) {
       bytes,
       mimeType: check.mimeType,
       filename: "promo.jpg",
-      folder: "promos",
+      folder: "gallery",
     });
     return NextResponse.json({
       url: `/api/inventory/photos/${encodeURIComponent(storageKey)}`,
@@ -56,7 +58,7 @@ export async function POST(request: NextRequest) {
     if (err instanceof PhotoRejectedError) {
       return NextResponse.json({ error: err.message }, { status: err.status });
     }
-    console.error(JSON.stringify({ route: "display/upload", error: String(err) }));
+    console.error(JSON.stringify({ route: "admin/uploads", error: String(err) }));
     return NextResponse.json(
       { error: "Could not save the picture. Please try again." },
       { status: 500 },

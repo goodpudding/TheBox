@@ -17,6 +17,7 @@ import type {
   SiteInfo,
   Project,
   DisplayConfig,
+  DisplayPhoto,
   ISODate,
   ISODateTime,
   LearningModule,
@@ -643,8 +644,11 @@ export interface ClassInterestBoardView
 
 export interface DisplayHoursToday {
   label: string;
+  /** Both 0 on a day the shop does not open. */
   openHour: number;
   closeHour: number;
+  /** True on a day the shop does not open at all. */
+  closed: boolean;
 }
 
 export interface DisplayTodaySession {
@@ -732,8 +736,34 @@ export interface DisplayFeed {
   onlineCerts: DisplayOnlineCert[];
   bounties: DisplayBounty[];
   promos: PromoSlide[];
+  /** Photos for the picture side of each slide, in rotation order. */
+  photos: DisplayFeedPhoto[];
   membership: DisplayMembershipTier;
   config: DisplayConfig;
+}
+
+/** The display keeps at most this many photos. */
+export const DISPLAY_PHOTO_LIMIT = 60;
+export const DISPLAY_CAPTION_MAX = 120;
+
+export interface DisplayFeedPhoto {
+  id: string;
+  url: string;
+  caption: string | null;
+}
+
+/**
+ * A new photo needs the id the upload route returned and its mime type.
+ * An edit needs the id and whichever fields change.
+ */
+export interface DisplayPhotoInput {
+  id: string;
+  caption?: string | null;
+  active?: boolean;
+  sortOrder?: number;
+  mimeType?: string;
+  width?: number | null;
+  height?: number | null;
 }
 
 export interface PromoSlideInput extends Partial<PromoSlide> {
@@ -1210,7 +1240,7 @@ export interface DataProvider {
   adminSavePerson(input: PersonInput): Promise<Person>;
   adminDeletePerson(id: string): Promise<void>;
 
-  /** The "Made at The Box" gallery. */
+  /** The "Made at the makerspace" gallery. */
   listProjects(): Promise<Project[]>;
   adminListProjects(): Promise<Project[]>;
   adminSaveProject(input: ProjectInput): Promise<Project>;
@@ -1237,6 +1267,9 @@ export interface DataProvider {
   deletePromo(id: string): Promise<void>;
   getDisplayConfig(): Promise<DisplayConfig>;
   saveDisplayConfig(data: Partial<DisplayConfig>): Promise<DisplayConfig>;
+  listDisplayPhotos(): Promise<DisplayPhoto[]>;
+  saveDisplayPhoto(data: DisplayPhotoInput): Promise<DisplayPhoto>;
+  deleteDisplayPhoto(id: string): Promise<void>;
 
   authorizeAccess(input: {
     readerKey: string;

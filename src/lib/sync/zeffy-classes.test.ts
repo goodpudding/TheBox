@@ -40,7 +40,7 @@ function row(partial: Partial<ClassSyncRow> & Pick<ClassSyncRow, "id">): ClassSy
     zeffyCampaignId: null,
     zeffyOccurrenceId: null,
     source: "zeffy",
-    location: "The Box",
+    location: "Discover Burien Makerspace",
     published: true,
     cancelledAt: null,
     staffEditedFields: null,

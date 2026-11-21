@@ -1,6 +1,6 @@
 # Printing on the Saturn
 
-The Box runs an **Elegoo Saturn 2 (8K)** with Chitubox. Watch the assigned videos for the full workflow; this page is the shop framing.
+The makerspace runs an **Elegoo Saturn 2 (8K)** with Chitubox. Watch the assigned videos for the full workflow; this page is the shop framing.
 
 ## Shop rules that do not appear in YouTube
 

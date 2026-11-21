@@ -1,7 +1,7 @@
 /**
  * Prints the INSERT statements that carry the lists the live site used to
  * read from fixture files into the SiteRecord table. Used to write
- * migrations/0012_site_records.sql and 0013_gallery_projects.sql. Kept so
+ * migrations/0019_site_records.sql and 0020_gallery_projects.sql. Kept so
  * the rows can be explained.
  *
  *   node scripts/site-records-seed-sql.mjs [collection ...]
@@ -19,7 +19,6 @@ const all = {
   people: read("people.json"),
   wishlistZones: read("wishlist-zones.json"),
   wishlistItems: read("wishlist-items.json"),
-  promoSlides: read("promos.json"),
   projects: read("projects.json"),
 };
 // Name the collections to print, or none for all of them.

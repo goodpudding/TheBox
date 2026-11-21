@@ -134,7 +134,7 @@ export default function WishlistPage() {
     }
   }
 
-  const contact = settings?.contactEmail ?? "thebox@discoverburien.org";
+  const contact = settings?.contactEmail ?? "discovermakers@gmail.com";
   const donateUrl = settings?.donationUrl ?? settings?.paymentUrl ?? null;
 
   return (
@@ -148,7 +148,7 @@ export default function WishlistPage() {
         <div className="relative aspect-[16/10] overflow-hidden bg-brown/10 lg:mb-1">
           <Image
             src="/images/the-box-doors.jpg"
-            alt="The Box entrance — orange Maker Space doors"
+            alt="The makerspace entrance — orange Maker Space doors"
             fill
             sizes="(max-width: 1024px) 100vw, 40vw"
             className="object-cover object-center"

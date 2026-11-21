@@ -69,7 +69,7 @@ export default function AdminGalleryPage() {
       const compressed = await compressInventoryPhoto(file);
       const body = new FormData();
       body.set("file", compressed.full, "project.jpg");
-      const res = await fetch("/api/display/upload", { method: "POST", body });
+      const res = await fetch("/api/admin/uploads", { method: "POST", body });
       const data = await readJson<{ url?: string; error?: string }>(res);
       if (!res.ok || !data?.url) throw new Error(data?.error ?? PHOTO_UPLOAD_FAILED);
       const url = data.url;
@@ -122,7 +122,7 @@ export default function AdminGalleryPage() {
   return (
     <AdminShell
       title="Gallery"
-      description="The “Made at The Box” pictures on the public Made here page. Only post member work with their permission."
+      description="The “Made at the makerspace” pictures on the public Made here page. Only post member work with their permission."
     >
       <AdminNotice message={message} error={error} />
 

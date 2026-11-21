@@ -1,6 +1,6 @@
--- Photo bytes kept in the database: a Worker has no disk to write uploads to.
--- CreateTable
-CREATE TABLE "StoredFile" (
+-- Uploaded pictures (inventory photos, gallery pictures) are kept in the
+-- database: a Worker has no disk to write uploads to.
+CREATE TABLE IF NOT EXISTS "StoredFile" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "mimeType" TEXT NOT NULL,
     "bytes" BLOB NOT NULL,
@@ -8,6 +8,4 @@ CREATE TABLE "StoredFile" (
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- CreateIndex
-CREATE INDEX "StoredFile_folder_createdAt_idx" ON "StoredFile"("folder", "createdAt");
-
+CREATE INDEX IF NOT EXISTS "StoredFile_folder_createdAt_idx" ON "StoredFile"("folder", "createdAt");

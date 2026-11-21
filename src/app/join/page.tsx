@@ -81,7 +81,7 @@ export default function JoinPage() {
       <section className="relative min-h-[min(78vh,720px)] overflow-hidden bg-brown">
         <Image
           src="/images/the-box-doors.jpg"
-          alt="Orange Maker Space doors at The Box entrance"
+          alt="Orange Maker Space doors at the makerspace entrance"
           fill
           priority
           sizes="100vw"
@@ -95,7 +95,7 @@ export default function JoinPage() {
           <div className="anim-rise max-w-xl">
             <MakerspaceBanner priority className="mb-6 drop-shadow-sm" />
             <h1 className="font-display text-4xl font-semibold tracking-tight text-brown sm:text-5xl">
-              Join The Box
+              Join the makerspace
             </h1>
             <TextBlock
               slug="join-hero"
@@ -220,7 +220,7 @@ export default function JoinPage() {
           <div className="relative aspect-[16/10] overflow-hidden bg-brown/10">
             <Image
               src="/images/the-box-exterior.jpg"
-              alt="Street view looking toward The Box from the parking area"
+              alt="Street view looking toward the makerspace from the parking area"
               fill
               sizes="(max-width: 1024px) 100vw, 50vw"
               className="object-cover object-center"

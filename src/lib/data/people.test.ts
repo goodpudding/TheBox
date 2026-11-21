@@ -35,7 +35,7 @@ describe("listPeople", () => {
     const provider = createMockDataProvider();
     const history = await provider.getContentBySlug("history");
     const staff = await provider.getContentBySlug("staff");
-    expect(history?.title).toBe("How The Box got here");
+    expect(history?.title).toBe("How the makerspace got here");
     expect(history?.html).toMatch(/October 2021/);
     expect(staff?.title).toBe("Staff & instructors");
     expect(staff?.html).toMatch(/Discover Burien/);

@@ -85,13 +85,17 @@ const ARRAY_KEYS = [
   "inventoryItems",
   "itemPhotos",
   "itemEvents",
+  "promoSlides",
+  "displayPhotos",
 ] as const;
 
 export type ArrayKey = (typeof ARRAY_KEYS)[number];
 
 /**
  * Lists kept as SiteRecord rows, one JSON row each. They have no table of
- * their own, and nothing else in the database points at their rows.
+ * their own, and nothing else in the database points at their rows. Lobby
+ * promos and display settings are not here: they have real tables
+ * (PromoSlide, DisplayConfig).
  */
 export const RECORD_KEYS = [
   "people",
@@ -99,14 +103,13 @@ export const RECORD_KEYS = [
   "wishlistItems",
   "wishlistPurchaseReports",
   "toolChampionTerms",
-  "promoSlides",
   "projects",
 ] as const;
 
 export type RecordKey = (typeof RECORD_KEYS)[number];
 
 /** Single objects kept the same way, under the row id "default". */
-export const RECORD_SINGLETONS = ["displayConfig", "siteInfo", "rateCard"] as const;
+export const RECORD_SINGLETONS = ["siteInfo", "rateCard"] as const;
 
 export type RecordSingleton = (typeof RECORD_SINGLETONS)[number];
 
@@ -162,6 +165,7 @@ export function sliceChangedBundle(
   removed: Partial<Record<ArrayKey, string[]>>;
   settingsChanged: boolean;
   siteRecords: { writes: SiteRecordWrite[]; removed: string[] };
+  displayConfigChanged: boolean;
   empty: boolean;
 } {
   const sliced = { ...next };
@@ -184,12 +188,16 @@ export function sliceChangedBundle(
   const siteRecords = changedSiteRecords(previous, next);
   const recordsChanged =
     siteRecords.writes.length > 0 || siteRecords.removed.length > 0;
+  const displayConfigChanged =
+    JSON.stringify(previous.displayConfig) !==
+    JSON.stringify(next.displayConfig);
   return {
     bundle: sliced,
     removed,
     settingsChanged,
     siteRecords,
-    empty: !any && !settingsChanged && !recordsChanged,
+    displayConfigChanged,
+    empty: !any && !settingsChanged && !recordsChanged && !displayConfigChanged,
   };
 }
 

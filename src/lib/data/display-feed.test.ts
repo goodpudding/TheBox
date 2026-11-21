@@ -44,3 +44,45 @@ describe("lobby display promos", () => {
     );
   });
 });
+
+/**
+ * Whether the display says the shop is open. The makerspace is closed on
+ * Mondays; the other days' hours are [open, close) in Burien's time.
+ */
+describe("lobby display opening hours", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function feedAt(isoDate: string) {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(isoDate));
+    return createMockDataProvider(null).getDisplayFeed();
+  }
+
+  it("is closed all day on a Monday", async () => {
+    // Monday 23 November 2026, 5 PM in Burien.
+    const feed = await feedAt("2026-11-23T17:00:00-08:00");
+    expect(feed.isOpen).toBe(false);
+    expect(feed.hours.closed).toBe(true);
+    expect(feed.hours.label).toBe("Monday · Closed");
+  });
+
+  it("is open on a weekday from 1 PM to 8 PM", async () => {
+    const evening = await feedAt("2026-11-24T17:00:00-08:00");
+    expect(evening.isOpen).toBe(true);
+    expect(evening.hours.closed).toBe(false);
+    expect(evening.hours.label).toBe("Tuesday 1:00 PM – 8:00 PM");
+    expect((await feedAt("2026-11-24T12:59:00-08:00")).isOpen).toBe(false);
+    expect((await feedAt("2026-11-24T13:00:00-08:00")).isOpen).toBe(true);
+    expect((await feedAt("2026-11-24T20:00:00-08:00")).isOpen).toBe(false);
+  });
+
+  it("closes at 5 on Saturday and at 4 on Sunday", async () => {
+    expect((await feedAt("2026-11-28T16:59:00-08:00")).isOpen).toBe(true);
+    expect((await feedAt("2026-11-28T17:00:00-08:00")).isOpen).toBe(false);
+    expect((await feedAt("2026-11-29T15:59:00-08:00")).isOpen).toBe(true);
+    expect((await feedAt("2026-11-29T16:00:00-08:00")).isOpen).toBe(false);
+    expect((await feedAt("2026-11-29T10:59:00-08:00")).isOpen).toBe(false);
+  });
+});

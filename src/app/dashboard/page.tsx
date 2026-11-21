@@ -166,7 +166,7 @@ function DashboardBody() {
       if (!currentUser.shopAccess) {
         notes.push({
           tone: "info",
-          text: "Friend of The Box — no shop machine access on this tier.",
+          text: "Friend of the Makerspace — no shop machine access on this tier.",
           href: "/join",
         });
       }

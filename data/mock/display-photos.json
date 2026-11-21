@@ -1,0 +1,38 @@
+[
+  {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "caption": "Sample photo: laser inlay",
+    "active": true,
+    "sortOrder": 1,
+    "mimeType": "image/png",
+    "width": 1536,
+    "height": 1024,
+    "staticPath": "/images/projects/proj-open-studio.png",
+    "createdAt": "2026-09-04T12:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000002",
+    "caption": "Sample photo: laser-cut map",
+    "active": true,
+    "sortOrder": 2,
+    "mimeType": "image/png",
+    "width": 1536,
+    "height": 1024,
+    "staticPath": "/images/projects/proj-laser-sign.png",
+    "createdAt": "2026-09-04T12:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000003",
+    "caption": null,
+    "active": true,
+    "sortOrder": 3,
+    "mimeType": "image/png",
+    "width": 1536,
+    "height": 1024,
+    "staticPath": "/images/projects/proj-textile-banner.png",
+    "createdAt": "2026-09-04T12:00:00-07:00",
+    "updatedAt": "2026-09-04T12:00:00-07:00"
+  }
+]

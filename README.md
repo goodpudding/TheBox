@@ -25,9 +25,9 @@ The rule: how the site looks is code; what it says is edited in the admin. Every
 | Classes: details, description, cancel or restore; add a member or cancel a booking | Admin → Classes (lists drafts, cancelled and past classes too). Cancelling moves no money: Zeffy refunds are made in Zeffy |
 | Learning modules: details, pass mark, attempts, equipment confirmed; lessons and their text; videos; quiz questions with one or several right answers | Admin → Learn → a module. Removing a lesson takes its videos and the watch and progress records with it; certifications members hold are untouched |
 | Staff and instructor directory | Admin → People |
-| "Made at The Box" gallery | Admin → Gallery |
+| "Made at the makerspace" gallery | Admin → Gallery |
 | Wishlist items, purchase reports | Admin → Wishlist |
-| Lobby display promos and settings | Admin → Display |
+| Lobby display photos, promos and settings | Admin → Display |
 | Shop name, address, footer text, social links, checkout links, limits | Admin → Settings |
 | Machine rates: laser, CNC and plasma per hour, minimums, plasma setup fee and its last-weekend waiver, filament cost and markup, sublimation per print, run-time rounding | Admin → Settings → Machine rates |
 | A member's membership, shop access, staff note, and (admins only) role; registering a badge for them and switching a lost one off | Admin → Members → a member |
@@ -40,7 +40,7 @@ The rule: how the site looks is code; what it says is edited in the admin. Every
 | Which page is the hours and which policy new members agree to; the every-safety-question quiz rule | Admin → Settings |
 | Shop inventory with photos | Inventory → Add item |
 
-Lists with no table of their own (directory, gallery, wishlist, promos, display settings, shop details, tool champion terms) are rows in `SiteRecord`, one JSON row each (`src/lib/data/persist-delta.ts`). Uploaded pictures are rows in `StoredFile`, because a Worker has no disk; set `INVENTORY_PHOTO_STORAGE=drive` to send new photos to a Google shared drive instead (`src/lib/inventory/storage.ts`).
+Lists with no table of their own (directory, gallery, wishlist, shop details, machine rates, tool champion terms) are rows in `SiteRecord`, one JSON row each (`src/lib/data/persist-delta.ts`). Lobby promos, display settings and lobby photos have tables of their own (see Lobby display). Inventory and gallery pictures are rows in `StoredFile`, because a Worker has no disk; set `INVENTORY_PHOTO_STORAGE=drive` to send new photos to a Google shared drive instead (`src/lib/inventory/storage.ts`).
 
 Still in code: page headings, button labels and the messages built from data (dashboard notices, quiz results, booking confirmations), which machines are included with membership and which bill by time, gram or print (`src/lib/credits.ts`), and the class-category and machine-area lists. To make another paragraph editable, add it to `TEXT_BLOCKS` and draw it with `<TextBlock slug="…" />`.
 
@@ -337,7 +337,14 @@ chromium-browser --kiosk --noerrdialogs --disable-infobars \
 
 Disable screen sleep on the device (e.g. `xset s off`, `xset -dpms`, or Raspberry Pi OS screen blanking settings). Use a systemd user service or desktop autostart that opens the URL after network is up.
 
-Staff edit promos, panel order, cadence, and name display under **Admin → Display**. The rotation includes a **Bounty board** panel (open and recently claimed requests, no claim form). A promo picture uploaded from Admin → Display is shrunk in the browser and kept in the database with the other uploaded photos.
+Every slide has a photo on the left and its content on the right. Staff run the whole thing from **Admin → Display**, and changes reach the TV within a minute, with no deploy:
+
+- **Photos.** Add photos from a phone or laptop. They are shrunk in the browser (1600 px long edge) and the display rotates through them, one per slide. Each can have a caption, be hidden, reordered or deleted. Up to 60. Until there is one, the photo side shows a brand-coloured panel. The photo area is taller than wide, so wide photos are cropped at the sides.
+- **Promo slides.** Title, text, optional picture and QR link, with start and end dates. A promo's own picture replaces the rotating photo on that slide.
+- **Panels.** Order, pinned panel, seconds per slide, name display, how often Membership appears. Lists longer than a screen (machines, classes, membership tiers) show a screen at a time, moving on each rotation.
+- **Motion.** *Full* zooms photos slowly and shows a progress bar. *Calm* keeps only the fades: use it if the kiosk stutters (a Raspberry Pi 3 may).
+
+Promos, settings and photo rows are stored in D1 (`PromoSlide`, `DisplayConfig`, `DisplayPhoto`). Pictures are stored as base64 text in `DisplayPhotoBlob`, because the Worker has no disk or object storage and D1 holds one value of up to 2 MB; uploads are capped at 1.4 MB (`src/lib/display/limits.ts`). `src/lib/display/photo-store.ts` is the only code that touches the bytes, so moving them to R2 later changes one file. In local dev the pictures go to `.data/display-photos/` and the sample promos and photos in `data/mock/` are shown; the live site never shows those.
 
 ## Env
 

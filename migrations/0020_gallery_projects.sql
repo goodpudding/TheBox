@@ -1,4 +1,4 @@
--- The "Made at The Box" gallery was a list in the code. It is SiteRecord rows now,
+-- The "Made at the makerspace" gallery was a list in the code. It is SiteRecord rows now,
 -- edited under Admin → Gallery. These are the six pictures the site shows today.
 -- projects: 6 rows
 INSERT OR IGNORE INTO "SiteRecord" ("id", "collection", "data", "createdAt", "updatedAt") VALUES ('projects:proj-laser-sign', 'projects', '{"id":"proj-laser-sign","title":"Neighborhood wayfinding","maker":"Maya","area":"Laser","caption":"CO₂ laser cut birch plywood for a block party map.","imageSrc":"/images/projects/proj-laser-sign.png","imageAlt":"Laser-cut birch plywood neighborhood map on a workbench","sortOrder":10,"published":true,"createdAt":"2026-09-04T19:00:00.000Z","updatedAt":"2026-09-04T19:00:00.000Z"}', '2026-11-21T00:00:00.000Z', '2026-11-21T00:00:00.000Z');

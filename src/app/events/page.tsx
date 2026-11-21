@@ -30,7 +30,7 @@ export default function EventsPage() {
     <PageShell className="max-w-6xl">
       <PageHero
         eyebrow="Calendar"
-        title="Upcoming at The Box"
+        title="Upcoming at the makerspace"
         description={<TextBlock slug="events-hero" as="span" />}
       />
 

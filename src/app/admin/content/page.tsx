@@ -327,6 +327,14 @@ export default function AdminContentPage() {
             </label>
           )}
 
+          {draft.category === "hours" ? (
+            <p className="rounded-2xl border border-border bg-surface/60 px-4 py-3 text-sm text-brown">
+              This changes the words on the Hours page only. The lobby display’s
+              “Open now” and the hours machines can be reserved follow the
+              opening hours kept in the code, so tell a developer when the
+              hours themselves change.
+            </p>
+          ) : null}
           {waiverVersionChanged ? (
             <p className="rounded-2xl border border-accent/40 bg-accent/15 px-4 py-3 text-brown">
               Saving the waiver as version {draft.version.trim() || "1"} asks every member

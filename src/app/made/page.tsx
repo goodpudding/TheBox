@@ -10,7 +10,7 @@ export default function MadeHerePage() {
     <PageShell>
       <PageHero
         eyebrow="Community builds"
-        title="Made at The Box"
+        title="Made at the makerspace"
         description={<TextBlock slug="made-hero" as="span" />}
       />
 

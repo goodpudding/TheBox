@@ -152,7 +152,7 @@ export function SiteHeader() {
         <BrandMark
           href={currentUser ? "/dashboard" : "/join"}
           compact
-          className="min-w-0"
+          className="shrink-0"
         />
 
         <nav

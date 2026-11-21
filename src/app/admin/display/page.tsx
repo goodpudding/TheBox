@@ -1,30 +1,35 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import { DisplayPhotos } from "@/components/admin/display-photos";
 import { AdminShell } from "@/components/admin-shell";
 import { useData } from "@/components/providers";
-import { compressInventoryPhoto } from "@/lib/inventory/compress-client";
-import { PHOTO_UPLOAD_FAILED } from "@/lib/inventory/config";
-import { readJson } from "@/lib/read-json";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  removeDisplayPicture,
+  uploadDisplayPicture,
+} from "@/lib/display/compress-client";
+import { fromLocalInput, toLocalInput } from "@/lib/display/datetime-local";
 import type {
   DisplayConfig,
+  DisplayMotion,
   DisplayPanelId,
   NameDisplayMode,
   PromoSlide,
 } from "@/lib/data";
 
 const PANEL_LABELS: Record<DisplayPanelId, string> = {
-  today: "Today at The Box",
+  today: "Happening today",
   machines: "Machine status",
   upcoming: "Coming up",
   certs: "Get certified",
   bounties: "Bounty board",
   promos: "Promos",
   membership: "Membership",
+  findus: "Find us (map)",
 };
 
 const ALL_PANELS: DisplayPanelId[] = [
@@ -35,6 +40,7 @@ const ALL_PANELS: DisplayPanelId[] = [
   "certs",
   "promos",
   "membership",
+  "findus",
 ];
 
 const DEV_KIOSK_URL = "/display?token=dev-display-token-change-me";
@@ -81,8 +87,8 @@ function emptyPromo(): {
     body: "",
     imageUrl: "",
     qrUrl: "",
-    startsAt: start.toISOString().slice(0, 16),
-    endsAt: end.toISOString().slice(0, 16),
+    startsAt: toLocalInput(start),
+    endsAt: toLocalInput(end),
     active: true,
     sortOrder: 1,
   };
@@ -147,17 +153,21 @@ export default function AdminDisplayPage() {
     setPending(true);
     setError(null);
     try {
+      const before = promos.find((p) => p.id === form.id)?.imageUrl ?? null;
+      const imageUrl = form.imageUrl.trim() || null;
       await provider.savePromo({
         id: form.id,
         title: form.title.trim(),
         body: form.body.trim(),
-        imageUrl: form.imageUrl.trim() || null,
+        imageUrl,
         qrUrl: form.qrUrl.trim() || null,
-        startsAt: new Date(form.startsAt).toISOString(),
-        endsAt: new Date(form.endsAt).toISOString(),
+        startsAt: fromLocalInput(form.startsAt),
+        endsAt: fromLocalInput(form.endsAt),
         active: form.active,
         sortOrder: form.sortOrder,
       });
+      // The picture this promo had before is no longer shown anywhere.
+      if (before !== imageUrl) await removeDisplayPicture(before);
       setForm(emptyPromo());
       bump();
       setMessage(form.id ? "Promo updated." : "Promo created.");
@@ -169,18 +179,17 @@ export default function AdminDisplayPage() {
   }
 
   async function onUpload(file: File) {
-    // Shrunk in the browser first, like inventory photos: a phone picture is
-    // several megabytes and the lobby screen needs a fraction of that.
-    const compressed = await compressInventoryPhoto(file);
-    const body = new FormData();
-    body.set("file", compressed.full, "promo.jpg");
-    const res = await fetch("/api/display/upload", { method: "POST", body });
-    const data = await readJson<{ url?: string; error?: string }>(res);
-    if (!res.ok || !data?.url) {
-      throw new Error(data?.error ?? PHOTO_UPLOAD_FAILED);
+    try {
+      const picture = await uploadDisplayPicture(file);
+      // A picture chosen a moment ago and never saved with a promo is dropped.
+      const replaced = form.imageUrl.trim();
+      const saved = promos.find((p) => p.id === form.id)?.imageUrl ?? null;
+      if (replaced && replaced !== saved) await removeDisplayPicture(replaced);
+      setForm((f) => ({ ...f, imageUrl: picture.url }));
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : "could not be added";
+      throw new Error(/^[A-Z]/.test(reason) ? reason : `${file.name} ${reason}.`);
     }
-    const url = data.url;
-    setForm((f) => ({ ...f, imageUrl: url }));
   }
 
   function movePanel(id: DisplayPanelId, dir: -1 | 1) {
@@ -207,7 +216,7 @@ export default function AdminDisplayPage() {
   return (
     <AdminShell
       title="Lobby display"
-      description="Promos, panel rotation, and the kiosk URL for the front-of-shop TV."
+      description="Photos, promo slides, panel rotation, and the kiosk URL for the front-of-shop TV."
     >
       {error ? (
         <p className="mb-4 text-sm text-brown" role="alert">
@@ -313,6 +322,24 @@ export default function AdminDisplayPage() {
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="motion">Motion</Label>
+            <select
+              id="motion"
+              className="flex h-11 w-full rounded-full border border-border bg-surface px-4 font-display text-sm"
+              value={config.motion}
+              onChange={(e) =>
+                void saveConfig({ motion: e.target.value as DisplayMotion })
+              }
+            >
+              <option value="full">Full: photos zoom slowly, progress bar</option>
+              <option value="calm">Calm: fades only, for a slow kiosk</option>
+            </select>
+            <p className="text-sm text-secondary">
+              Choose Calm if the TV looks choppy.
+            </p>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="nameMode">Name on in-use machines</Label>
             <select
               id="nameMode"
@@ -370,6 +397,8 @@ export default function AdminDisplayPage() {
         </fieldset>
       ) : null}
 
+      <DisplayPhotos />
+
       <section className="mt-12 max-w-xl">
         <h2 className="font-display text-xl font-semibold text-brown">
           {form.id ? "Edit promo" : "New promo"}
@@ -408,7 +437,13 @@ export default function AdminDisplayPage() {
                 accept="image/*"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
-                  if (file) void onUpload(file).catch((err) => setError(String(err)));
+                  if (file) {
+                    void onUpload(file).catch((err: unknown) =>
+                      setError(
+                        err instanceof Error ? err.message : "Upload failed",
+                      ),
+                    );
+                  }
                 }}
               />
             </div>
@@ -505,8 +540,8 @@ export default function AdminDisplayPage() {
                       body: p.body,
                       imageUrl: p.imageUrl ?? "",
                       qrUrl: p.qrUrl ?? "",
-                      startsAt: p.startsAt.slice(0, 16),
-                      endsAt: p.endsAt.slice(0, 16),
+                      startsAt: toLocalInput(p.startsAt),
+                      endsAt: toLocalInput(p.endsAt),
                       active: p.active,
                       sortOrder: p.sortOrder,
                     })
@@ -519,7 +554,10 @@ export default function AdminDisplayPage() {
                   size="sm"
                   variant="ghost"
                   onClick={() =>
-                    void provider.deletePromo(p.id).then(() => bump())
+                    void provider
+                      .deletePromo(p.id)
+                      .then(() => removeDisplayPicture(p.imageUrl))
+                      .then(() => bump())
                   }
                 >
                   Delete

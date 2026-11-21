@@ -6,7 +6,7 @@ test.describe("History and staff (public)", () => {
   }) => {
     await page.goto("/history");
     await expect(
-      page.getByRole("heading", { name: "How The Box got here" }),
+      page.getByRole("heading", { name: "How the makerspace got here" }),
     ).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(/October 2021/)).toBeVisible();
     await expect(page.getByText(/Mitchell Allen/)).toBeVisible();

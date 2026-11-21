@@ -105,7 +105,7 @@ describe("sign-in email provider", () => {
     vi.stubGlobal("fetch", fetchMock);
     const provider = emailProvider({
       AUTH_RESEND_KEY: "re_test_key",
-      AUTH_EMAIL_FROM: "The Box <hello@example.org>",
+      AUTH_EMAIL_FROM: "Makerspace <hello@example.org>",
     });
 
     // The login page calls signIn("email") whichever transport is active.
@@ -118,7 +118,7 @@ describe("sign-in email provider", () => {
     expect(new Headers(init.headers).get("authorization")).toBe("Bearer re_test_key");
     const body = JSON.parse(String(init.body));
     expect(body.to).toBe("pat@example.com");
-    expect(body.from).toBe("The Box <hello@example.org>");
+    expect(body.from).toBe("Makerspace <hello@example.org>");
     expect(body.text).toContain(LINK);
   });
 
@@ -126,7 +126,7 @@ describe("sign-in email provider", () => {
     sink = await startSmtpSink();
     const provider = emailProvider({
       AUTH_EMAIL_SERVER: sink.url,
-      AUTH_EMAIL_FROM: "The Box <hello@example.org>",
+      AUTH_EMAIL_FROM: "Makerspace <hello@example.org>",
     });
 
     expect(resolved(provider)).toMatchObject({ id: "email", type: "email" });

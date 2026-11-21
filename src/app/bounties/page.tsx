@@ -250,7 +250,7 @@ export default function BountiesPage() {
           </Link>{" "}
           if you have a membership, or{" "}
           <Link href="/join" className="text-primary-text underline">
-            join The Box
+            join the makerspace
           </Link>
           .
         </p>

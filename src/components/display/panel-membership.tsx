@@ -2,6 +2,15 @@
 
 import type { DisplayMembershipTier } from "@/lib/data";
 import { DisplayQr } from "./display-qr";
+import { PageNote, SlideHeading, SlideRows, pageOf, toneAt } from "./display-parts";
+
+const PER_SCREEN = 5;
+
+const BAR = {
+  coral: "bg-display-coral",
+  teal: "bg-display-teal",
+  gold: "bg-display-gold",
+} as const;
 
 function priceLabel(cents: number, interval: string): string {
   const dollars = (cents / 100).toFixed(cents % 100 === 0 ? 0 : 2);
@@ -13,35 +22,53 @@ function priceLabel(cents: number, interval: string): string {
 
 export function PanelMembership({
   membership,
+  turn = 0,
 }: {
   membership: DisplayMembershipTier;
+  /** Counts rotations, so a long list moves on a screen each time round. */
+  turn?: number;
 }) {
+  const screen = pageOf(membership.products, PER_SCREEN, turn);
   return (
-    <div className="flex h-full flex-col gap-[2vh]">
-      <div className="flex flex-wrap items-start justify-between gap-[2vw]">
-        <h1 className="font-display text-[clamp(1.8rem,3.5vw,3.5rem)] font-semibold text-brown">
-          Membership
-        </h1>
-        <DisplayQr url={membership.joinUrl} size={140} label="Join" />
-      </div>
-      <ul className="grid min-h-0 flex-1 grid-cols-1 content-start gap-[1.4vh] overflow-hidden md:grid-cols-2">
-        {membership.products.map((p) => (
+    <>
+      <SlideHeading
+        lead="Membership"
+        sub="Scan to join"
+        aside={
+          <div className="flex shrink-0 items-start gap-[1vw]">
+            <PageNote page={screen.page} pages={screen.pages} />
+            <DisplayQr
+              url={membership.joinUrl}
+              label="Join"
+              className="h-[13vh] w-[13vh]"
+            />
+          </div>
+        }
+      />
+      <SlideRows rows={PER_SCREEN} className="mt-[2vh]">
+        {screen.items.map((p, i) => (
           <li
             key={p.id}
-            className="border-b border-border/70 pb-[1.2vh] last:border-0"
+            className="flex min-h-0 items-center gap-[1.2vw] overflow-hidden border-b-2 border-display-rule last:border-b-0"
           >
-            <p className="font-display text-[clamp(1.2rem,2.1vw,1.9rem)] font-semibold text-brown">
-              {p.name}{" "}
-              <span className="text-primary-text">
-                {priceLabel(p.priceCents, p.billingInterval)}
-              </span>
-            </p>
-            <p className="mt-[0.4vh] font-display text-[clamp(0.9rem,1.4vw,1.2rem)] text-secondary">
-              {p.summary}
-            </p>
+            <span
+              className={`h-[62%] w-[0.7vw] shrink-0 rounded-full ${BAR[toneAt(i)]}`}
+              aria-hidden
+            />
+            <div className="min-w-0 flex-1">
+              <p className="flex items-baseline justify-between gap-[1vw] text-[2vw] font-bold leading-[1.15] text-display-ink">
+                <span className="truncate">{p.name}</span>
+                <span className="shrink-0 text-display-coral">
+                  {priceLabel(p.priceCents, p.billingInterval)}
+                </span>
+              </p>
+              <p className="mt-[0.2vh] line-clamp-2 text-[1.3vw] leading-[1.25] text-display-muted">
+                {p.summary}
+              </p>
+            </div>
           </li>
         ))}
-      </ul>
-    </div>
+      </SlideRows>
+    </>
   );
 }

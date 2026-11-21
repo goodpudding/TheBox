@@ -1,16 +1,16 @@
 {
   "_meta": {
-    "description": "Question banks for The Box Portal learning modules. Feeds the Question / QuizAttempt fixtures. Quizzes draw randomly from the bank per the portal spec.",
+    "description": "Question banks for Discover Burien Makerspace portal learning modules. Feeds the Question / QuizAttempt fixtures. Quizzes draw randomly from the bank per the portal spec.",
     "generatedAt": "2026-09-07",
     "howQuestionsWereWritten": "IMPORTANT - these questions are TOPIC-grounded, not TRANSCRIPT-grounded. Nobody has watched the videos, so each question tests a fact that any competent video on that topic covers, not a fact confirmed to be stated in the specific video assigned. Every such question carries verifyAgainstVideo: true. When you watch a video, either confirm the question is answerable from it or move the question to a lesson where it is, then clear the flag. A question whose answer is not in the assigned video is a member failing for a reason that is not their fault.",
-    "shopPolicyQuestions": "Questions with source 'shop-policy' have answerPending: true and placeholder options. No video can answer them - they are about The Box specifically. Fill in the real answers before publishing; a quiz that ships with placeholders will teach members the placeholder.",
+    "shopPolicyQuestions": "Questions with source 'shop-policy' have answerPending: true and placeholder options. No video can answer them - they are about the makerspace specifically. Fill in the real answers before publishing; a quiz that ships with placeholders will teach members the placeholder.",
     "passRule": {
       "recommended": "80% overall AND every safetyCritical question answered correctly",
       "rationale": "A member can miss a slicer setting and still be safe at the machine. They cannot miss what causes kickback. The portal's configurable threshold alone does not express that, so enforce the safety-critical rule in the quiz grader.",
       "attemptLimit": "3, then the member must book time with staff rather than re-rolling the bank"
     },
     "counts": "10-12 questions per module across 12 modules (added embroidery + sublimation).",
-    "resinNote": "Resin safety questions test the in-house learn/resin/safety lesson. IPA disposal uses best-practice King County MRW wording — edit if The Box posts a different route.",
+    "resinNote": "Resin safety questions test the in-house learn/resin/safety lesson. IPA disposal uses best-practice King County MRW wording — edit if the makerspace posts a different route.",
     "attendedOperationRule": "Confirmed 2026-09-07: laser and plasma must be attended for every second they run, even by a certified member working alone. FDM and resin printers may run unattended. This is asked in Shop Orientation (q-so-11), Plasma (q-pl-10) and Resin (q-rs-11) because members generalise from the first machine they learn."
   },
   "banks": [
@@ -141,7 +141,7 @@
           "safetyCritical": true,
           "source": "shop-policy",
           "answerPending": true,
-          "prompt": "Where is the nearest fire extinguisher to the laser cutter at The Box?",
+          "prompt": "Where is the nearest fire extinguisher to the laser cutter at the makerspace?",
           "options": [
             "[FILL IN - actual location]",
             "[FILL IN - plausible wrong location]",
@@ -161,7 +161,7 @@
           "answerPending": true,
           "prompt": "Someone is injured badly enough to need medical attention. What is the first thing you do?",
           "options": [
-            "[FILL IN - The Box's actual order of operations; most shops are: call 911 first, then notify staff]",
+            "[FILL IN - the makerspace's actual order of operations; most shops are: call 911 first, then notify staff]",
             "[FILL IN]",
             "[FILL IN]",
             "[FILL IN]"
@@ -177,7 +177,7 @@
           "safetyCritical": false,
           "source": "shop-policy",
           "answerPending": true,
-          "prompt": "You leave a project in the shop. How long before it becomes property of The Box?",
+          "prompt": "You leave a project in the shop. How long before it becomes property of the makerspace?",
           "options": [
             "90 days without written communication with staff",
             "30 days",
@@ -187,7 +187,7 @@
           "correct": [
             0
           ],
-          "explanation": "From The Box's storage and abandoned property policy. Confirm the wording matches the published policy before publishing this question."
+          "explanation": "From the makerspace's storage and abandoned property policy. Confirm the wording matches the published policy before publishing this question."
         },
         {
           "id": "q-so-10",
@@ -212,7 +212,7 @@
           "type": "single",
           "safetyCritical": true,
           "source": "shop-policy",
-          "prompt": "Which machines at The Box are allowed to run when nobody is watching them?",
+          "prompt": "Which machines at the makerspace are allowed to run when nobody is watching them?",
           "options": [
             "The 3D printers only - anything that cuts with heat or a blade must be attended for every second it runs",
             "Any machine, once you are certified on it",
@@ -324,7 +324,7 @@
           "correct": [
             0
           ],
-          "explanation": "The Box should set and post a specific width. Confirm the number before publishing and replace this wording with it."
+          "explanation": "The makerspace should set and post a specific width. Confirm the number before publishing and replace this wording with it."
         },
         {
           "id": "q-ts-06",
@@ -389,7 +389,7 @@
           "safetyCritical": true,
           "source": "shop-policy",
           "answerPending": true,
-          "prompt": "Who may change the blade on The Box's table saw?",
+          "prompt": "Who may change the blade on the makerspace's table saw?",
           "options": [
             "[FILL IN - staff only is the usual answer]",
             "[FILL IN]",
@@ -407,7 +407,7 @@
           "safetyCritical": true,
           "source": "shop-policy",
           "answerPending": true,
-          "prompt": "Does The Box's table saw have a blade-brake safety system (such as SawStop)?",
+          "prompt": "Does the makerspace's table saw have a blade-brake safety system (such as SawStop)?",
           "options": [
             "[FILL IN - the true answer]",
             "[FILL IN]",
@@ -784,9 +784,9 @@
           "safetyCritical": true,
           "source": "shop-policy",
           "answerPending": true,
-          "prompt": "Which handheld power tools at The Box may members use without a separate checkoff?",
+          "prompt": "Which handheld power tools at the makerspace may members use without a separate checkoff?",
           "options": [
-            "[FILL IN - The Box's actual policy]",
+            "[FILL IN - the makerspace's actual policy]",
             "[FILL IN]",
             "[FILL IN]",
             "[FILL IN]"
@@ -860,7 +860,7 @@
             2,
             3
           ],
-          "explanation": "Polycarbonate burns and yellows rather than cutting; ABS melts and emits cyanide gas. The Box's posted never-cut list is the authority - update this question to match it exactly."
+          "explanation": "Polycarbonate burns and yellows rather than cutting; ABS melts and emits cyanide gas. The makerspace's posted never-cut list is the authority - update this question to match it exactly."
         },
         {
           "id": "q-lc-03",
@@ -917,7 +917,7 @@
           "correct": [
             0
           ],
-          "explanation": "Replace this with The Box's exact posted procedure before publishing. A member should not be improvising here."
+          "explanation": "Replace this with the makerspace's exact posted procedure before publishing. A member should not be improvising here."
         },
         {
           "id": "q-lc-06",
@@ -974,7 +974,7 @@
           "correct": [
             0
           ],
-          "explanation": "Confirm this against The Box's actual colour mapping in the Epilog driver, then rewrite with your exact convention."
+          "explanation": "Confirm this against the makerspace's actual colour mapping in the Epilog driver, then rewrite with your exact convention."
         },
         {
           "id": "q-lc-09",
@@ -1003,7 +1003,7 @@
           "answerPending": true,
           "prompt": "You brought your own sheet material from home. What must you do before cutting it?",
           "options": [
-            "[FILL IN - The Box's material approval process; most spaces require staff sign-off and an SDS or known material type]",
+            "[FILL IN - the makerspace's material approval process; most spaces require staff sign-off and an SDS or known material type]",
             "[FILL IN]",
             "[FILL IN]",
             "[FILL IN]"
@@ -1151,7 +1151,7 @@
           "correct": [
             0
           ],
-          "explanation": "Tie this directly to billing: The Box's machine rate model charges per print-hour from the slicer estimate, so members need to know where that number lives."
+          "explanation": "Tie this directly to billing: the makerspace's machine rate model charges per print-hour from the slicer estimate, so members need to know where that number lives."
         },
         {
           "id": "q-3d-08",
@@ -1216,7 +1216,7 @@
       "moduleId": "mod-resin-printing",
       "moduleTitle": "Resin Printing (Elegoo Saturn 2 + wash/cure)",
       "equipmentStatus": "CONFIRMED - Elegoo Saturn plus a wash/cure station.",
-      "bankNote": "Questions 1-6 test the in-house safety lesson, which has no video and must be written first. They are the gate on resin access; every one is safetyCritical. Sourced from resin manufacturer safety guidance rather than from any video, so verifyAgainstVideo does not apply to them - verify them against the SDS for the resin The Box stocks.",
+      "bankNote": "Questions 1-6 test the in-house safety lesson, which has no video and must be written first. They are the gate on resin access; every one is safetyCritical. Sourced from resin manufacturer safety guidance rather than from any video, so verifyAgainstVideo does not apply to them - verify them against the SDS for the resin the makerspace stocks.",
       "questions": [
         {
           "id": "q-rs-01",
@@ -1396,7 +1396,7 @@
           "correct": [
             0
           ],
-          "explanation": "Best-practice placeholder for The Box. Liquid IPA is household hazardous waste in King County; do not drain it. Staff handle the drop-off. Edit if shop policy differs."
+          "explanation": "Best-practice placeholder for the makerspace. Liquid IPA is household hazardous waste in King County; do not drain it. Staff handle the drop-off. Edit if shop policy differs."
         },
         {
           "id": "q-rs-11",
@@ -1406,14 +1406,14 @@
           "prompt": "Your resin print will take six hours. May you leave it running and go home?",
           "options": [
             "Yes - printers are the exception; they may run unattended",
-            "No - no machine at The Box may run unattended",
+            "No - no machine at the makerspace may run unattended",
             "Only if staff are in the building",
             "Only if another member agrees to watch it"
           ],
           "correct": [
             0
           ],
-          "explanation": "Printers may run unattended. The laser and the plasma table may not, even when you are certified and working alone. Learn the line: machines that cut with heat or a blade get watched every second; printers do not. Confirm what The Box requires before walking away - lid closed, ventilation running, name and finish time on the machine."
+          "explanation": "Printers may run unattended. The laser and the plasma table may not, even when you are certified and working alone. Learn the line: machines that cut with heat or a blade get watched every second; printers do not. Confirm what the makerspace requires before walking away - lid closed, ventilation running, name and finish time on the machine."
         }
       ]
     },
@@ -1534,7 +1534,7 @@
           "correct": [
             0
           ],
-          "explanation": "Confirm against The Box's actual materials and update - the Cameo 4 handles some roll media matless."
+          "explanation": "Confirm against the makerspace's actual materials and update - the Cameo 4 handles some roll media matless."
         },
         {
           "id": "q-vc-07",
@@ -1572,7 +1572,7 @@
           "correct": [
             0
           ],
-          "explanation": "Ties the vinyl cutter to The Box's laminators and custom print products."
+          "explanation": "Ties the vinyl cutter to the makerspace's laminators and custom print products."
         },
         {
           "id": "q-vc-09",
@@ -1580,7 +1580,7 @@
           "safetyCritical": false,
           "source": "shop-policy",
           "answerPending": true,
-          "prompt": "Does The Box supply vinyl, or do members bring their own? What does it cost?",
+          "prompt": "Does the makerspace supply vinyl, or do members bring their own? What does it cost?",
           "options": [
             "[FILL IN]",
             "[FILL IN]",
@@ -1777,7 +1777,7 @@
           "answerPending": true,
           "prompt": "The needle breaks while you are sewing. What do you do?",
           "options": [
-            "[FILL IN - The Box's procedure. Most spaces: stop, find every fragment, tell staff, do not replace the needle yourself unless trained]",
+            "[FILL IN - the makerspace's procedure. Most spaces: stop, find every fragment, tell staff, do not replace the needle yourself unless trained]",
             "[FILL IN]",
             "[FILL IN]",
             "[FILL IN]"
@@ -1793,7 +1793,7 @@
           "safetyCritical": false,
           "source": "shop-policy",
           "answerPending": true,
-          "prompt": "Does The Box supply thread, needles and bobbins, or do members bring their own?",
+          "prompt": "Does the makerspace supply thread, needles and bobbins, or do members bring their own?",
           "options": [
             "[FILL IN]",
             "[FILL IN]",
@@ -1832,7 +1832,7 @@
             2,
             3
           ],
-          "explanation": "This machine is categorically more dangerous than anything else at The Box and the cert should reflect that."
+          "explanation": "This machine is categorically more dangerous than anything else at the makerspace and the cert should reflect that."
         },
         {
           "id": "q-pl-02",
@@ -1889,7 +1889,7 @@
           "correct": [
             0
           ],
-          "explanation": "Zinc fume causes metal fume fever. Confirm The Box's own material list and rewrite this to match it."
+          "explanation": "Zinc fume causes metal fume fever. Confirm the makerspace's own material list and rewrite this to match it."
         },
         {
           "id": "q-pl-05",
@@ -1965,7 +1965,7 @@
           "correct": [
             0
           ],
-          "explanation": "Replace with the E-stop's actual location at The Box. Every member should touch it once during the checkoff so their hand knows where it is - especially since they will be cutting alone."
+          "explanation": "Replace with the E-stop's actual location at the makerspace. Every member should touch it once during the checkoff so their hand knows where it is - especially since they will be cutting alone."
         },
         {
           "id": "q-pl-09",
@@ -2001,7 +2001,7 @@
           "correct": [
             0
           ],
-          "explanation": "Confirmed policy at The Box: solo operation is allowed, unattended operation is not. Because nobody else is in the room, everything else in this module is not advisory - it is the whole safety system."
+          "explanation": "Confirmed policy at the makerspace: solo operation is allowed, unattended operation is not. Because nobody else is in the room, everything else in this module is not advisory - it is the whole safety system."
         }
       ]
     },
@@ -2084,7 +2084,7 @@
           "correct": [
             0
           ],
-          "explanation": "Confirm The Box's accepted formats (often PES) at the station."
+          "explanation": "Confirm the makerspace's accepted formats (often PES) at the station."
         },
         {
           "id": "q-em-05",
@@ -2164,7 +2164,7 @@
           "safetyCritical": false,
           "source": "shop-policy",
           "answerPending": false,
-          "prompt": "Does The Box supply stabilizer, bobbins, and embroidery thread?",
+          "prompt": "Does the makerspace supply stabilizer, bobbins, and embroidery thread?",
           "options": [
             "Best practice: shop stocks basics for checkoff and classes; members bring specialty thread — confirm posted consumable policy",
             "Everything is free unlimited",
@@ -2293,7 +2293,7 @@
           "correct": [
             0
           ],
-          "explanation": "Use The Box's posted chart, not a random YouTube temperature."
+          "explanation": "Use the makerspace's posted chart, not a random YouTube temperature."
         },
         {
           "id": "q-su-06",
@@ -2358,7 +2358,7 @@
           "safetyCritical": false,
           "source": "shop-policy",
           "answerPending": false,
-          "prompt": "Who may change the heat press temperature setpoints on The Box's press?",
+          "prompt": "Who may change the heat press temperature setpoints on the makerspace's press?",
           "options": [
             "Best practice: use the posted chart; only staff change machine defaults — members select the listed setting for their blank",
             "Anyone may reprogram defaults for the day",

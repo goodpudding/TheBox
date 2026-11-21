@@ -2,46 +2,92 @@
 
 import type { DisplayUpcomingItem } from "@/lib/data";
 import { DisplayQr } from "./display-qr";
+import {
+  PageNote,
+  SlideHeading,
+  SlideRow,
+  SlideRows,
+  dayLabel,
+  spotsLabel,
+  timeLabel,
+  toneAt,
+} from "./display-parts";
 
-function whenLabel(iso: string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Los_Angeles",
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(iso));
+/** The first screen: the next class as a card, then three more. */
+const FIRST_SCREEN = 4;
+/** Later screens are plain rows. */
+const ROWS_PER_SCREEN = 5;
+
+function BookingRow({ item, index }: { item: DisplayUpcomingItem; index: number }) {
+  return (
+    <SlideRow
+      tone={toneAt(index)}
+      title={item.title}
+      meta={`${dayLabel(item.startsAt)} · ${timeLabel(item.startsAt)} · ${spotsLabel(item.spotsRemaining)}`}
+      aside={<DisplayQr url={item.bookingUrl} label={`Book ${item.title}`} />}
+    />
+  );
 }
 
-export function PanelUpcoming({ items }: { items: DisplayUpcomingItem[] }) {
+export function PanelUpcoming({
+  items,
+  turn = 0,
+}: {
+  items: DisplayUpcomingItem[];
+  /** Counts rotations, so a long list moves on a screen each time round. */
+  turn?: number;
+}) {
+  const later = items.slice(FIRST_SCREEN);
+  const screens = 1 + Math.ceil(later.length / ROWS_PER_SCREEN);
+  const screen = ((turn % screens) + screens) % screens;
+  const note = <PageNote page={screen} pages={screens} />;
+
+  if (screen > 0) {
+    const rows = later.slice(
+      (screen - 1) * ROWS_PER_SCREEN,
+      screen * ROWS_PER_SCREEN,
+    );
+    return (
+      <>
+        <SlideHeading lead="Coming" accent="up" aside={note} />
+        <SlideRows rows={ROWS_PER_SCREEN} className="mt-[2vh]">
+          {rows.map((item, i) => (
+            <BookingRow key={item.id} item={item} index={i} />
+          ))}
+        </SlideRows>
+      </>
+    );
+  }
+
+  const [next, ...rest] = items.slice(0, FIRST_SCREEN);
   return (
-    <div className="flex h-full flex-col gap-[2vh]">
-      <h1 className="font-display text-[clamp(1.8rem,3.5vw,3.5rem)] font-semibold text-brown">
-        Coming up
-      </h1>
-      <ul className="grid min-h-0 flex-1 grid-cols-1 content-start gap-[1.5vh] overflow-hidden md:grid-cols-2">
-        {items.slice(0, 8).map((item) => (
-          <li
-            key={item.id}
-            className="flex items-center justify-between gap-[1.5vw] border-b border-border/70 pb-[1.2vh]"
-          >
-            <div className="min-w-0">
-              <p className="font-display text-[clamp(1.15rem,2vw,1.8rem)] font-semibold text-brown">
-                {item.title}
-              </p>
-              <p className="font-display text-[clamp(0.95rem,1.5vw,1.3rem)] text-secondary">
-                {whenLabel(item.startsAt)} · {item.location}
-              </p>
-              <p className="font-display text-[clamp(0.9rem,1.4vw,1.2rem)] text-secondary">
-                {item.spotsRemaining} spot{item.spotsRemaining === 1 ? "" : "s"}{" "}
-                left
-              </p>
-            </div>
-            <DisplayQr url={item.bookingUrl} size={110} label={`Book ${item.title}`} />
-          </li>
+    <>
+      <SlideHeading lead="Coming" accent="up" aside={note} />
+      {next ? (
+        <div className="mt-[2.4vh] flex shrink-0 items-center gap-[1.6vw] rounded-[1.6vw] bg-display-coral px-[1.8vw] py-[2.2vh] text-white">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[1.3vw] font-extrabold uppercase tracking-[0.16em] text-white/90">
+              Next class · {dayLabel(next.startsAt)} · {timeLabel(next.startsAt)}
+            </p>
+            <h2 className="mt-[0.5vh] line-clamp-2 text-[2.9vw] font-extrabold leading-[1.08]">
+              {next.title}
+            </h2>
+            <p className="mt-[0.6vh] truncate text-[1.6vw] font-semibold">
+              {spotsLabel(next.spotsRemaining)} — scan to book
+            </p>
+          </div>
+          <DisplayQr
+            url={next.bookingUrl}
+            label={`Book ${next.title}`}
+            className="h-[10.5vw] w-[10.5vw]"
+          />
+        </div>
+      ) : null}
+      <SlideRows rows={FIRST_SCREEN - 1} className="mt-[1.2vh]">
+        {rest.map((item, i) => (
+          <BookingRow key={item.id} item={item} index={i} />
         ))}
-      </ul>
-    </div>
+      </SlideRows>
+    </>
   );
 }

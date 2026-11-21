@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "description": "Curated YouTube videos for The Box Portal learning modules. Drop into /data/mock and reference from the LearningModule / Lesson fixtures. Companion file: learning-questions.json.",
+    "description": "Curated YouTube videos for Discover Burien Makerspace portal learning modules. Drop into /data/mock and reference from the LearningModule / Lesson fixtures. Companion file: learning-questions.json.",
     "generatedAt": "2026-09-07",
     "equipmentSource": "Rebuilt against the equipment list at discoverburien.org/makerspace plus direct confirmation from Trey on 2026-09-07. Where the website and the portal spec disagreed, Trey's answer governs.",
     "equipmentReconciliation": {
@@ -32,7 +32,7 @@
       "channelUrl": "https://www.youtube.com/@AlpineTrailsStudio",
       "playlist": "Safety and the Tools of the Woodshop",
       "playlistUrl": "https://www.youtube.com/playlist?list=PLfpGb3xc-BTPhCljF_-JTtGy3uybqqjmP",
-      "policy": "Standard source for every woodshop module - one instructor, one shop, one vocabulary. All six machines in his series (table saw, band saw, miter saw, jointer, planer, router table) plus the drill press are confirmed present at The Box, so the whole playlist maps to real equipment. Outside videos appear only where the series does not reach: emergency response, dust health, laser, 3D printing, resin, vinyl, sewing, plasma.",
+      "policy": "Standard source for every woodshop module - one instructor, one shop, one vocabulary. All six machines in his series (table saw, band saw, miter saw, jointer, planer, router table) plus the drill press are confirmed present at the makerspace, so the whole playlist maps to real equipment. Outside videos appear only where the series does not reach: emergency response, dust health, laser, 3D printing, resin, vinyl, sewing, plasma.",
       "singleSourceRisk": "Ask the creator for permission to use as course material and for self-hostable copies. Downloading without permission violates YouTube's terms."
     },
     "verification": "Every url resolves to a real public YouTube video with the title and channel recorded here, confirmed via YouTube's oEmbed endpoint on 2026-09-06/07. Alpine runtimes were read from the playlist page and are exact; other runtimes could not be retrieved and are null rather than guessed. No video has been watched end to end - staffReviewed is false everywhere.",
@@ -41,7 +41,7 @@
     "roles": {
       "primary": "Required viewing before the quiz unlocks.",
       "supporting": "Recommended depth, or an alternate explanation of the same material.",
-      "conditional": "Depends on equipment or software The Box may not have. Confirm before publishing."
+      "conditional": "Depends on equipment or software the makerspace may not have. Confirm before publishing."
     },
     "softwarePlacement": "Design and control software (Inkscape, CorelDRAW, LightBurn, Tinkercad, PrusaSlicer, Silhouette Studio, VCarve/Mach4) is taught inside the machine module it serves, not as standalone certs - the portal's cert model is per-machine. If members later want software skills without machine access, split these lessons into optional non-cert modules.",
     "stillUnsourced": [],
@@ -69,7 +69,7 @@
           "order": 1,
           "title": "How we work in this shop",
           "contentSlug": "learn/shop-orientation/basics",
-          "boxMustCover": "Layout of The Box, hours, sign-in, the 'if you didn't turn it on, don't turn it off' rule, cleanup, the 90-day abandoned property policy. Dust: fine airborne wood dust is the hazard (not just visible chips); use dust collection and respirators as posted; fine dust can hang in the air after the shop looks clear — who empties collectors and where respirators live. A 3-minute phone walkthrough of the actual space would outperform any outside video here.",
+          "boxMustCover": "Layout of the makerspace, hours, sign-in, the 'if you didn't turn it on, don't turn it off' rule, cleanup, the 90-day abandoned property policy. Dust: fine airborne wood dust is the hazard (not just visible chips); use dust collection and respirators as posted; fine dust can hang in the air after the shop looks clear — who empties collectors and where respirators live. A 3-minute phone walkthrough of the actual space would outperform any outside video here.",
           "videos": [
             {
               "provider": "youtube",
@@ -92,7 +92,7 @@
               "durationSeconds": null,
               "verifiedAt": "2026-09-06",
               "staffReviewed": false,
-              "notes": "Optional depth on fine dust. Not required before the quiz — covered in Alpine basics plus the Box note above."
+              "notes": "Optional depth on fine dust. Not required before the quiz — covered in Alpine basics plus the makerspace note above."
             }
           ]
         },
@@ -154,7 +154,7 @@
           "order": 2,
           "title": "Handheld power tools",
           "contentSlug": "learn/hand-tools/handheld",
-          "boxMustCover": "Which handheld tools The Box has and which need their own checkoff. Unplug before changing blades or bits. Clamp the work. Cord and guard inspection.",
+          "boxMustCover": "Which handheld tools the makerspace has and which need their own checkoff. Unplug before changing blades or bits. Clamp the work. Cord and guard inspection.",
           "gap": true,
           "gapNote": "No dedicated video assigned - Alpine's Basic Woodshop Safety covers the general principles and is reused here. A tool-specific set (circular saw, jigsaw, random orbit sander, impact driver) is worth sourcing once you know which tools are in the bin.",
           "videos": [
@@ -189,7 +189,7 @@
           "order": 1,
           "title": "Fire, fumes, and the never-cut list",
           "contentSlug": "learn/laser-cutter/safety",
-          "boxMustCover": "The Box's posted never-cut list. Verify exhaust running before every job. Never leave a running laser unattended. Extinguisher location at the machine. Who to call on a flare-up. Material approval for member-supplied stock.",
+          "boxMustCover": "The makerspace's posted never-cut list. Verify exhaust running before every job. Never leave a running laser unattended. Extinguisher location at the machine. Who to call on a flare-up. Material approval for member-supplied stock.",
           "videos": [
             {
               "provider": "youtube",
@@ -201,7 +201,7 @@
               "durationSeconds": null,
               "verifiedAt": "2026-09-06",
               "staffReviewed": false,
-              "notes": "A library makerspace teaching its own members - the shared-machine framing already matches The Box."
+              "notes": "A library makerspace teaching its own members - the shared-machine framing already matches the makerspace."
             },
             {
               "provider": "youtube",
@@ -275,7 +275,7 @@
           "order": 3,
           "title": "CorelDRAW and the Epilog print driver",
           "contentSlug": "learn/laser-cutter/coreldraw",
-          "boxMustCover": "The Box's colour mapping for cut / score / engrave, accepted file formats, where files are saved, and the licence situation on the shop computer.",
+          "boxMustCover": "The makerspace's colour mapping for cut / score / engrave, accepted file formats, where files are saved, and the licence situation on the shop computer.",
           "videos": [
             {
               "provider": "youtube",
@@ -296,7 +296,7 @@
           "order": 4,
           "title": "Designing in Inkscape",
           "contentSlug": "learn/laser-cutter/inkscape",
-          "boxMustCover": "Why Inkscape matters here: it is free, so members can design at home and bring a file in. Cover The Box's stroke colour and hairline width convention and the export path into CorelDRAW.",
+          "boxMustCover": "Why Inkscape matters here: it is free, so members can design at home and bring a file in. Cover the makerspace's stroke colour and hairline width convention and the export path into CorelDRAW.",
           "videos": [
             {
               "provider": "youtube",
@@ -316,7 +316,7 @@
           "order": 5,
           "title": "LightBurn (optional)",
           "contentSlug": "learn/laser-cutter/lightburn",
-          "boxMustCover": "READ THIS BEFORE BUILDING THE LESSON: Epilog states there is no native LightBurn connection for its machines. LightBurn can be used as the design package, with output routed through the Epilog Laser Dashboard via a virtual 'No Machine' device - it is a workaround, not a supported workflow. Decide whether The Box supports it at all before teaching it. If yes, it belongs as an optional lesson for members who already own LightBurn, not on the required path.",
+          "boxMustCover": "READ THIS BEFORE BUILDING THE LESSON: Epilog states there is no native LightBurn connection for its machines. LightBurn can be used as the design package, with output routed through the Epilog Laser Dashboard via a virtual 'No Machine' device - it is a workaround, not a supported workflow. Decide whether the makerspace supports it at all before teaching it. If yes, it belongs as an optional lesson for members who already own LightBurn, not on the required path.",
           "videos": [
             {
               "provider": "youtube",
@@ -325,7 +325,7 @@
               "title": "Printing from Lightburn to the Epilog Laser Dashboard",
               "channel": "Epilog Laser",
               "role": "conditional",
-              "condition": "Only if The Box supports the LightBurn-to-Dashboard workaround. This is Epilog's own video on it.",
+              "condition": "Only if the makerspace supports the LightBurn-to-Dashboard workaround. This is Epilog's own video on it.",
               "durationSeconds": null,
               "verifiedAt": "2026-09-07",
               "staffReviewed": false
@@ -349,7 +349,7 @@
           "order": 6,
           "title": "Kerf and accurate parts",
           "contentSlug": "learn/laser-cutter/kerf",
-          "boxMustCover": "Measured kerf for the materials The Box stocks - worth cutting a test comb once and posting the numbers.",
+          "boxMustCover": "Measured kerf for the materials the makerspace stocks - worth cutting a test comb once and posting the numbers.",
           "videos": [
             {
               "provider": "youtube",
@@ -479,7 +479,7 @@
           "order": 4,
           "title": "Choosing a material",
           "contentSlug": "learn/3d-printing/materials",
-          "boxMustCover": "Which filaments The Box stocks and at what cost, which are not allowed on the shared printer.",
+          "boxMustCover": "Which filaments the makerspace stocks and at what cost, which are not allowed on the shared printer.",
           "videos": [
             {
               "provider": "youtube",
@@ -524,7 +524,7 @@
           "order": 2,
           "title": "Printing on the Saturn",
           "contentSlug": "learn/resin/printing",
-          "boxMustCover": "Saturn 2 specifics and Chitubox profiles for the resin The Box stocks. Levelling, exposure settings, the FEP check, and what to do about a failed print stuck to the vat film - that one damages the machine if a member digs at it. Also state explicitly that resin prints MAY run unattended, unlike the laser and plasma table, and what a member must do before walking away (gloves off, lid closed, ventilation left running, name and finish time on the machine).",
+          "boxMustCover": "Saturn 2 specifics and Chitubox profiles for the resin the makerspace stocks. Levelling, exposure settings, the FEP check, and what to do about a failed print stuck to the vat film - that one damages the machine if a member digs at it. Also state explicitly that resin prints MAY run unattended, unlike the laser and plasma table, and what a member must do before walking away (gloves off, lid closed, ventilation left running, name and finish time on the machine).",
           "videos": [
             {
               "provider": "youtube",
@@ -569,7 +569,7 @@
           "order": 3,
           "title": "Washing and curing",
           "contentSlug": "learn/resin/wash-cure",
-          "boxMustCover": "The Box's wash/cure model, how often the IPA is changed and by whom, where used IPA goes, and the rule that nothing leaves the resin area uncured.",
+          "boxMustCover": "The makerspace's wash/cure model, how often the IPA is changed and by whom, where used IPA goes, and the rule that nothing leaves the resin area uncured.",
           "videos": [
             {
               "provider": "youtube",
@@ -581,7 +581,7 @@
               "durationSeconds": null,
               "verifiedAt": "2026-09-07",
               "staffReviewed": false,
-              "notes": "Filmed on a Mercury XS. Confirm which wash/cure unit The Box has."
+              "notes": "Filmed on a Mercury XS. Confirm which wash/cure unit the makerspace has."
             }
           ]
         }
@@ -603,7 +603,7 @@
           "order": 1,
           "title": "Cutting your first vinyl design",
           "contentSlug": "learn/vinyl-cutter/basics",
-          "boxMustCover": "Whether The Box supplies vinyl and at what cost, mat care, blade care, and what to do with scraps.",
+          "boxMustCover": "Whether the makerspace supplies vinyl and at what cost, mat care, blade care, and what to do with scraps.",
           "videos": [
             {
               "provider": "youtube",
@@ -624,7 +624,7 @@
           "order": 2,
           "title": "Machine setup and test cuts",
           "contentSlug": "learn/vinyl-cutter/setup",
-          "boxMustCover": "The Box's saved material settings in Silhouette Studio, and the always-test-cut rule.",
+          "boxMustCover": "The makerspace's saved material settings in Silhouette Studio, and the always-test-cut rule.",
           "videos": [
             {
               "provider": "youtube",
@@ -636,7 +636,7 @@
               "durationSeconds": null,
               "verifiedAt": "2026-09-07",
               "staffReviewed": false,
-              "notes": "Filmed on the Cameo 4 Pro (24-inch). The Box's is the standard Cameo 4 - the workflow is the same, the width is not. Say so in the lesson text."
+              "notes": "Filmed on the Cameo 4 Pro (24-inch). The makerspace's is the standard Cameo 4 - the workflow is the same, the width is not. Say so in the lesson text."
             }
           ]
         }
@@ -657,7 +657,7 @@
           "order": 1,
           "title": "Threading the machine and the bobbin",
           "contentSlug": "learn/sewing/threading",
-          "boxMustCover": "The Box's specific Singer model and its threading path - post a photo diagram at the machine. Whether thread, needles and bobbins are supplied.",
+          "boxMustCover": "The makerspace's specific Singer model and its threading path - post a photo diagram at the machine. Whether thread, needles and bobbins are supplied.",
           "videos": [
             {
               "provider": "youtube",
@@ -711,7 +711,7 @@
           "order": 1,
           "title": "Plasma hazards: fume, UV, spatter",
           "contentSlug": "learn/cnc-plasma/safety",
-          "boxMustCover": "The Box's extraction setup and how to verify it is running. Required PPE and who else in the room needs eye protection. Where bystanders may stand. Never-cut materials (galvanized/zinc, unknown coatings). Fire watch after cutting.",
+          "boxMustCover": "The makerspace's extraction setup and how to verify it is running. Required PPE and who else in the room needs eye protection. Where bystanders may stand. Never-cut materials (galvanized/zinc, unknown coatings). Fire watch after cutting.",
           "videos": [
             {
               "provider": "youtube",
@@ -766,7 +766,7 @@
           "order": 3,
           "title": "Designing and toolpathing in VCarve",
           "contentSlug": "learn/cnc-plasma/vcarve",
-          "boxMustCover": "The Box's VCarve post-processor for the Avid/Mach4 combination, kerf/lead-in settings, and where files are saved.",
+          "boxMustCover": "The makerspace's VCarve post-processor for the Avid/Mach4 combination, kerf/lead-in settings, and where files are saved.",
           "videos": [
             {
               "provider": "youtube",
@@ -982,7 +982,7 @@
           "order": 1,
           "title": "Machine basics and first stitch-out",
           "contentSlug": "learn/embroidery/basics",
-          "boxMustCover": "Exact Brother model, bobbin/needle rules, USB file types The Box accepts, needle-break procedure.",
+          "boxMustCover": "Exact Brother model, bobbin/needle rules, USB file types the makerspace accepts, needle-break procedure.",
           "videos": [
             {
               "provider": "youtube",
@@ -994,7 +994,7 @@
               "durationSeconds": null,
               "verifiedAt": "2026-09-07",
               "staffReviewed": false,
-              "notes": "Filmed on PE800 — workflow transfers to similar Brother single-needle machines; confirm The Box model."
+              "notes": "Filmed on PE800 — workflow transfers to similar Brother single-needle machines; confirm the makerspace model."
             }
           ]
         },
@@ -1003,7 +1003,7 @@
           "order": 2,
           "title": "Hooping and stabilizer",
           "contentSlug": "learn/embroidery/hooping",
-          "boxMustCover": "Which stabilizers The Box stocks, cutaway vs tearaway default for garments, topper for towels.",
+          "boxMustCover": "Which stabilizers the makerspace stocks, cutaway vs tearaway default for garments, topper for towels.",
           "videos": [
             {
               "provider": "youtube",
@@ -1037,7 +1037,7 @@
           "order": 1,
           "title": "How sublimation works",
           "contentSlug": "learn/sublimation/overview",
-          "boxMustCover": "Posted temp/time chart at the press, which blanks The Box stocks, dark-garment rule.",
+          "boxMustCover": "Posted temp/time chart at the press, which blanks the makerspace stocks, dark-garment rule.",
           "videos": [
             {
               "provider": "youtube",
@@ -1068,7 +1068,7 @@
           "order": 2,
           "title": "Sawgrass Print Manager",
           "contentSlug": "learn/sublimation/software",
-          "boxMustCover": "Shop computer login, which presets The Box uses, where member files are saved.",
+          "boxMustCover": "Shop computer login, which presets the makerspace uses, where member files are saved.",
           "videos": [
             {
               "provider": "youtube",
@@ -1101,7 +1101,7 @@
               "durationSeconds": null,
               "verifiedAt": "2026-09-07",
               "staffReviewed": false,
-              "notes": "Press brand differs; teach The Box's posted times/temps over the video's numbers."
+              "notes": "Press brand differs; teach the makerspace's posted times/temps over the video's numbers."
             }
           ]
         }

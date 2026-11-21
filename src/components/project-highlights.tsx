@@ -70,7 +70,7 @@ export function ProjectHighlights({
       {showHeading ? (
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="max-w-2xl">
-            <p className="eyebrow">Made at The Box</p>
+            <p className="eyebrow">Made at the makerspace</p>
             <h2 className="mt-2 font-display text-2xl font-semibold text-brown">
               Member project highlights
             </h2>
