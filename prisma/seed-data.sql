@@ -805,13 +805,7 @@ INSERT OR IGNORE INTO AuditEvent VALUES('ae-12','reservation_overridden','u-staf
 INSERT OR IGNORE INTO AuditEvent VALUES('ae-13','maintenance_created','u-admin',NULL,'MaintenanceBlock','maint-laser-optics','{"machineId":"m-laser-co2"}',1788282000000,1788282000000,1788282000000,NULL);
 INSERT OR IGNORE INTO AuditEvent VALUES('ae-14','waiver_signed','u-riley','u-riley','WaiverSignature','ws-riley','{"version":"2026.1"}',1787247000000,1787247000000,1787247000000,NULL);
 INSERT OR IGNORE INTO AuditEvent VALUES('ae-15','cert_checked_off','u-admin','u-kai','UserCertification','uc-kai-tablesaw','{"certificationId":"cert-table-saw"}',1751994000000,1751994000000,1751994000000,NULL);
-INSERT OR IGNORE INTO PromoSlide VALUES('promo-welcome','Welcome to The Box','Discover Burien’s community makerspace — tools, classes, and people who make things.',NULL,'/join',1767250800000,1830322799000,1,1,1767286800000,1788548400000,NULL);
-INSERT OR IGNORE INTO PromoSlide VALUES('promo-open-studio','Open Studio Fridays','Bring a project, grab a seat, and make alongside neighbors. All skill levels welcome.',NULL,'/classes',1785567600000,1811833200000,1,2,1785603600000,1788548400000,NULL);
-INSERT OR IGNORE INTO PromoSlide VALUES('promo-volunteer','Volunteer with us','Front desk, shop steward, and event roles keep The Box humming. Sign up in a few minutes.',NULL,'/volunteer',1780297200000,1830322799000,1,3,1780333200000,1788548400000,NULL);
-INSERT OR IGNORE INTO PromoSlide VALUES('promo-expired-summer','Summer maker camp','This slide should never appear on the lobby display — it ended last summer.',NULL,NULL,1780297200000,1786777200000,1,10,1777654800000,1786813200000,NULL);
-INSERT OR IGNORE INTO PromoSlide VALUES('promo-expired-old','Grand opening raffle','Expired promo for fixture coverage.',NULL,'/support',1735714800000,1767250799000,1,11,1735750800000,1767200400000,NULL);
-INSERT OR IGNORE INTO PromoSlide VALUES('promo-future-holiday','Holiday open house','Future-dated promo — not shown until December.',NULL,'/join',1796108400000,1799996400000,1,20,1788282000000,1788548400000,NULL);
-INSERT OR IGNORE INTO DisplayConfig VALUES('default','["today","bounties","machines","upcoming","certs","promos","membership"]',12,NULL,'first',3,1793070011518);
+INSERT OR IGNORE INTO DisplayConfig VALUES('default','["today","bounties","machines","upcoming","certs","promos","membership"]',12,NULL,'first',3,1793070011518,'full');
 INSERT OR IGNORE INTO Workstation VALUES('ws-pc-1','Design PC 1','BOX-PC-1','3D lab',1,'m-bambu-a1',10,30,NULL,1793070011601,1793070011601,NULL);
 INSERT OR IGNORE INTO Workstation VALUES('ws-pc-2','Laser PC','BOX-PC-2','Laser room',1,'m-laser-co2',10,30,NULL,1793070011603,1793070011603,NULL);
 INSERT OR IGNORE INTO MachineSoftwareMap VALUES('map-notepad',NULL,NULL,'Notepad','notepad.exe','C:\Windows\System32\notepad.exe',0,1,1793070011605,1793070011605,NULL);

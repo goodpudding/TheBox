@@ -771,13 +771,33 @@ export interface PromoSlide extends Timestamps {
   sortOrder: number;
 }
 
+/** How much the lobby display animates. "calm" is for a slow kiosk. */
+export type DisplayMotion = "full" | "calm";
+
 export interface DisplayConfig {
   panelOrder: DisplayPanelId[];
   cadenceSeconds: number;
   pinnedPanel: DisplayPanelId | null;
   nameDisplayMode: NameDisplayMode;
   membershipEveryNRotations: number;
+  motion: DisplayMotion;
   updatedAt: ISODateTime;
+}
+
+/**
+ * A photo the lobby display rotates through. The image bytes are stored apart
+ * from this row and served by id.
+ */
+export interface DisplayPhoto extends Timestamps {
+  id: string;
+  caption: string | null;
+  active: boolean;
+  sortOrder: number;
+  mimeType: string;
+  width: number | null;
+  height: number | null;
+  /** Dev fixtures only: a file under /public. Uploaded photos are served by id. */
+  staticPath?: string | null;
 }
 
 /** Shop inventory — tools, machines, materials. Not Zeffy billing. */
@@ -958,4 +978,5 @@ export interface MockFixtureBundle {
   settings: OrgSettings;
   promoSlides: PromoSlide[];
   displayConfig: DisplayConfig;
+  displayPhotos: DisplayPhoto[];
 }

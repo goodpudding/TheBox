@@ -43,6 +43,7 @@ import itemEvents from "../../../data/mock/item-events.json";
 import settings from "../../../data/mock/settings.json";
 import promoSlides from "../../../data/mock/promos.json";
 import displayConfig from "../../../data/mock/display-config.json";
+import displayPhotos from "../../../data/mock/display-photos.json";
 
 function isoOffset(msFromNow: number): string {
   return new Date(Date.now() + msFromNow).toISOString();
@@ -315,6 +316,7 @@ export function loadFixtures(): MockFixtureBundle {
     },
     promoSlides: promoSlides as MockFixtureBundle["promoSlides"],
     displayConfig: displayConfig as MockFixtureBundle["displayConfig"],
+    displayPhotos: displayPhotos as MockFixtureBundle["displayPhotos"],
   };
   return withDisplayLiveOverlays(base);
 }
