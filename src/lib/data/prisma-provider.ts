@@ -13,6 +13,7 @@ import {
 import {
   PERSIST_TABLES,
   USERS_TABLE,
+  displayConfigRow,
   settingsRow,
   type PersistTable,
 } from "./persist-rows";
@@ -71,6 +72,12 @@ import type {
   PhotoKind,
   ItemEventType,
   AcquisitionSource,
+  DisplayConfig,
+  DisplayMotion,
+  DisplayPanelId,
+  DisplayPhoto,
+  NameDisplayMode,
+  PromoSlide,
 } from "./types";
 
 function parseJsonArray<T = string>(str: string | null | undefined): T[] {
@@ -256,6 +263,44 @@ function mapUser(row: {
  * Load all domain tables into a MockFixtureBundle.
  * Auth Account/Session/VerificationToken are intentionally ignored.
  */
+const DISPLAY_PANELS: readonly DisplayPanelId[] = [
+  "today",
+  "machines",
+  "upcoming",
+  "certs",
+  "bounties",
+  "promos",
+  "membership",
+];
+
+/**
+ * Display settings as stored, or the shipped defaults when no row exists yet.
+ * The first save from Admin → Display creates the row.
+ */
+function mapDisplayConfig(row: Record<string, unknown> | null): DisplayConfig {
+  const defaults = loadFixtures().displayConfig;
+  if (!row) return { ...defaults, panelOrder: [...defaults.panelOrder] };
+  const panel = (value: unknown): value is DisplayPanelId =>
+    DISPLAY_PANELS.includes(value as DisplayPanelId);
+  const modes: NameDisplayMode[] = ["none", "first", "firstLast"];
+  const pinned = row.pinnedPanel;
+  return {
+    panelOrder: parseJsonArray<unknown>(row.panelOrder as string).filter(panel),
+    cadenceSeconds: Number(row.cadenceSeconds) || defaults.cadenceSeconds,
+    pinnedPanel: panel(pinned) ? pinned : null,
+    nameDisplayMode: modes.includes(row.nameDisplayMode as NameDisplayMode)
+      ? (row.nameDisplayMode as NameDisplayMode)
+      : defaults.nameDisplayMode,
+    membershipEveryNRotations:
+      Number(row.membershipEveryNRotations) ||
+      defaults.membershipEveryNRotations,
+    motion: (row.motion === "calm" ? "calm" : "full") satisfies DisplayMotion,
+    updatedAt: row.updatedAt
+      ? toIsoRequired(row.updatedAt as Date)
+      : defaults.updatedAt,
+  };
+}
+
 export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
   // Split Promise.all batches so TS keeps tuple inference (large arrays widen to any[]).
   const [users, badges, certifications, userCertifications, machines] =
@@ -347,6 +392,13 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
     prismaLoose.inventoryItem?.findMany?.() ?? Promise.resolve([]),
     prismaLoose.itemPhoto?.findMany?.() ?? Promise.resolve([]),
     prismaLoose.itemEvent?.findMany?.() ?? Promise.resolve([]),
+  ]);
+
+  const [promoRows, displayPhotoRows, displayConfigDbRow] = await Promise.all([
+    prismaLoose.promoSlide?.findMany?.() ?? Promise.resolve([]),
+    prismaLoose.displayPhoto?.findMany?.() ?? Promise.resolve([]),
+    prismaLoose.displayConfig?.findUnique?.({ where: { id: "default" } }) ??
+      Promise.resolve(null),
   ]);
 
   if (!settingsRow) {
@@ -844,9 +896,41 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
       }),
     ),
     settings: mapOrgSettings(settingsRow),
-    promoSlides: loadFixtures().promoSlides,
-    displayConfig: loadFixtures().displayConfig,
-    displayPhotos: [],
+    // Promos and photos are what staff saved. The sample ones in data/mock
+    // are for local dev and never reach the lobby TV.
+    promoSlides: (promoRows as Array<Record<string, unknown>>).map(
+      (p): PromoSlide => ({
+        id: String(p.id),
+        title: String(p.title),
+        body: String(p.body),
+        imageUrl: (p.imageUrl as string | null) ?? null,
+        qrUrl: (p.qrUrl as string | null) ?? null,
+        startsAt: toIsoRequired(p.startsAt as Date),
+        endsAt: toIsoRequired(p.endsAt as Date),
+        active: Boolean(p.active),
+        sortOrder: Number(p.sortOrder ?? 0),
+        createdAt: toIsoRequired(p.createdAt as Date),
+        updatedAt: toIsoRequired(p.updatedAt as Date),
+        deletedAt: toIso(p.deletedAt as Date | null),
+      }),
+    ),
+    displayConfig: mapDisplayConfig(
+      displayConfigDbRow as Record<string, unknown> | null,
+    ),
+    displayPhotos: (displayPhotoRows as Array<Record<string, unknown>>).map(
+      (p): DisplayPhoto => ({
+        id: String(p.id),
+        caption: (p.caption as string | null) ?? null,
+        active: Boolean(p.active),
+        sortOrder: Number(p.sortOrder ?? 0),
+        mimeType: String(p.mimeType),
+        width: (p.width as number | null) ?? null,
+        height: (p.height as number | null) ?? null,
+        createdAt: toIsoRequired(p.createdAt as Date),
+        updatedAt: toIsoRequired(p.updatedAt as Date),
+        deletedAt: toIso(p.deletedAt as Date | null),
+      }),
+    ),
     // Public staff/instructor directory is fixture-backed (same as promos).
     people: loadFixtures().people,
     creditLedgerEntries: (
@@ -971,6 +1055,7 @@ export async function persistBundleToPrisma(
   previous?: MockFixtureBundle | null,
 ): Promise<void> {
   let settingsChanged = true;
+  let displayConfigChanged = true;
   let toWrite = bundle;
   let removed: ReturnType<typeof sliceChangedBundle>["removed"] = {};
   // The delta below only carries changed users, so validate against all of them.
@@ -981,6 +1066,7 @@ export async function persistBundleToPrisma(
     toWrite = sliced.bundle;
     removed = sliced.removed;
     settingsChanged = sliced.settingsChanged;
+    displayConfigChanged = sliced.displayConfigChanged;
   }
   const instructorOf = (settings: OrgSettings): string | null =>
     settings.defaultInstructorId && knownUserIds.has(settings.defaultInstructorId)
@@ -1038,6 +1124,20 @@ export async function persistBundleToPrisma(
       : create;
     if (Object.keys(update).length > 0) {
       await db.orgSettings.upsert({
+        where: { id: "default" },
+        create: { id: "default", ...create },
+        update,
+      });
+    }
+  }
+
+  if (displayConfigChanged && db.displayConfig) {
+    const create = displayConfigRow(bundle.displayConfig, now);
+    const update = previous
+      ? changedColumns(displayConfigRow(previous.displayConfig, now), create)
+      : create;
+    if (Object.keys(update).length > 0) {
+      await db.displayConfig.upsert({
         where: { id: "default" },
         create: { id: "default", ...create },
         update,
@@ -1106,9 +1206,6 @@ const NOT_STORED_YET: ReadonlySet<string> = new Set([
   "requestToolChampionTerm",
   "adminActivateToolChampionTerm",
   "adminCompleteToolChampionTerm",
-  "savePromo",
-  "deletePromo",
-  "saveDisplayConfig",
 ]);
 
 function createPersistingProxy(mock: MockDataProvider): DataProvider {

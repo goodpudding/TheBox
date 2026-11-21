@@ -498,21 +498,117 @@ describe("what the live site cannot store yet", () => {
     expect(upserts("auditEvent")).toHaveLength(0);
   });
 
-  it("refuses display settings, promo slides and tool champion requests the same way", async () => {
+  it("refuses a tool champion request the same way", async () => {
     await seedDatabase();
     const { createPrismaDataProvider } = await import("./prisma-provider");
     const admin = await createPrismaDataProvider("u-admin", { fresh: true });
-    await expect(admin.saveDisplayConfig({ cadenceSeconds: 20 })).rejects.toThrow(
-      /not available on the live site/i,
-    );
-    await expect(admin.deletePromo("promo-welcome")).rejects.toThrow(
-      /not available on the live site/i,
-    );
     await expect(
       admin.requestToolChampionTerm({ userId: "u-maya", machineId: "m-sewing-1" }),
     ).rejects.toThrow(/not available on the live site/i);
-    // Reading them still works.
-    expect((await admin.getDisplayConfig()).cadenceSeconds).toBeGreaterThan(0);
-    expect((await admin.listPromos()).length).toBeGreaterThan(0);
+  });
+});
+
+describe("the lobby display on the live site", () => {
+  const PHOTO_ID = "22222222-2222-4222-8222-000000000001";
+
+  it("keeps a promo slide a staff member saves", async () => {
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    const saved = await admin.savePromo({
+      title: "Holiday market",
+      body: "Sat 12 Dec, 10 to 4.",
+      startsAt: "2026-11-01T00:00:00.000Z",
+      endsAt: "2026-12-13T00:00:00.000Z",
+    });
+    expect(upserts("promoSlide").map((u) => u.create.title)).toEqual([
+      "Holiday market",
+    ]);
+
+    const later = await createPrismaDataProvider(null, { fresh: true });
+    expect((await later.listPromos()).map((p) => p.id)).toContain(saved.id);
+    expect((await later.getDisplayFeed()).promos.map((p) => p.id)).toContain(
+      saved.id,
+    );
+  });
+
+  it("keeps display settings, writing only what changed", async () => {
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    await admin.saveDisplayConfig({ cadenceSeconds: 20, motion: "calm" });
+
+    const [write] = upserts("displayConfig");
+    expect(write!.where).toEqual({ id: "default" });
+    expect(Object.keys(write!.update).sort()).toEqual([
+      "cadenceSeconds",
+      "motion",
+      "updatedAt",
+    ]);
+
+    const later = await createPrismaDataProvider(null, { fresh: true });
+    expect(await later.getDisplayConfig()).toMatchObject({
+      cadenceSeconds: 20,
+      motion: "calm",
+    });
+  });
+
+  it("uses the default settings when the database has none, and creates them on save", async () => {
+    await seedDatabase();
+    table("displayConfig").clear();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    const config = await admin.getDisplayConfig();
+    expect(config).toMatchObject({ cadenceSeconds: 12, motion: "full" });
+    expect(config.panelOrder).toHaveLength(7);
+
+    await admin.saveDisplayConfig({ pinnedPanel: "upcoming" });
+    expect(table("displayConfig").get("default")).toMatchObject({
+      pinnedPanel: "upcoming",
+      panelOrder: JSON.stringify(config.panelOrder),
+    });
+  });
+
+  it("shows no sample promos or photos when the database has none", async () => {
+    await seedDatabase();
+    table("promoSlide").clear();
+    table("displayPhoto").clear();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const feed = await (
+      await createPrismaDataProvider(null, { fresh: true })
+    ).getDisplayFeed();
+    expect(feed.promos).toEqual([]);
+    expect(feed.photos).toEqual([]);
+  });
+
+  it("keeps a photo's row, without the dev-only file path, and hides it once deleted", async () => {
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    await admin.saveDisplayPhoto({
+      id: PHOTO_ID,
+      mimeType: "image/jpeg",
+      caption: "Dovetail class",
+      width: 1600,
+      height: 1200,
+    });
+    const [write] = upserts("displayPhoto");
+    expect(write!.create).toMatchObject({
+      id: PHOTO_ID,
+      caption: "Dovetail class",
+      mimeType: "image/jpeg",
+      width: 1600,
+    });
+    expect(write!.create).not.toHaveProperty("staticPath");
+
+    const second = await createPrismaDataProvider("u-admin", { fresh: true });
+    expect((await second.getDisplayFeed()).photos.map((p) => p.id)).toContain(
+      PHOTO_ID,
+    );
+    await second.deleteDisplayPhoto(PHOTO_ID);
+    const third = await createPrismaDataProvider(null, { fresh: true });
+    expect((await third.getDisplayFeed()).photos.map((p) => p.id)).not.toContain(
+      PHOTO_ID,
+    );
   });
 });

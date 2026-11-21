@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import type { ArrayKey } from "./persist-delta";
-import type { MockFixtureBundle, OrgSettings } from "./types";
+import type { DisplayConfig, MockFixtureBundle, OrgSettings } from "./types";
 
 /**
  * Bundle row → database row, one mapping per table. The save path runs each
@@ -755,4 +755,60 @@ export const PERSIST_TABLES: PersistTable[] = [
         deletedAt: asDate(e.deletedAt),
       }) satisfies Prisma.AuditEventUncheckedCreateInput,
   ),
+  table(
+    "promoSlides",
+    "promoSlide",
+    (p, now) =>
+      ({
+        id: p.id,
+        title: p.title,
+        body: p.body,
+        imageUrl: p.imageUrl ?? null,
+        qrUrl: p.qrUrl ?? null,
+        startsAt: asDate(p.startsAt)!,
+        endsAt: asDate(p.endsAt)!,
+        active: p.active,
+        sortOrder: p.sortOrder,
+        createdAt: asDate(p.createdAt) ?? now,
+        updatedAt: asDate(p.updatedAt) ?? now,
+        deletedAt: asDate(p.deletedAt),
+      }) satisfies Prisma.PromoSlideUncheckedCreateInput,
+    "promoSlide",
+  ),
+  // `staticPath` points a dev fixture at a file under /public. It is not a
+  // column: on the live site every photo is served from storage by its id.
+  table(
+    "displayPhotos",
+    "displayPhoto",
+    (p, now) =>
+      ({
+        id: p.id,
+        caption: p.caption ?? null,
+        active: p.active,
+        sortOrder: p.sortOrder,
+        mimeType: p.mimeType,
+        width: p.width ?? null,
+        height: p.height ?? null,
+        createdAt: asDate(p.createdAt) ?? now,
+        updatedAt: asDate(p.updatedAt) ?? now,
+        deletedAt: asDate(p.deletedAt),
+      }) satisfies Prisma.DisplayPhotoUncheckedCreateInput,
+    "displayPhoto",
+  ),
 ];
+
+/** The one DisplayConfig row (id "default"), without its id. */
+export function displayConfigRow(
+  config: DisplayConfig,
+  now: Date,
+): Record<string, unknown> {
+  return {
+    panelOrder: jsonArr(config.panelOrder),
+    cadenceSeconds: config.cadenceSeconds,
+    pinnedPanel: config.pinnedPanel ?? null,
+    nameDisplayMode: config.nameDisplayMode,
+    membershipEveryNRotations: config.membershipEveryNRotations,
+    motion: config.motion,
+    updatedAt: asDate(config.updatedAt) ?? now,
+  };
+}

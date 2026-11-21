@@ -85,6 +85,8 @@ const ARRAY_KEYS = [
   "inventoryItems",
   "itemPhotos",
   "itemEvents",
+  "promoSlides",
+  "displayPhotos",
 ] as const;
 
 export type ArrayKey = (typeof ARRAY_KEYS)[number];
@@ -104,6 +106,7 @@ export function sliceChangedBundle(
   bundle: MockFixtureBundle;
   removed: Partial<Record<ArrayKey, string[]>>;
   settingsChanged: boolean;
+  displayConfigChanged: boolean;
   empty: boolean;
 } {
   const sliced = { ...next };
@@ -123,11 +126,15 @@ export function sliceChangedBundle(
   }
   const settingsChanged =
     JSON.stringify(previous.settings) !== JSON.stringify(next.settings);
+  const displayConfigChanged =
+    JSON.stringify(previous.displayConfig) !==
+    JSON.stringify(next.displayConfig);
   return {
     bundle: sliced,
     removed,
     settingsChanged,
-    empty: !any && !settingsChanged,
+    displayConfigChanged,
+    empty: !any && !settingsChanged && !displayConfigChanged,
   };
 }
 

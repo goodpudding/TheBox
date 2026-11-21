@@ -84,6 +84,31 @@ describe("sliceChangedBundle", () => {
     expect(sliced.bundle.creditLedgerEntries).toEqual([]);
   });
 
+  it("marks a display settings change as dirty on its own", () => {
+    const previous = cloneFixtures(loadFixtures());
+    const next = structuredClone(previous);
+    next.displayConfig.motion = "calm";
+    const sliced = sliceChangedBundle(previous, next);
+    expect(sliced.displayConfigChanged).toBe(true);
+    expect(sliced.settingsChanged).toBe(false);
+    expect(sliced.empty).toBe(false);
+  });
+
+  it("carries an edited promo slide and a new display photo", () => {
+    const previous = cloneFixtures(loadFixtures());
+    const next = structuredClone(previous);
+    next.promoSlides[0]!.title = "Renamed";
+    next.displayPhotos.push({
+      ...next.displayPhotos[0]!,
+      id: "33333333-3333-4333-8333-000000000001",
+    });
+    const sliced = sliceChangedBundle(previous, next);
+    expect(sliced.bundle.promoSlides.map((p) => p.title)).toEqual(["Renamed"]);
+    expect(sliced.bundle.displayPhotos.map((p) => p.id)).toEqual([
+      "33333333-3333-4333-8333-000000000001",
+    ]);
+  });
+
   it("keeps only the mutated user", () => {
     const previous = cloneFixtures(loadFixtures());
     const next = structuredClone(previous);
