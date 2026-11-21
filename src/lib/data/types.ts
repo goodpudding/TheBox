@@ -749,7 +749,8 @@ export type DisplayPanelId =
   | "certs"
   | "bounties"
   | "promos"
-  | "membership";
+  | "membership"
+  | "findus";
 
 export type NameDisplayMode = "none" | "first" | "firstLast";
 

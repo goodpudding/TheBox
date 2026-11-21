@@ -133,6 +133,38 @@ test.describe("Lobby display", () => {
     await expect(root).not.toContainText(/the box/i);
   });
 
+  test("the Find us slide shows a map and the way round to the door", async ({
+    page,
+  }) => {
+    await page.route("**/api/display/feed*", async (route) => {
+      const feed = await (await route.fetch()).json();
+      feed.config.panelOrder = ["findus"];
+      feed.config.pinnedPanel = null;
+      await route.fulfill({ json: feed });
+    });
+    await page.goto(`/display?token=${encodeURIComponent(TOKEN)}`);
+    await expect(
+      page.getByRole("heading", { name: "Find us around back" }),
+    ).toBeVisible({ timeout: 15_000 });
+    // The map takes the picture side for this slide, in place of a photo.
+    const map = page.getByRole("img", { name: /Map: from SW 152nd St/ });
+    await expect(map).toBeVisible();
+    await expect(page.getByTestId("display-photo")).toHaveCount(0);
+    await expect(page.getByText("Walk east along SW 152nd St")).toBeVisible();
+    await expect(page.getByText("Turn right at 6th Ave SW")).toBeVisible();
+    await expect(page.getByText("Come along the back")).toBeVisible();
+    await expect(page.getByText("611 SW 152nd St, Burien")).toBeVisible();
+  });
+
+  test("the Find us slide is in the rotation without anyone adding it", async ({
+    request,
+  }) => {
+    const feed = await (
+      await request.get(`/api/display/feed?token=${encodeURIComponent(TOKEN)}`)
+    ).json();
+    expect(feed.config.panelOrder).toContain("findus");
+  });
+
   test("shows a photo beside the slide", async ({ page }) => {
     await page.goto(`/display?token=${encodeURIComponent(TOKEN)}`);
     const photo = page.getByTestId("display-photo").locator("img").first();
@@ -203,6 +235,7 @@ test.describe("Lobby display", () => {
     ["bounties", "Bounty board"],
     ["promos", LONG],
     ["membership", "Membership"],
+    ["findus", "Find us around back"],
   ] as const;
 
   for (const [panel, heading] of PANELS) {

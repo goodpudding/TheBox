@@ -558,6 +558,18 @@ describe("the lobby display on the live site", () => {
     });
   });
 
+  it("reads the Find us slide back from saved settings", async () => {
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    await admin.saveDisplayConfig({ panelOrder: ["findus", "upcoming"] });
+    const later = await createPrismaDataProvider(null, { fresh: true });
+    expect((await later.getDisplayConfig()).panelOrder).toEqual([
+      "findus",
+      "upcoming",
+    ]);
+  });
+
   it("uses the default settings when the database has none, and creates them on save", async () => {
     await seedDatabase();
     table("displayConfig").clear();
@@ -565,7 +577,7 @@ describe("the lobby display on the live site", () => {
     const admin = await createPrismaDataProvider("u-admin", { fresh: true });
     const config = await admin.getDisplayConfig();
     expect(config).toMatchObject({ cadenceSeconds: 12, motion: "full" });
-    expect(config.panelOrder).toHaveLength(7);
+    expect(config.panelOrder).toHaveLength(8);
 
     await admin.saveDisplayConfig({ pinnedPanel: "upcoming" });
     expect(table("displayConfig").get("default")).toMatchObject({

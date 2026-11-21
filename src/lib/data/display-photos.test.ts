@@ -100,4 +100,15 @@ describe("lobby display motion setting", () => {
     expect(next.motion).toBe("calm");
     expect((await provider.getDisplayFeed()).config.motion).toBe("calm");
   });
+
+  it("keeps the Find us slide in the rotation and lets staff move it", async () => {
+    const provider = createMockDataProvider(null);
+    const start = await provider.getDisplayConfig();
+    expect(start.panelOrder).toContain("findus");
+    const moved = await provider.saveDisplayConfig({
+      panelOrder: ["findus", "upcoming", "not-a-panel" as never],
+    });
+    expect(moved.panelOrder).toEqual(["findus", "upcoming"]);
+  });
 });
+

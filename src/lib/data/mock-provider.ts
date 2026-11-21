@@ -5283,6 +5283,7 @@ export class MockDataProvider implements DataProvider {
       "bounties",
       "promos",
       "membership",
+      "findus",
     ];
     if (data.panelOrder) {
       const filtered = data.panelOrder.filter((p) =>

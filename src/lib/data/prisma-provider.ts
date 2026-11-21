@@ -271,6 +271,7 @@ const DISPLAY_PANELS: readonly DisplayPanelId[] = [
   "bounties",
   "promos",
   "membership",
+  "findus",
 ];
 
 /**

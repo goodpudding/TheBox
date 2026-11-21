@@ -29,6 +29,7 @@ const PANEL_LABELS: Record<DisplayPanelId, string> = {
   bounties: "Bounty board",
   promos: "Promos",
   membership: "Membership",
+  findus: "Find us (map)",
 };
 
 const ALL_PANELS: DisplayPanelId[] = [
@@ -39,6 +40,7 @@ const ALL_PANELS: DisplayPanelId[] = [
   "certs",
   "promos",
   "membership",
+  "findus",
 ];
 
 const DEV_KIOSK_URL = "/display?token=dev-display-token-change-me";

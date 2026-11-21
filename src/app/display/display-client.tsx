@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useData } from "@/components/providers";
+import { DisplayMap } from "@/components/display/display-map";
 import { DisplayPhotoSide } from "@/components/display/display-photo";
 import { DisplayShell } from "@/components/display/display-shell";
 import {
@@ -16,6 +17,7 @@ import { PanelCerts } from "@/components/display/panel-certs";
 import { PanelPromos } from "@/components/display/panel-promos";
 import { PanelMembership } from "@/components/display/panel-membership";
 import { PanelBounties } from "@/components/display/panel-bounties";
+import { PanelFindUs } from "@/components/display/panel-findus";
 import type { DisplayFeed, DisplayPanelId } from "@/lib/data";
 import { laParts } from "@/lib/data/display-feed";
 
@@ -65,6 +67,8 @@ function panelHasContent(id: DisplayPanelId, feed: DisplayFeed): boolean {
       return feed.promos.length > 0;
     case "membership":
       return feed.membership.products.length > 0;
+    case "findus":
+      return true;
   }
 }
 
@@ -217,12 +221,17 @@ export default function DisplayClient() {
         slideKey={`${slide}-${activeId ?? "none"}`}
         cadenceMs={cadenceMs}
         photoSide={
-          <DisplayPhotoSide
-            photo={photoAt(slide)}
-            previous={slide > 0 ? photoAt(slide - 1) : null}
-            overrideSrc={activeId === "promos" ? promo?.imageUrl : null}
-            motion={feed.config.motion}
-          />
+          // The Find us slide brings its own picture: the map.
+          activeId === "findus" ? (
+            <DisplayMap />
+          ) : (
+            <DisplayPhotoSide
+              photo={photoAt(slide)}
+              previous={slide > 0 ? photoAt(slide - 1) : null}
+              overrideSrc={activeId === "promos" ? promo?.imageUrl : null}
+              motion={feed.config.motion}
+            />
+          )
         }
       >
         {activeId === "today" ? <PanelToday feed={feed} /> : null}
@@ -247,6 +256,7 @@ export default function DisplayClient() {
         {activeId === "membership" ? (
           <PanelMembership membership={feed.membership} turn={cycle} />
         ) : null}
+        {activeId === "findus" ? <PanelFindUs /> : null}
         {rotation.length === 0 ? (
           <p className="text-[1.8vw] text-display-muted">
             Nothing scheduled to show right now.
