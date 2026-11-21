@@ -30,7 +30,7 @@ export default function AdminCertificationsPage() {
   useEffect(() => {
     void (async () => {
       const [c, m] = await Promise.all([
-        provider.listCertifications(),
+        provider.adminListCertifications(),
         provider.adminListMembers(),
       ]);
       setCerts(c);

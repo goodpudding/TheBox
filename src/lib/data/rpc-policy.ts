@@ -156,6 +156,9 @@ export const RPC_RULES = {
   adminUpdateVolunteerInterest: { access: "staff", arg: -1 },
   adminListContentMappings: { access: "staff", arg: -1 },
   adminSyncContent: { access: "staff", arg: -1 },
+  adminSaveContentPage: { access: "staff", arg: -1 },
+  adminListMachines: { access: "staff", arg: -1 },
+  adminListCertifications: { access: "staff", arg: -1 },
   adminUpdateSettings: { access: "staff", arg: -1 },
   adminListAuditEvents: { access: "staff", arg: -1 },
   // The kiosk reads the feed from /api/display/feed with the display token.

@@ -101,6 +101,8 @@ export type AccessDenyReason =
   | "reservation_required";
 
 export type AuditAction =
+  | "content_page_created"
+  | "content_page_updated"
   | "waiver_signed"
   | "policy_acknowledged"
   | "cert_knowledge_passed"

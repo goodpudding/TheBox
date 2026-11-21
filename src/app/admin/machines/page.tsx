@@ -95,7 +95,7 @@ export default function AdminMachinesPage() {
         to.setDate(to.getDate() + 1);
 
         const [m, c, mem, usage] = await Promise.all([
-          provider.listMachines(),
+          provider.adminListMachines(),
           provider.listCertifications(),
           provider.adminListMembers(),
           provider.adminListUsage({

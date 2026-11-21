@@ -15,6 +15,12 @@ import {
   shopLeadProgress,
   TOOL_CHAMPION_TERM_MONTHS,
 } from "./access";
+import {
+  CONTENT_CATEGORIES,
+  cleanContentHtml,
+  contentHtmlHasText,
+  contentSlug,
+} from "./content-html";
 import { cloneFixtures, loadFixtures } from "./load-fixtures";
 import {
   computePublishReadiness,
@@ -81,6 +87,7 @@ import type {
   WishlistItemView,
   WishlistPurchaseReportInput,
   WishlistPurchaseReportView,
+  ContentPageInput,
 } from "./provider";
 import { buildDisplayFeed, buildMachineStatuses } from "./display-feed";
 import {
@@ -4090,6 +4097,14 @@ export class MockDataProvider implements DataProvider {
     return { ok: true, module: mod };
   }
 
+  async adminListMachines(): Promise<Machine[]> {
+    return [...this.state.machines].sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+
+  async adminListCertifications(): Promise<Certification[]> {
+    return [...this.state.certifications].sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+
   async adminUpsertMachine(data: MachineInput): Promise<Machine> {
     const now = this.now();
     const name = (data.name ?? "").trim();
@@ -4203,6 +4218,80 @@ export class MockDataProvider implements DataProvider {
       this.touch(page);
     }
     return { syncedAt, count: this.state.contentPages.length };
+  }
+
+  async adminSaveContentPage(input: ContentPageInput): Promise<ContentPage> {
+    const now = this.now();
+    const title = (input.title ?? "").trim().slice(0, 200);
+    if (!title) throw new Error("Give the page a title.");
+    const html = cleanContentHtml(input.html ?? "");
+    if (!contentHtmlHasText(html)) throw new Error("The page has no text yet.");
+    const existing = input.id
+      ? this.state.contentPages.find((p) => p.id === input.id)
+      : undefined;
+    if (input.id && !existing) throw new Error("That page no longer exists.");
+
+    const slug = contentSlug(input.slug ?? existing?.slug ?? title);
+    if (!slug) throw new Error("Give the page an address made of letters or numbers.");
+    const clash = this.state.contentPages.find(
+      (p) => p.slug === slug && p.id !== existing?.id,
+    );
+    if (clash) {
+      throw new Error(
+        `Another page already uses the address "${slug}". It is "${clash.title}".`,
+      );
+    }
+    const version = (input.version ?? existing?.version ?? "1").trim().slice(0, 40) || "1";
+    const category = input.category ?? existing?.category ?? "other";
+    if (!CONTENT_CATEGORIES.includes(category)) throw new Error("Unknown page type.");
+
+    let page: ContentPage;
+    if (existing) {
+      Object.assign(existing, {
+        title,
+        html,
+        slug,
+        version,
+        category,
+        published: input.published ?? existing.published,
+        updatedAt: now,
+      });
+      page = existing;
+    } else {
+      page = {
+        id: this.id("content"),
+        slug,
+        title,
+        html,
+        category,
+        version,
+        published: input.published ?? true,
+        createdAt: now,
+        updatedAt: now,
+      };
+      this.state.contentPages.push(page);
+    }
+    // The waiver members sign is the one whose version the settings name.
+    // A new version on the published waiver makes it the current one, which
+    // is what asks every member to sign again.
+    if (
+      page.category === "waiver" &&
+      page.published &&
+      page.version !== this.state.settings.currentWaiverVersion
+    ) {
+      Object.assign(this.state.settings, {
+        currentWaiverVersion: page.version,
+        updatedAt: now,
+      });
+    }
+    this.pushAudit({
+      action: existing ? "content_page_updated" : "content_page_created",
+      actorId: this.currentUserId ?? null,
+      entityType: "content_page",
+      entityId: page.id,
+      metadata: { slug: page.slug, version: page.version, published: page.published },
+    });
+    return { ...page };
   }
 
   async adminUpdateSettings(

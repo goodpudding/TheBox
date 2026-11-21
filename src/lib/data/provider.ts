@@ -7,6 +7,7 @@ import type {
   Certification,
   ClassSession,
   ClassCategory,
+  ContentCategory,
   ContentPage,
   DisplayConfig,
   ISODate,
@@ -342,6 +343,26 @@ export interface MachineInput extends Partial<Machine> {
   area: Machine["area"];
   requiredCertificationIds: string[];
   readerKey: string;
+}
+
+/**
+ * A page of text staff edit under Admin → Content. `id` picks the page to
+ * change; without it a new page is made. Left-out fields keep their value.
+ */
+export interface ContentPageInput {
+  id?: string;
+  title: string;
+  /** Sanitized on save: scripts, styles and unknown tags are dropped. */
+  html: string;
+  /** The page's address. Made from the title when a new page leaves it out. */
+  slug?: string;
+  category?: ContentCategory;
+  /**
+   * Change this only when the meaning changed. For the waiver, a new version
+   * becomes the current one and every member is asked to sign again.
+   */
+  version?: string;
+  published?: boolean;
 }
 
 export interface UsageFilters {
@@ -1011,6 +1032,10 @@ export interface DataProvider {
     id: string,
     published: boolean,
   ): Promise<PublishModuleResult>;
+  /** Every machine, switched off or not. The public list hides inactive ones. */
+  adminListMachines(): Promise<Machine[]>;
+  /** Every certification, switched off or not. */
+  adminListCertifications(): Promise<Certification[]>;
   adminUpsertMachine(data: MachineInput): Promise<Machine>;
   adminListUsage(
     range: DateRange,
@@ -1024,6 +1049,7 @@ export interface DataProvider {
   ): Promise<VolunteerInterest>;
   adminListContentMappings(): Promise<ContentPage[]>;
   adminSyncContent(): Promise<{ syncedAt: ISODateTime; count: number }>;
+  adminSaveContentPage(input: ContentPageInput): Promise<ContentPage>;
   adminUpdateSettings(data: Partial<OrgSettings>): Promise<OrgSettings>;
   adminListAuditEvents(subjectUserId?: string): Promise<AuditEvent[]>;
 

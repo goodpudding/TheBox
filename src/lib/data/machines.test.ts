@@ -46,3 +46,23 @@ describe("adminUpsertMachine", () => {
     ).rejects.toThrow("Give the machine a name.");
   });
 });
+
+describe("switched-off machines and certifications", () => {
+  it("keeps a switched-off machine in the staff list so it can be switched back on", async () => {
+    const provider = createMockDataProvider();
+    const laser = await provider.adminUpsertMachine({ ...base, name: "Laser A", readerKey: "laser-1" });
+    await provider.adminUpsertMachine({ ...laser, active: false });
+    expect((await provider.listMachines()).map((m) => m.id)).not.toContain(laser.id);
+    expect((await provider.adminListMachines()).map((m) => m.id)).toContain(laser.id);
+    await provider.adminUpsertMachine({ ...laser, active: true });
+    expect((await provider.listMachines()).map((m) => m.id)).toContain(laser.id);
+  });
+
+  it("keeps a switched-off certification in the staff list", async () => {
+    const provider = createMockDataProvider();
+    const cert = (await provider.listCertifications())[0]!;
+    await provider.adminUpsertCertification({ ...cert, active: false });
+    expect((await provider.listCertifications()).map((c) => c.id)).not.toContain(cert.id);
+    expect((await provider.adminListCertifications()).map((c) => c.id)).toContain(cert.id);
+  });
+});
