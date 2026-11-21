@@ -20,6 +20,7 @@ The rule: how the site looks is code; what it says is edited in the admin. Every
 | What | Where |
 |---|---|
 | Waiver, hours, policies, FAQ, history, staff intro, support and lesson text | Admin → Content (rich-text editor; a new waiver version asks every member to sign again) |
+| The explanatory text on Join, Support, Wishlist, Staff, History, Events, Bounties, Volunteer, Equipment, Made here, a class page and Reserve | Admin → Content → Text on pages. Each piece starts with its built-in wording (`src/lib/data/text-blocks.ts`) and can go back to it |
 | Machines, certifications | Admin → Machines, Admin → Certifications (switched-off ones stay listed) |
 | Staff and instructor directory | Admin → People |
 | "Made at The Box" gallery | Admin → Gallery |
@@ -31,7 +32,7 @@ The rule: how the site looks is code; what it says is edited in the admin. Every
 
 Lists with no table of their own (directory, gallery, wishlist, promos, display settings, shop details, tool champion terms) are rows in `SiteRecord`, one JSON row each (`src/lib/data/persist-delta.ts`). Uploaded pictures are rows in `StoredFile`, because a Worker has no disk; set `INVENTORY_PHOTO_STORAGE=drive` to send new photos to a Google shared drive instead (`src/lib/inventory/storage.ts`).
 
-Still in code: page headings and explanatory copy on Join, Support and Wishlist, the machine rate card (`src/lib/credits.ts`), and the class-category and machine-area lists.
+Still in code: page headings, button labels and the messages built from data (dashboard notices, quiz results, booking confirmations), the machine rate card (`src/lib/credits.ts`), and the class-category and machine-area lists. To make another paragraph editable, add it to `TEXT_BLOCKS` and draw it with `<TextBlock slug="…" />`.
 
 ## Local development (mock UI — default)
 

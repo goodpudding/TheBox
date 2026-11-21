@@ -7,6 +7,7 @@ import { MemberGate } from "@/components/member-gate";
 import { PageHero, PageShell } from "@/components/page-shell";
 import { StatusPill } from "@/components/status-pill";
 import { useData } from "@/components/providers";
+import { TextBlock } from "@/components/text-block";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
 import { isStillAhead } from "@/lib/time-window";
@@ -311,8 +312,7 @@ function ClassDetailBody() {
                   Payment required
                 </p>
                 <p className="mt-2 text-sm text-charcoal leading-relaxed">
-                  Pay through Zeffy to hold your seat. Staff marks the booking
-                  paid after confirmation; unpaid holds expire automatically.
+                  <TextBlock slug="class-payment-required" as="span" />
                   {booking.paymentHoldExpiresAt
                     ? ` Hold expires ${formatDateTime(booking.paymentHoldExpiresAt)}.`
                     : ""}
@@ -323,8 +323,7 @@ function ClassDetailBody() {
                     <span className="font-display font-semibold">
                       {formatMoneyExact(wallet.balanceCents)}
                     </span>
-                    . Credits can pay the full class price, or you pay Zeffy
-                    the full amount — no split.
+                    . <TextBlock slug="class-credits-note" as="span" />
                   </p>
                 ) : null}
                 {wallet && wallet.balanceCents >= session.priceCents ? (
@@ -376,13 +375,16 @@ function ClassDetailBody() {
           </div>
         ) : (
           <div className="mt-4 space-y-4">
-            <p className="text-sm text-secondary leading-relaxed">
-              {session.spotsRemaining > 0
-                ? session.priceCents > 0
-                  ? "Booking a paid class holds a seat until payment is confirmed."
-                  : "Free classes confirm instantly when seats remain."
-                : "This class is full — you can join the waitlist."}
-            </p>
+            <TextBlock
+              slug={
+                session.spotsRemaining > 0
+                  ? session.priceCents > 0
+                    ? "class-booking-paid"
+                    : "class-booking-free"
+                  : "class-booking-full"
+              }
+              className="text-sm text-secondary leading-relaxed"
+            />
             <Button
               type="button"
               disabled={busy}

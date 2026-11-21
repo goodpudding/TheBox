@@ -1106,6 +1106,11 @@ export interface DataProvider {
   adminListContentMappings(): Promise<ContentPage[]>;
   adminSyncContent(): Promise<{ syncedAt: ISODateTime; count: number }>;
   adminSaveContentPage(input: ContentPageInput): Promise<ContentPage>;
+  /**
+   * The pieces of page text staff have changed, by slug. A slug that is
+   * missing shows its built-in wording (src/lib/data/text-blocks.ts).
+   */
+  listTextBlocks(): Promise<Record<string, string>>;
 
   /** Staff directory, including people who are hidden. */
   adminListPeople(): Promise<Person[]>;

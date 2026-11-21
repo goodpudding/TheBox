@@ -50,3 +50,38 @@ test.describe("staff edit the words on the site", () => {
     ).toBeVisible();
   });
 });
+
+test.describe("staff edit the explanatory text on a page", () => {
+  test("new directions show on the Join page, and going back restores the built-in ones", async ({
+    page,
+  }) => {
+    await page.goto("/join");
+    await expect(page.getByText("Look for the orange Maker Space doors.")).toBeVisible();
+    await switchUser(page, "Avery Admin");
+    await page.goto("/admin/content");
+
+    await page.getByRole("button", { name: "Edit Join page: directions" }).click();
+    const text = page.getByRole("textbox", { name: "Text" });
+    await expect(text).toContainText("orange Maker Space doors", { timeout: 15_000 });
+    await text.click();
+    await page.keyboard.press("ControlOrMeta+A");
+    await page.keyboard.type("Come in by the alley door on SW 153rd.");
+    await page.getByRole("button", { name: "Save page" }).click();
+    await expect(page.getByRole("status")).toContainText("Saved “Join page: directions”.");
+
+    // Stay inside the app: the fixture UI keeps its data in the page.
+    await page.getByRole("link", { name: "Join", exact: true }).first().click();
+    await expect(page).toHaveURL(/\/join$/);
+    await expect(page.getByText("Come in by the alley door on SW 153rd.")).toBeVisible();
+    await expect(page.getByText("Look for the orange Maker Space doors.")).toHaveCount(0);
+    // A block nobody touched still shows its built-in words.
+    await expect(page.getByText("Checkout stays on Zeffy.")).toBeVisible();
+
+    await page.goBack();
+    await page.getByRole("button", { name: "Edit Join page: directions" }).click();
+    await page.getByRole("button", { name: "Go back to the built-in text" }).click();
+    await expect(page.getByRole("status")).toContainText("is back to the built-in text.");
+    await page.getByRole("link", { name: "Join", exact: true }).first().click();
+    await expect(page.getByText("Look for the orange Maker Space doors.")).toBeVisible();
+  });
+});

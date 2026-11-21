@@ -23,6 +23,7 @@ import {
 } from "./content-html";
 import { cloneFixtures, loadFixtures } from "./load-fixtures";
 import { pictureAddress, webAddress } from "./site-info";
+import { isTextBlockSlug } from "./text-blocks";
 import {
   computePublishReadiness,
   gradeQuizAttempt,
@@ -4515,6 +4516,14 @@ export class MockDataProvider implements DataProvider {
     return { ...next };
   }
 
+  async listTextBlocks(): Promise<Record<string, string>> {
+    const saved: Record<string, string> = {};
+    for (const page of this.state.contentPages) {
+      if (page.category === "block" && page.published) saved[page.slug] = page.html;
+    }
+    return saved;
+  }
+
   async adminSaveContentPage(input: ContentPageInput): Promise<ContentPage> {
     const now = this.now();
     const title = (input.title ?? "").trim().slice(0, 200);
@@ -4539,6 +4548,10 @@ export class MockDataProvider implements DataProvider {
     const version = (input.version ?? existing?.version ?? "1").trim().slice(0, 40) || "1";
     const category = input.category ?? existing?.category ?? "other";
     if (!CONTENT_CATEGORIES.includes(category)) throw new Error("Unknown page type.");
+    // A block's address is what ties it to its place on a page.
+    if (category === "block" && !isTextBlockSlug(slug)) {
+      throw new Error("That is not a piece of text any page shows.");
+    }
 
     let page: ContentPage;
     if (existing) {

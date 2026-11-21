@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useData } from "@/components/providers";
+import { TextBlock } from "@/components/text-block";
 import { useSiteInfo } from "@/components/use-site-info";
 import type { Project } from "@/lib/data";
 
@@ -73,10 +74,10 @@ export function ProjectHighlights({
             <h2 className="mt-2 font-display text-2xl font-semibold text-brown">
               Member project highlights
             </h2>
-            <p className="mt-3 text-secondary leading-relaxed">
-              A peek at what people are building in the shop. Follow along for
-              more — and tag us when you finish something.
-            </p>
+            <TextBlock
+              slug="gallery-intro"
+              className="mt-3 text-secondary leading-relaxed"
+            />
           </div>
           <div className="flex flex-wrap gap-2">
             <a
@@ -132,27 +133,11 @@ export function ProjectHighlights({
         ))}
       </ul>
 
-      <p className="mt-10 max-w-2xl text-sm text-secondary">
-        Want your build featured? Share it on{" "}
-        <a
-          href={social.instagramUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary-text underline underline-offset-2"
-        >
-          Instagram
-        </a>{" "}
-        or{" "}
-        <a
-          href={social.facebookUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary-text underline underline-offset-2"
-        >
-          Facebook
-        </a>{" "}
-        and tell staff — we only post member work with permission.
-      </p>
+      <TextBlock
+        slug="gallery-permission"
+        values={{ instagramUrl: social.instagramUrl, facebookUrl: social.facebookUrl }}
+        className="mt-10 max-w-2xl text-sm text-secondary"
+      />
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatDateTime } from "@/lib/format";
 import type { ContentCategory, ContentPage } from "@/lib/data";
+import { TEXT_BLOCKS, type TextBlock } from "@/lib/data/text-blocks";
 
 const CATEGORY_LABEL: Record<ContentCategory, string> = {
   waiver: "Waiver",
@@ -20,10 +21,12 @@ const CATEGORY_LABEL: Record<ContentCategory, string> = {
   volunteer: "Volunteer role",
   class: "Class description",
   lesson: "Lesson text",
+  block: "Text on pages",
   other: "Site page",
 };
 
-const CATEGORY_ORDER: ContentCategory[] = [
+/** Page types staff can pick. A block is opened from its own list, never made here. */
+const CATEGORY_ORDER: Exclude<ContentCategory, "block">[] = [
   "waiver",
   "hours",
   "policy",
@@ -109,7 +112,58 @@ export default function AdminContentPage() {
     [pages],
   );
 
+  /** What staff saved for each piece of page text, when it is in use. */
+  const savedBlocks = useMemo(
+    () =>
+      new Map(
+        pages
+          .filter((p) => p.category === "block")
+          .map((p) => [p.slug, p] as const),
+      ),
+    [pages],
+  );
+
   const original = draft?.id ? pages.find((p) => p.id === draft.id) : undefined;
+  const isBlock = draft?.category === "block";
+  const blockInUse = isBlock && Boolean(original?.published);
+
+  function openBlock(block: TextBlock) {
+    const saved = savedBlocks.get(block.slug);
+    open({
+      id: saved?.id,
+      title: block.title,
+      // An override that was switched off starts again from the built-in words.
+      html: saved?.published ? saved.html : block.html,
+      slug: block.slug,
+      category: "block",
+      version: saved?.version ?? "1",
+      published: true,
+    });
+  }
+
+  async function revertToBuiltIn() {
+    if (!draft || !original) return;
+    setPending(true);
+    setError(null);
+    setMessage(null);
+    try {
+      // Unpublishing is enough: a block with nothing published shows the
+      // built-in words. The row stays, so nothing has to be deleted.
+      await provider.adminSaveContentPage({
+        id: original.id,
+        title: original.title,
+        html: original.html,
+        published: false,
+      });
+      setMessage(`“${draft.title}” is back to the built-in text.`);
+      setDraft(null);
+      bump();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save the page.");
+    } finally {
+      setPending(false);
+    }
+  }
   const waiverVersionChanged =
     draft?.category === "waiver" &&
     draft.published &&
@@ -167,19 +221,30 @@ export default function AdminContentPage() {
       {draft ? (
         <form onSubmit={(e) => void onSubmit(e)} className="max-w-3xl space-y-5">
           <h2 className="font-display text-xl font-semibold text-brown">
-            {draft.id ? "Edit page" : "New page"}
+            {isBlock ? draft.title : draft.id ? "Edit page" : "New page"}
           </h2>
 
-          <div className="space-y-2">
-            <Label htmlFor="content-title">Title</Label>
-            <Input
-              id="content-title"
-              required
-              value={draft.title}
-              onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-            />
-          </div>
+          {isBlock ? (
+            <p className="text-sm text-secondary">
+              {blockInUse
+                ? "You have changed this text. The page shows your version."
+                : "This is the built-in text. Save to replace it with your own."}{" "}
+              A word in {"{curly braces}"} is filled in for you, such as the contact
+              email from Settings. Leave those as they are.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="content-title">Title</Label>
+              <Input
+                id="content-title"
+                required
+                value={draft.title}
+                onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+              />
+            </div>
+          )}
 
+          {isBlock ? null : (
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="content-category">Page type</Label>
@@ -215,7 +280,9 @@ export default function AdminContentPage() {
             </div>
           </div>
 
-          {draft.id ? (
+          )}
+
+          {isBlock ? null : draft.id ? (
             <p className="text-sm text-secondary">
               Address: <span className="font-mono text-charcoal">{draft.slug}</span>. It
               stays the same so links to this page keep working.
@@ -248,15 +315,17 @@ export default function AdminContentPage() {
             </p>
           </div>
 
-          <label className="flex items-center gap-3 text-charcoal">
-            <input
-              type="checkbox"
-              className="size-5"
-              checked={draft.published}
-              onChange={(e) => setDraft({ ...draft, published: e.target.checked })}
-            />
-            Published (members can read it)
-          </label>
+          {isBlock ? null : (
+            <label className="flex items-center gap-3 text-charcoal">
+              <input
+                type="checkbox"
+                className="size-5"
+                checked={draft.published}
+                onChange={(e) => setDraft({ ...draft, published: e.target.checked })}
+              />
+              Published (members can read it)
+            </label>
+          )}
 
           {waiverVersionChanged ? (
             <p className="rounded-2xl border border-accent/40 bg-accent/15 px-4 py-3 text-brown">
@@ -278,6 +347,16 @@ export default function AdminContentPage() {
             <Button type="submit" disabled={pending}>
               {pending ? "Saving…" : "Save page"}
             </Button>
+            {blockInUse ? (
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={pending}
+                onClick={() => void revertToBuiltIn()}
+              >
+                Go back to the built-in text
+              </Button>
+            ) : null}
             <Button
               type="button"
               variant="outline"
@@ -347,6 +426,48 @@ export default function AdminContentPage() {
           {pages.length === 0 ? (
             <p className="mt-6 text-secondary">No pages yet.</p>
           ) : null}
+
+          <section className="mt-10">
+            <h2 className="font-display text-xl font-semibold text-brown">
+              {CATEGORY_LABEL.block}
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm text-secondary">
+              The explanatory text on the public pages. Each one starts with the
+              built-in wording until you change it.
+            </p>
+            <ul className="mt-3 divide-y divide-border border-y border-border">
+              {TEXT_BLOCKS.map((block) => {
+                const saved = savedBlocks.get(block.slug);
+                const inUse = Boolean(saved?.published);
+                return (
+                  <li
+                    key={block.slug}
+                    className="flex flex-wrap items-center justify-between gap-3 py-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-display font-semibold text-brown">
+                        {block.title}{" "}
+                        {inUse ? null : <StatusPill tone="muted">Built-in text</StatusPill>}
+                      </p>
+                      {inUse && saved ? (
+                        <p className="text-sm text-secondary">
+                          Changed {formatDateTime(saved.updatedAt)}
+                        </p>
+                      ) : null}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => openBlock(block)}
+                      aria-label={`Edit ${block.title}`}
+                    >
+                      Edit
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
         </>
       )}
     </AdminShell>

@@ -575,6 +575,8 @@ export type ContentCategory =
   | "volunteer"
   | "hours"
   | "faq"
+  /** A piece of text on a page. The slug is one of TEXT_BLOCKS. */
+  | "block"
   | "other";
 
 export interface ContentPage extends Timestamps {

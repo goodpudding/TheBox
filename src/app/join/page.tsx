@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { MakerspaceBanner } from "@/components/brand-logo";
 import { PageShell } from "@/components/page-shell";
 import { useData } from "@/components/providers";
+import { TextBlock } from "@/components/text-block";
 import {
   formatBillingInterval,
   formatMoney,
@@ -96,10 +97,10 @@ export default function JoinPage() {
             <h1 className="font-display text-4xl font-semibold tracking-tight text-brown sm:text-5xl">
               Join The Box
             </h1>
-            <p className="mt-4 max-w-lg text-lg leading-relaxed text-secondary">
-              Pick a membership that fits how you make — day passes, Community,
-              Maker, and ways to support the shop.
-            </p>
+            <TextBlock
+              slug="join-hero"
+              className="mt-4 max-w-lg text-lg leading-relaxed text-secondary"
+            />
           </div>
           <div className="anim-rise-delay mt-8 flex flex-wrap gap-3">
             <Button asChild size="lg">
@@ -128,8 +129,7 @@ export default function JoinPage() {
             Choose how you belong
           </h2>
           <p className="mt-3 max-w-2xl text-secondary leading-relaxed">
-            Checkout stays on Zeffy. After you pay, this portal handles your
-            account, waiver, certifications, and shop access.
+            <TextBlock slug="join-checkout" as="span" />
             {catalogSource === "zeffy"
               ? " Membership types below are the published rates from the connected Zeffy organization."
               : ""}
@@ -172,11 +172,10 @@ export default function JoinPage() {
             <h2 className="mt-2 font-display text-2xl font-semibold text-brown">
               After badge access ships
             </h2>
-            <p className="mt-3 max-w-2xl text-secondary leading-relaxed">
-              Maker Pro, Unlimited, and Team wait until the badge system can
-              enforce priority booking and we have real usage data. Listed here
-              so the ladder is complete — not joinable yet.
-            </p>
+            <TextBlock
+              slug="join-coming-tiers"
+              className="mt-3 max-w-2xl text-secondary leading-relaxed"
+            />
             <div className="mt-8 grid gap-6 lg:grid-cols-2">
               {coming.map((product) => (
                 <TierCard key={product.id} product={product} comingSoon />
@@ -190,10 +189,10 @@ export default function JoinPage() {
           <h2 className="mt-2 font-display text-xl font-semibold text-brown">
             Try a class or open studio first
           </h2>
-          <p className="mt-3 max-w-2xl text-secondary leading-relaxed">
-            Workshops, orientation, and open studio live on the Events calendar —
-            not buried under memberships.
-          </p>
+          <TextBlock
+            slug="join-try-first"
+            className="mt-3 max-w-2xl text-secondary leading-relaxed"
+          />
           <div className="mt-6 flex flex-wrap gap-3">
             <Button asChild>
               <Link href="/events">Browse events</Link>
@@ -213,11 +212,10 @@ export default function JoinPage() {
             <h2 className="mt-2 font-display text-2xl font-semibold text-brown">
               Orange doors off SW 153rd
             </h2>
-            <p className="mt-4 max-w-xl text-secondary leading-relaxed">
-              We&apos;re on the lower level at 611 SW 152nd St, Burien — access
-              from SW 153rd between Ambaum and 6th Ave SW, behind Discover
-              Burien. Look for the orange Maker Space doors.
-            </p>
+            <TextBlock
+              slug="join-directions"
+              className="mt-4 max-w-xl text-secondary leading-relaxed"
+            />
           </div>
           <div className="relative aspect-[16/10] overflow-hidden bg-brown/10">
             <Image
@@ -232,21 +230,10 @@ export default function JoinPage() {
 
         <section className="mt-16 max-w-2xl">
           <p className="eyebrow">How joining works</p>
-          <ul className="mt-4 space-y-3 text-secondary leading-relaxed">
-            <li>
-              Payments stay on our external checkout (Zeffy). This portal manages
-              account, waiver, certifications, and shop access after staff
-              activate you.
-            </li>
-            <li>
-              Class tickets include a day pass good for 30 days; join in that
-              window and your first month can start at the Community rate.
-            </li>
-            <li>
-              Gift memberships and class + membership bundles roll out for the
-              holiday season — ask staff or check Support.
-            </li>
-          </ul>
+          <TextBlock
+            slug="join-how-it-works"
+            className="page-text-plain-list mt-4 text-secondary leading-relaxed"
+          />
           <p className="mt-6 text-sm text-secondary">
             Prefer to help without joining?{" "}
             <Link href="/support" className="text-primary-text underline">

@@ -158,6 +158,7 @@ export const RPC_RULES = {
   adminListContentMappings: { access: "staff", arg: -1 },
   adminSyncContent: { access: "staff", arg: -1 },
   adminSaveContentPage: { access: "staff", arg: -1 },
+  listTextBlocks: { access: "public", arg: -1 },
   adminListPeople: { access: "staff", arg: -1 },
   adminSavePerson: { access: "staff", arg: -1 },
   adminDeletePerson: { access: "staff", arg: -1 },

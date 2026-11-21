@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { PageHero, PageShell } from "@/components/page-shell";
 import { useData } from "@/components/providers";
+import { TextBlock } from "@/components/text-block";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -101,7 +102,7 @@ export default function VolunteerPage() {
         <PageHero
           eyebrow="Get involved"
           title="Volunteer at The Box"
-          description="Cover open hours as a Shop Steward, or champion a machine for two months. Three completed championships unlock the Shop lead track."
+          description={<TextBlock slug="volunteer-hero" as="span" />}
         />
         <div className="relative aspect-[16/10] overflow-hidden bg-brown/10 lg:mb-1">
           <Image

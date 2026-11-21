@@ -15,6 +15,7 @@ export const CONTENT_CATEGORIES: readonly ContentCategory[] = [
   "lesson",
   "class",
   "volunteer",
+  "block",
   "other",
 ];
 
