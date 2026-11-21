@@ -39,11 +39,15 @@ function MaintenanceBody() {
     if (!currentUser) return;
     let cancelled = false;
     void (async () => {
-      const [p, m, b] = await Promise.all([
+      const [p, m] = await Promise.all([
         provider.getToolChampionProgress(currentUser.id),
         provider.listMachines(),
-        provider.adminListMaintenanceBlocks(),
       ]);
+      // The schedule is for the people who may change it: staff and Shop
+      // Stewards. Everyone else gets the explanation below, not an error.
+      const b = p.canScheduleMaintenance
+        ? await provider.listMaintenanceSchedule()
+        : [];
       if (cancelled) return;
       setProgress(p);
       setMachines(m.filter((x) => x.active));
@@ -82,12 +86,11 @@ function MaintenanceBody() {
     setError(null);
     const form = new FormData(formEl);
     try {
-      await provider.adminUpsertMaintenanceBlock({
+      await provider.scheduleMaintenance({
         machineId: String(form.get("machineId") ?? ""),
         startsAt: fromDatetimeLocalValue(String(form.get("startsAt") ?? "")),
         endsAt: fromDatetimeLocalValue(String(form.get("endsAt") ?? "")),
         reason: String(form.get("reason") ?? "").trim(),
-        createdById: currentUser.id,
       });
       bump();
       formEl.reset();

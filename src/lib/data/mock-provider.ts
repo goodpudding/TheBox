@@ -4304,6 +4304,38 @@ export class MockDataProvider implements DataProvider {
     return [...this.state.maintenanceBlocks];
   }
 
+  /**
+   * The signed-in person, if they may schedule maintenance. Who that is
+   * comes from the session the provider was made for, never from the
+   * request, so the check cannot be passed by naming someone else.
+   */
+  private maintenanceActor(): User {
+    const actor = this.state.users.find((u) => u.id === this.currentUserId);
+    if (!actor || !canScheduleMaintenance(actor)) {
+      throw new Error("Only staff or Shop Stewards can schedule maintenance");
+    }
+    return actor;
+  }
+
+  async scheduleMaintenance(
+    data: Omit<MaintenanceBlockInput, "createdById">,
+  ): Promise<MaintenanceBlock> {
+    const actor = this.maintenanceActor();
+    return this.adminUpsertMaintenanceBlock({
+      id: data.id,
+      machineId: data.machineId,
+      startsAt: data.startsAt,
+      endsAt: data.endsAt,
+      reason: data.reason,
+      createdById: actor.id,
+    });
+  }
+
+  async listMaintenanceSchedule(): Promise<MaintenanceBlock[]> {
+    this.maintenanceActor();
+    return [...this.state.maintenanceBlocks];
+  }
+
   async adminDeleteMaintenanceBlock(id: string): Promise<void> {
     const block = this.state.maintenanceBlocks.find((m) => m.id === id);
     if (!block) throw new Error("That maintenance block is already gone.");

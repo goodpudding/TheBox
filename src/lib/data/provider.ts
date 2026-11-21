@@ -1099,6 +1099,16 @@ export interface DataProvider {
     data: MaintenanceBlockInput,
   ): Promise<MaintenanceBlock>;
   adminListMaintenanceBlocks(): Promise<MaintenanceBlock[]>;
+  /**
+   * Schedule or change a maintenance block as whoever is signed in. Staff and
+   * active Shop Stewards may; the provider refuses everyone else. The page a
+   * steward uses calls this: the `admin…` methods are staff only by name.
+   */
+  scheduleMaintenance(
+    data: Omit<MaintenanceBlockInput, "createdById">,
+  ): Promise<MaintenanceBlock>;
+  /** The maintenance schedule, for the same people who may change it. */
+  listMaintenanceSchedule(): Promise<MaintenanceBlock[]>;
 
   /** Tool champion / Shop lead track */
   getToolChampionProgress(userId: string): Promise<ToolChampionProgress>;

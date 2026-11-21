@@ -35,6 +35,7 @@ The rule: how the site looks is code; what it says is edited in the admin. Every
 | Bounty board requests: fix the wording, hide, reopen, remove spam | Admin → Bounties |
 | Shared PCs and their software: edit, retire a PC, switch a program off | Admin → Workstations (a retired PC's kiosk screen says it is switched off) |
 | Maintenance blocks: change or remove | Admin → Reservations → Maintenance blocks |
+| Maintenance blocks: schedule or change one as a Shop Steward who is not staff | `/maintenance` |
 | Inventory areas (rename, switch off) and who stewards each | Inventory → Areas |
 | Which page is the hours and which policy new members agree to; the every-safety-question quiz rule | Admin → Settings |
 | Shop inventory with photos | Inventory → Add item |

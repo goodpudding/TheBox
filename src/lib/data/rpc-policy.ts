@@ -140,6 +140,10 @@ export const RPC_RULES = {
   adminCancelReservation: { access: "staff", arg: 1 },
   adminUpsertMaintenanceBlock: { access: "staff", arg: 0, field: "createdById" },
   adminListMaintenanceBlocks: { access: "staff", arg: -1 },
+  // Any signed-in person reaches these; the provider lets staff and active
+  // Shop Stewards through and refuses the rest, from the session's own id.
+  scheduleMaintenance: { access: "user", arg: -1 },
+  listMaintenanceSchedule: { access: "user", arg: -1 },
   getToolChampionProgress: { access: "user", arg: 0 },
   listToolChampionTerms: { access: "user", arg: 0 },
   requestToolChampionTerm: { access: "user", arg: 0, field: "userId" },
