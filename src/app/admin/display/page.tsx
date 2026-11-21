@@ -30,6 +30,8 @@ const PANEL_LABELS: Record<DisplayPanelId, string> = {
   promos: "Promos",
   membership: "Membership",
   findus: "Find us (map)",
+  spotlight: "Event spotlight",
+  community: "Community events",
 };
 
 const ALL_PANELS: DisplayPanelId[] = [
@@ -41,6 +43,8 @@ const ALL_PANELS: DisplayPanelId[] = [
   "promos",
   "membership",
   "findus",
+  "spotlight",
+  "community",
 ];
 
 const DEV_KIOSK_URL = "/display?token=dev-display-token-change-me";

@@ -29,6 +29,50 @@ export function dayLabel(iso: string): string {
     .replace(",", "");
 }
 
+/** "Tuesday, December 15" */
+export function longDayLabel(iso: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: TZ,
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  }).format(new Date(iso));
+}
+
+/** The date block on a row: ["TUE", "Dec 15"]. */
+export function dateBlock(iso: string): [weekday: string, day: string] {
+  const date = new Date(iso);
+  const weekday = new Intl.DateTimeFormat("en-US", {
+    timeZone: TZ,
+    weekday: "short",
+  }).format(date);
+  const day = new Intl.DateTimeFormat("en-US", {
+    timeZone: TZ,
+    month: "short",
+    day: "numeric",
+  }).format(date);
+  return [weekday.toUpperCase(), day];
+}
+
+/**
+ * "6:00 – 8:00 PM", or "11:00 AM – 1:30 PM" across noon. Just the start when
+ * the end is missing or not after it.
+ */
+export function timeRangeLabel(startIso: string, endIso: string): string {
+  const start = timeLabel(startIso);
+  if (new Date(endIso).getTime() <= new Date(startIso).getTime()) return start;
+  const end = timeLabel(endIso);
+  const half = (label: string) => label.slice(-2);
+  return half(start) === half(end)
+    ? `${start.slice(0, -3)} – ${end}`
+    : `${start} – ${end}`;
+}
+
+/** "$65", or "$12.50" when there are cents. */
+export function priceLabel(cents: number): string {
+  return `$${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)}`;
+}
+
 export function spotsLabel(spots: number): string {
   if (spots <= 0) return "Full";
   return `${spots} spot${spots === 1 ? "" : "s"} left`;

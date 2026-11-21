@@ -770,6 +770,18 @@ describe("the lobby display on the live site", () => {
     ]);
   });
 
+  it("reads the spotlight and community slides back from saved settings", async () => {
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    await admin.saveDisplayConfig({ panelOrder: ["spotlight", "community"] });
+    const later = await createPrismaDataProvider(null, { fresh: true });
+    expect((await later.getDisplayConfig()).panelOrder).toEqual([
+      "spotlight",
+      "community",
+    ]);
+  });
+
   it("uses the default settings when the database has none, and creates them on save", async () => {
     await seedDatabase();
     table("displayConfig").clear();
@@ -777,7 +789,7 @@ describe("the lobby display on the live site", () => {
     const admin = await createPrismaDataProvider("u-admin", { fresh: true });
     const config = await admin.getDisplayConfig();
     expect(config).toMatchObject({ cadenceSeconds: 12, motion: "full" });
-    expect(config.panelOrder).toHaveLength(8);
+    expect(config.panelOrder).toHaveLength(10);
 
     await admin.saveDisplayConfig({ pinnedPanel: "upcoming" });
     expect(table("displayConfig").get("default")).toMatchObject({

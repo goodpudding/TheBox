@@ -1,10 +1,12 @@
 {
   "panelOrder": [
     "today",
+    "upcoming",
+    "spotlight",
+    "community",
+    "findus",
     "bounties",
     "machines",
-    "upcoming",
-    "findus",
     "certs",
     "promos",
     "membership"

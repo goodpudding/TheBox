@@ -6507,6 +6507,8 @@ export class MockDataProvider implements DataProvider {
       "promos",
       "membership",
       "findus",
+      "spotlight",
+      "community",
     ];
     if (data.panelOrder) {
       const filtered = data.panelOrder.filter((p) =>

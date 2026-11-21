@@ -805,7 +805,7 @@ INSERT OR IGNORE INTO AuditEvent VALUES('ae-12','reservation_overridden','u-staf
 INSERT OR IGNORE INTO AuditEvent VALUES('ae-13','maintenance_created','u-admin',NULL,'MaintenanceBlock','maint-laser-optics','{"machineId":"m-laser-co2"}',1788282000000,1788282000000,1788282000000,NULL);
 INSERT OR IGNORE INTO AuditEvent VALUES('ae-14','waiver_signed','u-riley','u-riley','WaiverSignature','ws-riley','{"version":"2026.1"}',1787247000000,1787247000000,1787247000000,NULL);
 INSERT OR IGNORE INTO AuditEvent VALUES('ae-15','cert_checked_off','u-admin','u-kai','UserCertification','uc-kai-tablesaw','{"certificationId":"cert-table-saw"}',1751994000000,1751994000000,1751994000000,NULL);
-INSERT OR IGNORE INTO DisplayConfig VALUES('default','["today","bounties","machines","upcoming","findus","certs","promos","membership"]',12,NULL,'first',3,1795302048292,'full');
+INSERT OR IGNORE INTO DisplayConfig VALUES('default','["today","upcoming","spotlight","community","findus","bounties","machines","certs","promos","membership"]',12,NULL,'first',3,1795302048292,'full');
 INSERT OR IGNORE INTO Workstation VALUES('ws-pc-1','Design PC 1','BOX-PC-1','3D lab',1,'m-bambu-a1',10,30,NULL,1795302048357,1795302048357,NULL);
 INSERT OR IGNORE INTO Workstation VALUES('ws-pc-2','Laser PC','BOX-PC-2','Laser room',1,'m-laser-co2',10,30,NULL,1795302048358,1795302048358,NULL);
 INSERT OR IGNORE INTO MachineSoftwareMap VALUES('map-notepad',NULL,NULL,'Notepad','notepad.exe','C:\Windows\System32\notepad.exe',0,1,1795302048359,1795302048359,NULL);
