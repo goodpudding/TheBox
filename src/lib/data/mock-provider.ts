@@ -183,19 +183,9 @@ import {
 } from "../inventory";
 import { notifyStewardsOfIssue } from "../inventory/notify";
 import { isIssuedPhotoKey, isPhotoMimeType } from "../inventory/upload-policy";
+import { OPENING_HOURS } from "../opening-hours";
 
 const TZ = "America/Los_Angeles";
-
-/** Opening hours [openHour, closeHour) in America/Los_Angeles. 0 = Sunday. */
-const OPENING_HOURS: Record<number, [number, number]> = {
-  0: [11, 17],
-  1: [16, 20],
-  2: [16, 20],
-  3: [15, 20],
-  4: [11, 20],
-  5: [11, 20],
-  6: [11, 18],
-};
 
 const SEAT_STATUSES: BookingStatus[] = ["booked", "awaiting_payment", "attended"];
 

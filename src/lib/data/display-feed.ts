@@ -28,31 +28,9 @@ import {
   isDisplayBounty,
 } from "./bounties";
 
+import { DAY_NAMES, OPENING_HOURS } from "@/lib/opening-hours";
+
 const TZ = "America/Los_Angeles";
-
-/**
- * Opening hours [openHour, closeHour) in America/Los_Angeles, or null on a
- * day the shop does not open. 0 = Sunday. Closed on Mondays.
- */
-export const DISPLAY_OPENING_HOURS: Record<number, [number, number] | null> = {
-  0: [11, 17],
-  1: null,
-  2: [16, 20],
-  3: [15, 20],
-  4: [11, 20],
-  5: [11, 20],
-  6: [11, 18],
-};
-
-const DAY_NAMES = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
 
 const SEAT_STATUSES = new Set(["booked", "awaiting_payment", "attended"]);
 
@@ -248,7 +226,7 @@ export function buildDisplayFeed(input: {
   const now = input.now ?? new Date();
   const nowIso = now.toISOString();
   const parts = laParts(now);
-  const window = DISPLAY_OPENING_HOURS[parts.weekday] ?? null;
+  const window = OPENING_HOURS[parts.weekday] ?? null;
   const [openHour, closeHour] = window ?? [0, 0];
   const isOpen = window != null && parts.hour >= openHour && parts.hour < closeHour;
   const hoursLabel = window

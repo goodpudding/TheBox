@@ -68,13 +68,21 @@ describe("lobby display opening hours", () => {
     expect(feed.hours.label).toBe("Monday · Closed");
   });
 
-  it("is open during a Tuesday evening and closed before it starts", async () => {
+  it("is open on a weekday from 1 PM to 8 PM", async () => {
     const evening = await feedAt("2026-11-24T17:00:00-08:00");
     expect(evening.isOpen).toBe(true);
     expect(evening.hours.closed).toBe(false);
-    expect(evening.hours.label).toBe("Tuesday 4:00 PM – 8:00 PM");
-    expect((await feedAt("2026-11-24T15:59:00-08:00")).isOpen).toBe(false);
+    expect(evening.hours.label).toBe("Tuesday 1:00 PM – 8:00 PM");
+    expect((await feedAt("2026-11-24T12:59:00-08:00")).isOpen).toBe(false);
+    expect((await feedAt("2026-11-24T13:00:00-08:00")).isOpen).toBe(true);
     expect((await feedAt("2026-11-24T20:00:00-08:00")).isOpen).toBe(false);
   });
-});
 
+  it("closes at 5 on Saturday and at 4 on Sunday", async () => {
+    expect((await feedAt("2026-11-28T16:59:00-08:00")).isOpen).toBe(true);
+    expect((await feedAt("2026-11-28T17:00:00-08:00")).isOpen).toBe(false);
+    expect((await feedAt("2026-11-29T15:59:00-08:00")).isOpen).toBe(true);
+    expect((await feedAt("2026-11-29T16:00:00-08:00")).isOpen).toBe(false);
+    expect((await feedAt("2026-11-29T10:59:00-08:00")).isOpen).toBe(false);
+  });
+});
