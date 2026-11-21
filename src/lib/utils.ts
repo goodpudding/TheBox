@@ -13,7 +13,7 @@ export function formatTier(tier: string | null | undefined): string {
     maker: "Maker",
     household_addon: "Household add-on",
     patron: "Patron",
-    friend: "Friend of The Box",
+    friend: "Friend of the Makerspace",
     scholarship: "Scholarship",
     maker_pro: "Maker Pro",
     unlimited: "Unlimited",

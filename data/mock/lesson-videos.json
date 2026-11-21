@@ -31,7 +31,7 @@
     "durationSeconds": null,
     "verifiedAt": "2026-09-06T12:00:00-07:00",
     "staffReviewed": false,
-    "notes": "Optional depth on fine dust. Not required before the quiz — covered in Alpine basics plus the Box note above.",
+    "notes": "Optional depth on fine dust. Not required before the quiz — covered in Alpine basics plus the makerspace note above.",
     "createdAt": "2026-09-06T12:00:00-07:00",
     "updatedAt": "2026-09-06T12:00:00-07:00"
   },
@@ -103,7 +103,7 @@
     "durationSeconds": null,
     "verifiedAt": "2026-09-06T12:00:00-07:00",
     "staffReviewed": false,
-    "notes": "A library makerspace teaching its own members - the shared-machine framing already matches The Box.",
+    "notes": "A library makerspace teaching its own members - the shared-machine framing already matches the makerspace.",
     "createdAt": "2026-09-06T12:00:00-07:00",
     "updatedAt": "2026-09-06T12:00:00-07:00"
   },
@@ -243,7 +243,7 @@
     "title": "Printing from Lightburn to the Epilog Laser Dashboard",
     "channel": "Epilog Laser",
     "role": "conditional",
-    "condition": "Only if The Box supports the LightBurn-to-Dashboard workaround. This is Epilog's own video on it.",
+    "condition": "Only if the makerspace supports the LightBurn-to-Dashboard workaround. This is Epilog's own video on it.",
     "durationSeconds": null,
     "verifiedAt": "2026-09-07T12:00:00-07:00",
     "staffReviewed": false,
@@ -481,7 +481,7 @@
     "durationSeconds": null,
     "verifiedAt": "2026-09-07T12:00:00-07:00",
     "staffReviewed": false,
-    "notes": "Filmed on a Mercury XS. Confirm which wash/cure unit The Box has.",
+    "notes": "Filmed on a Mercury XS. Confirm which wash/cure unit the makerspace has.",
     "createdAt": "2026-09-06T12:00:00-07:00",
     "updatedAt": "2026-09-06T12:00:00-07:00"
   },
@@ -517,7 +517,7 @@
     "durationSeconds": null,
     "verifiedAt": "2026-09-07T12:00:00-07:00",
     "staffReviewed": false,
-    "notes": "Filmed on the Cameo 4 Pro (24-inch). The Box's is the standard Cameo 4 - the workflow is the same, the width is not. Say so in the lesson text.",
+    "notes": "Filmed on the Cameo 4 Pro (24-inch). The makerspace's is the standard Cameo 4 - the workflow is the same, the width is not. Say so in the lesson text.",
     "createdAt": "2026-09-06T12:00:00-07:00",
     "updatedAt": "2026-09-06T12:00:00-07:00"
   },
@@ -769,7 +769,7 @@
     "durationSeconds": null,
     "verifiedAt": "2026-09-07T12:00:00-07:00",
     "staffReviewed": false,
-    "notes": "Filmed on PE800 — workflow transfers to similar Brother single-needle machines; confirm The Box model.",
+    "notes": "Filmed on PE800 — workflow transfers to similar Brother single-needle machines; confirm the makerspace model.",
     "createdAt": "2026-09-06T12:00:00-07:00",
     "updatedAt": "2026-09-06T12:00:00-07:00"
   },
@@ -859,7 +859,7 @@
     "durationSeconds": null,
     "verifiedAt": "2026-09-07T12:00:00-07:00",
     "staffReviewed": false,
-    "notes": "Press brand differs; teach The Box's posted times/temps over the video's numbers.",
+    "notes": "Press brand differs; teach the makerspace's posted times/temps over the video's numbers.",
     "createdAt": "2026-09-06T12:00:00-07:00",
     "updatedAt": "2026-09-06T12:00:00-07:00"
   }

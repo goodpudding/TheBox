@@ -1,4 +1,4 @@
-/** Public social profiles for The Box / Discover Burien Makerspace. */
+/** Public social profiles for Discover Burien Makerspace. */
 export const SOCIAL_LINKS = {
   facebook: {
     href: "https://www.facebook.com/DiscoverBurienMakerspace",
@@ -22,7 +22,7 @@ export type ProjectHighlight = {
 };
 
 /**
- * Curated “Made at The Box” reel. Images live in public/images/projects/.
+ * Curated “Made at the makerspace” reel. Images live in public/images/projects/.
  * Replace with real member photos when available.
  */
 export const PROJECT_HIGHLIGHTS: ProjectHighlight[] = [

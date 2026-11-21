@@ -73,7 +73,7 @@ const embroideryMod = {
       title: "Machine basics and first stitch-out",
       contentSlug: "learn/embroidery/basics",
       boxMustCover:
-        "Exact Brother model, bobbin/needle rules, USB file types The Box accepts, needle-break procedure.",
+        "Exact Brother model, bobbin/needle rules, USB file types the makerspace accepts, needle-break procedure.",
       videos: [
         {
           provider: "youtube",
@@ -86,7 +86,7 @@ const embroideryMod = {
           verifiedAt: "2026-09-07",
           staffReviewed: false,
           notes:
-            "Filmed on PE800 — workflow transfers to similar Brother single-needle machines; confirm The Box model.",
+            "Filmed on PE800 — workflow transfers to similar Brother single-needle machines; confirm the makerspace model.",
         },
       ],
     },
@@ -96,7 +96,7 @@ const embroideryMod = {
       title: "Hooping and stabilizer",
       contentSlug: "learn/embroidery/hooping",
       boxMustCover:
-        "Which stabilizers The Box stocks, cutaway vs tearaway default for garments, topper for towels.",
+        "Which stabilizers the makerspace stocks, cutaway vs tearaway default for garments, topper for towels.",
       videos: [
         {
           provider: "youtube",
@@ -134,7 +134,7 @@ const sublimationMod = {
       title: "How sublimation works",
       contentSlug: "learn/sublimation/overview",
       boxMustCover:
-        "Posted temp/time chart at the press, which blanks The Box stocks, dark-garment rule.",
+        "Posted temp/time chart at the press, which blanks the makerspace stocks, dark-garment rule.",
       videos: [
         {
           provider: "youtube",
@@ -167,7 +167,7 @@ const sublimationMod = {
       title: "Sawgrass Print Manager",
       contentSlug: "learn/sublimation/software",
       boxMustCover:
-        "Shop computer login, which presets The Box uses, where member files are saved.",
+        "Shop computer login, which presets the makerspace uses, where member files are saved.",
       videos: [
         {
           provider: "youtube",
@@ -204,7 +204,7 @@ const sublimationMod = {
           verifiedAt: "2026-09-07",
           staffReviewed: false,
           notes:
-            "Press brand differs; teach The Box's posted times/temps over the video's numbers.",
+            "Press brand differs; teach the makerspace's posted times/temps over the video's numbers.",
         },
       ],
     },
@@ -223,7 +223,7 @@ questions._meta.generatedAt = "2026-09-07";
 questions._meta.counts =
   "10-12 questions per module across 12 modules (added embroidery + sublimation).";
 questions._meta.resinNote =
-  "Resin safety questions test the in-house learn/resin/safety lesson. IPA disposal uses best-practice King County MRW wording — edit if The Box posts a different route.";
+  "Resin safety questions test the in-house learn/resin/safety lesson. IPA disposal uses best-practice King County MRW wording — edit if the makerspace posts a different route.";
 
 const resinBank = questions.banks.find((b) => b.moduleId === "mod-resin-printing");
 const ipaQ = resinBank.questions.find((q) => q.id === "q-rs-10");
@@ -237,7 +237,7 @@ Object.assign(ipaQ, {
   ],
   correct: [0],
   explanation:
-    "Best-practice placeholder for The Box. Liquid IPA is household hazardous waste in King County; do not drain it. Staff handle the drop-off. Edit if shop policy differs.",
+    "Best-practice placeholder for the makerspace. Liquid IPA is household hazardous waste in King County; do not drain it. Staff handle the drop-off. Edit if shop policy differs.",
 });
 
 const embroideryBank = {
@@ -312,7 +312,7 @@ const embroideryBank = {
         "Only built-in designs are allowed",
       ],
       correct: [0],
-      explanation: "Confirm The Box's accepted formats (often PES) at the station.",
+      explanation: "Confirm the makerspace's accepted formats (often PES) at the station.",
     },
     {
       id: "q-em-05",
@@ -384,7 +384,7 @@ const embroideryBank = {
       safetyCritical: false,
       source: "shop-policy",
       answerPending: false,
-      prompt: "Does The Box supply stabilizer, bobbins, and embroidery thread?",
+      prompt: "Does the makerspace supply stabilizer, bobbins, and embroidery thread?",
       options: [
         "Best practice: shop stocks basics for checkoff and classes; members bring specialty thread — confirm posted consumable policy",
         "Everything is free unlimited",
@@ -500,7 +500,7 @@ const sublimationBank = {
         "The paper was mirrored correctly",
       ],
       correct: [0],
-      explanation: "Use The Box's posted chart, not a random YouTube temperature.",
+      explanation: "Use the makerspace's posted chart, not a random YouTube temperature.",
     },
     {
       id: "q-su-06",
@@ -557,7 +557,7 @@ const sublimationBank = {
       safetyCritical: false,
       source: "shop-policy",
       answerPending: false,
-      prompt: "Who may change the heat press temperature setpoints on The Box's press?",
+      prompt: "Who may change the heat press temperature setpoints on the makerspace's press?",
       options: [
         "Best practice: use the posted chart; only staff change machine defaults — members select the listed setting for their blank",
         "Anyone may reprogram defaults for the day",

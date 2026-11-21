@@ -1,5 +1,5 @@
 /**
- * Generates the complete The Box Portal mock fixture set under data/mock/.
+ * Generates the complete Discover Burien Makerspace portal mock fixture set under data/mock/.
  * Run: node scripts/generate-mock-fixtures.mjs
  * Usage sessions are produced via scripts/generate-usage.mjs
  */
@@ -269,7 +269,7 @@ const users = [
     emergencyContactPhone: "+1-206-555-0310",
     emergencyContactRelation: "parent",
     profileComplete: true,
-    _notes: "Has outdated waiver (2025.2) — must re-sign current 2026.1 before shop access",
+    _notes: "Has outdated waiver (2025.2) — must re-sign current 2026.2 before shop access",
     createdAt: ts("2025-01-20T10:00:00"),
     updatedAt: NOW,
   },
@@ -809,11 +809,11 @@ const userCertifications = [
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 const settings = {
-  orgName: "The Box · Discover Burien Makerspace",
+  orgName: "Discover Burien Makerspace",
   paymentUrl: "https://www.zeffy.com/en-US/donation-form/example-the-box",
-  contactEmail: "thebox@discoverburien.org",
+  contactEmail: "discovermakers@gmail.com",
   hoursContentSlug: "hours",
-  currentWaiverVersion: "2026.1",
+  currentWaiverVersion: "2026.2",
   memberExpectationsPolicySlug: "member-expectations",
   quizPassThresholdPercent: 80,
   quizAttemptLimit: 3,
@@ -834,13 +834,13 @@ const contentDefs = [
     slug: "waiver",
     title: "Liability Waiver & Assumption of Risk",
     category: "waiver",
-    version: "2026.1",
+    version: "2026.2",
     markdownPath: "content/waiver.md",
     paragraphs: [
-      "By signing this waiver, you acknowledge that use of The Box makerspace involves inherent risks including injury from tools, equipment, materials, and other members.",
+      "By signing this waiver, you acknowledge that use of Discover Burien Makerspace involves inherent risks including injury from tools, equipment, materials, and other members.",
       "You agree to follow all posted safety rules, complete required orientations and certifications before using equipment, and accept full responsibility for your projects and personal belongings.",
-      "You release Discover Burien and The Box staff, volunteers, and affiliates from liability to the fullest extent permitted by law, except for gross negligence or willful misconduct.",
-      "This waiver (version 2026.1) remains in effect until superseded by a newer published version that you must re-sign.",
+      "You release Discover Burien and Discover Burien Makerspace staff, volunteers, and affiliates from liability to the fullest extent permitted by law, except for gross negligence or willful misconduct.",
+      "This waiver (version 2026.2) remains in effect until superseded by a newer published version that you must re-sign.",
     ],
   },
   {
@@ -879,7 +879,7 @@ const contentDefs = [
     paragraphs: [
       "Short-term project storage is available in labeled member cubbies during active projects (up to 14 days).",
       "Items left beyond the labeled date or after membership lapses may be treated as abandoned and donated or discarded after 30 days notice.",
-      "The Box is not responsible for lost, stolen, or damaged personal property.",
+      "The makerspace is not responsible for lost, stolen, or damaged personal property.",
     ],
   },
   {
@@ -898,7 +898,7 @@ const contentDefs = [
   {
     id: "content-volunteering",
     slug: "volunteering",
-    title: "Volunteering at The Box",
+    title: "Volunteering at the makerspace",
     category: "policy",
     version: "2025.4",
     markdownPath: "content/policies/volunteering.md",
@@ -966,7 +966,7 @@ const contentDefs = [
     version: "2026.1",
     markdownPath: "content/classes/shop-orientation.md",
     paragraphs: [
-      "A guided walkthrough of The Box: safety culture, PPE, emergency exits, and how certifications work.",
+      "A guided walkthrough of the makerspace: safety culture, PPE, emergency exits, and how certifications work.",
       "Required before independent machine use. About 90 minutes including Q&A.",
     ],
   },
@@ -1058,12 +1058,12 @@ const contentDefs = [
   {
     id: "content-lesson-so-1",
     slug: "lesson-shop-orientation-welcome",
-    title: "Welcome to The Box",
+    title: "Welcome to the makerspace",
     category: "lesson",
     version: "2026.1",
     markdownPath: "content/lessons/shop-orientation/welcome.md",
     paragraphs: [
-      "The Box is Discover Burien’s community makerspace. This lesson covers who we serve, how membership works, and what “leave it better” means in practice.",
+      "The makerspace is Discover Burien’s community makerspace. This lesson covers who we serve, how membership works, and what “leave it better” means in practice.",
       "You will learn where to find staff, first aid, fire extinguishers, and the emergency exit nearest the woodshop.",
     ],
   },
@@ -1153,7 +1153,7 @@ const learningModules = [
     id: "mod-shop-orientation",
     slug: "shop-orientation",
     title: "Shop Orientation",
-    summary: "Safety, culture, and access rules for The Box makerspace.",
+    summary: "Safety, culture, and access rules for the makerspace.",
     certificationId: "cert-shop-orientation",
     knowledgeOnly: true,
     published: true,
@@ -1180,7 +1180,7 @@ const learningModules = [
 ];
 
 const lessons = [
-  { id: "lesson-so-1", moduleId: "mod-shop-orientation", slug: "welcome", title: "Welcome to The Box", contentSlug: "lesson-shop-orientation-welcome", sortOrder: 1, estimatedMinutes: 8, createdAt: T0, updatedAt: NOW },
+  { id: "lesson-so-1", moduleId: "mod-shop-orientation", slug: "welcome", title: "Welcome to the makerspace", contentSlug: "lesson-shop-orientation-welcome", sortOrder: 1, estimatedMinutes: 8, createdAt: T0, updatedAt: NOW },
   { id: "lesson-so-2", moduleId: "mod-shop-orientation", slug: "safety", title: "Safety Culture & PPE", contentSlug: "lesson-shop-orientation-safety", sortOrder: 2, estimatedMinutes: 12, createdAt: T0, updatedAt: NOW },
   { id: "lesson-so-3", moduleId: "mod-shop-orientation", slug: "access", title: "Badges, Certs & Reservations", contentSlug: "lesson-shop-orientation-access", sortOrder: 3, estimatedMinutes: 10, createdAt: T0, updatedAt: NOW },
   { id: "lesson-3d-1", moduleId: "mod-3d-printing", slug: "slicing", title: "Slicing Basics", contentSlug: "lesson-3d-slicing", sortOrder: 1, estimatedMinutes: 15, createdAt: T0, updatedAt: NOW },
@@ -1217,7 +1217,7 @@ const shopQuestions = makeQuestions("mod-shop-orientation", "q-so", [
   { prompt: "Before leaving the shop you should:", choices: ["Power down tools you used and clean up", "Leave machines running for the next person", "Store wet brushes on the laser bed", "Unplug the main breaker"], correctIndex: 0 },
   { prompt: "Harassment of other members results in:", choices: ["Possible suspension or revocation", "A free class credit", "Automatic upgrade to annual", "No consequences"], correctIndex: 0 },
   { prompt: "Knowledge-only certifications still require:", choices: ["Passing the quiz (and any listed lessons)", "No learning at all", "Only a cash deposit", "A notarized letter"], correctIndex: 0 },
-  { prompt: "The Box is operated by:", choices: ["Discover Burien", "A private for-profit chain", "The city fire department alone", "Amazon"], correctIndex: 0 },
+  { prompt: "The makerspace is operated by:", choices: ["Discover Burien", "A private for-profit chain", "The city fire department alone", "Amazon"], correctIndex: 0 },
 ]);
 
 const print3dQuestions = makeQuestions("mod-3d-printing", "q-3d", [
@@ -1308,7 +1308,7 @@ const classSessions = [
     priceCents: 0,
     zeffyUrl: null,
     prerequisiteCertificationIds: [],
-    location: "The Box — Main Floor",
+    location: "Discover Burien Makerspace — Main Floor",
     cancellationCutoffHours: 24,
     published: true,
     createdAt: ts("2026-08-01T10:00:00"),
@@ -1327,7 +1327,7 @@ const classSessions = [
     priceCents: 3500,
     zeffyUrl: ZEFFY,
     prerequisiteCertificationIds: ["cert-shop-orientation"],
-    location: "The Box — 3D Corner",
+    location: "Discover Burien Makerspace — 3D Corner",
     cancellationCutoffHours: 24,
     published: true,
     createdAt: ts("2026-08-01T10:00:00"),
@@ -1346,7 +1346,7 @@ const classSessions = [
     priceCents: 4500,
     zeffyUrl: ZEFFY,
     prerequisiteCertificationIds: ["cert-shop-orientation"],
-    location: "The Box — Laser Bay",
+    location: "Discover Burien Makerspace — Laser Bay",
     cancellationCutoffHours: 24,
     published: true,
     createdAt: ts("2026-08-05T10:00:00"),
@@ -1365,7 +1365,7 @@ const classSessions = [
     priceCents: 4000,
     zeffyUrl: ZEFFY,
     prerequisiteCertificationIds: ["cert-shop-orientation"],
-    location: "The Box — Woodshop",
+    location: "Discover Burien Makerspace — Woodshop",
     cancellationCutoffHours: 24,
     published: true,
     createdAt: ts("2026-08-05T10:00:00"),
@@ -1384,7 +1384,7 @@ const classSessions = [
     priceCents: 2500,
     zeffyUrl: ZEFFY,
     prerequisiteCertificationIds: ["cert-shop-orientation"],
-    location: "The Box — Textiles",
+    location: "Discover Burien Makerspace — Textiles",
     cancellationCutoffHours: 24,
     published: true,
     createdAt: ts("2026-08-10T10:00:00"),
@@ -1403,7 +1403,7 @@ const classSessions = [
     priceCents: 0,
     zeffyUrl: null,
     prerequisiteCertificationIds: ["cert-shop-orientation"],
-    location: "The Box — All Areas",
+    location: "Discover Burien Makerspace — All Areas",
     cancellationCutoffHours: 12,
     published: true,
     createdAt: ts("2026-08-10T10:00:00"),
@@ -1422,7 +1422,7 @@ const classSessions = [
     priceCents: 3000,
     zeffyUrl: ZEFFY,
     prerequisiteCertificationIds: ["cert-shop-orientation"],
-    location: "The Box — Textiles",
+    location: "Discover Burien Makerspace — Textiles",
     cancellationCutoffHours: 24,
     published: true,
     createdAt: ts("2026-08-12T10:00:00"),
@@ -1441,7 +1441,7 @@ const classSessions = [
     priceCents: 5000,
     zeffyUrl: ZEFFY,
     prerequisiteCertificationIds: ["cert-shop-orientation"],
-    location: "The Box — Sublimation Station",
+    location: "Discover Burien Makerspace — Sublimation Station",
     cancellationCutoffHours: 24,
     published: true,
     createdAt: ts("2026-08-15T10:00:00"),
@@ -1667,21 +1667,21 @@ function hashCode(s) {
 }
 
 const waiverSignatures = [
-  waiver("ws-admin", "u-admin", "2026.1", ts("2026-01-05T10:00:00"), "Avery Admin"),
-  waiver("ws-staff", "u-staff", "2026.1", ts("2026-01-05T10:05:00"), "Sam Stafford"),
-  waiver("ws-maya", "u-maya", "2026.1", ts("2026-01-10T11:00:00"), "Maya Chen"),
-  waiver("ws-jordan", "u-jordan", "2026.1", ts("2026-01-12T11:00:00"), "Jordan Lee"),
-  waiver("ws-sam", "u-sam", "2026.1", ts("2026-01-15T11:00:00"), "Sam Patel"),
-  waiver("ws-riley", "u-riley", "2026.1", ts("2026-08-20T10:30:00"), "Riley Brooks"),
-  waiver("ws-nova", "u-nova", "2026.1", ts("2026-01-20T11:00:00"), "Nova Park"),
-  waiver("ws-kai", "u-kai", "2026.1", ts("2026-01-22T11:00:00"), "Kai Nakamura"),
-  waiver("ws-alex", "u-alex", "2026.1", ts("2026-01-08T11:00:00"), "Alex Rivera"),
-  waiver("ws-casey", "u-casey", "2026.1", ts("2026-01-09T11:00:00"), "Casey Nguyen"),
-  waiver("ws-taylor", "u-taylor", "2026.1", ts("2026-01-11T11:00:00"), "Taylor Kim"),
-  waiver("ws-morgan", "u-morgan", "2026.1", ts("2026-07-03T11:00:00"), "Morgan Ellis"),
+  waiver("ws-admin", "u-admin", "2026.2", ts("2026-01-05T10:00:00"), "Avery Admin"),
+  waiver("ws-staff", "u-staff", "2026.2", ts("2026-01-05T10:05:00"), "Sam Stafford"),
+  waiver("ws-maya", "u-maya", "2026.2", ts("2026-01-10T11:00:00"), "Maya Chen"),
+  waiver("ws-jordan", "u-jordan", "2026.2", ts("2026-01-12T11:00:00"), "Jordan Lee"),
+  waiver("ws-sam", "u-sam", "2026.2", ts("2026-01-15T11:00:00"), "Sam Patel"),
+  waiver("ws-riley", "u-riley", "2026.2", ts("2026-08-20T10:30:00"), "Riley Brooks"),
+  waiver("ws-nova", "u-nova", "2026.2", ts("2026-01-20T11:00:00"), "Nova Park"),
+  waiver("ws-kai", "u-kai", "2026.2", ts("2026-01-22T11:00:00"), "Kai Nakamura"),
+  waiver("ws-alex", "u-alex", "2026.2", ts("2026-01-08T11:00:00"), "Alex Rivera"),
+  waiver("ws-casey", "u-casey", "2026.2", ts("2026-01-09T11:00:00"), "Casey Nguyen"),
+  waiver("ws-taylor", "u-taylor", "2026.2", ts("2026-01-11T11:00:00"), "Taylor Kim"),
+  waiver("ws-morgan", "u-morgan", "2026.2", ts("2026-07-03T11:00:00"), "Morgan Ellis"),
   waiver("ws-jamie-old", "u-jamie", "2025.2", ts("2025-02-01T11:00:00"), "Jamie Ortiz"), // outdated
-  waiver("ws-drew", "u-drew", "2026.1", ts("2026-01-18T11:00:00"), "Drew Santos"),
-  waiver("ws-quinn", "u-quinn", "2026.1", ts("2026-01-19T11:00:00"), "Quinn Walsh"),
+  waiver("ws-drew", "u-drew", "2026.2", ts("2026-01-18T11:00:00"), "Drew Santos"),
+  waiver("ws-quinn", "u-quinn", "2026.2", ts("2026-01-19T11:00:00"), "Quinn Walsh"),
   // u-avery has no waiver — unsigned
 ];
 

@@ -1,6 +1,6 @@
 # Resin safety and PPE
 
-This lesson is written for The Box. There is no outside video good enough to gate this certification on. Read it carefully — the quiz safety questions come from here.
+This lesson is written for the makerspace. There is no outside video good enough to gate this certification on. Read it carefully — the quiz safety questions come from here.
 
 ## Why resin is different from FDM
 

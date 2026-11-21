@@ -2,4 +2,4 @@ Short-term project storage is available in labeled member cubbies during active 
 
 Items left beyond the labeled date or after membership lapses may be treated as abandoned and donated or discarded after 30 days notice.
 
-The Box is not responsible for lost, stolen, or damaged personal property.
+The makerspace is not responsible for lost, stolen, or damaged personal property.

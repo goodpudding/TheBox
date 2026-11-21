@@ -135,7 +135,7 @@ export default function WishlistPage() {
     }
   }
 
-  const contact = settings?.contactEmail ?? "thebox@discoverburien.org";
+  const contact = settings?.contactEmail ?? "discovermakers@gmail.com";
   const donateUrl = settings?.donationUrl ?? settings?.paymentUrl ?? null;
 
   return (
@@ -144,12 +144,12 @@ export default function WishlistPage() {
         <PageHero
           eyebrow="Support · Wishlist"
           title="Help build the shop, item by item"
-          description="Everything The Box still needs, with a link to the exact product we picked. Give a whole station, or grab a $15 spool of filament. Every piece ends up in members’ hands at the bench."
+          description="Everything the makerspace still needs, with a link to the exact product we picked. Give a whole station, or grab a $15 spool of filament. Every piece ends up in members’ hands at the bench."
         />
         <div className="relative aspect-[16/10] overflow-hidden bg-brown/10 lg:mb-1">
           <Image
             src="/images/the-box-doors.jpg"
-            alt="The Box entrance — orange Maker Space doors"
+            alt="The makerspace entrance — orange Maker Space doors"
             fill
             sizes="(max-width: 1024px) 100vw, 40vw"
             className="object-cover object-center"

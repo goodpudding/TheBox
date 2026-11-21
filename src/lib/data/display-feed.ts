@@ -4,6 +4,7 @@ import type {
   Certification,
   ClassSession,
   DisplayConfig,
+  DisplayPhoto,
   LearningModule,
   Machine,
   MachineFloorStatus,
@@ -18,6 +19,7 @@ import type {
 import type {
   DisplayBounty,
   DisplayFeed,
+  DisplayFeedPhoto,
   DisplayMachineStatus,
   DisplayMembershipTier,
 } from "./provider";
@@ -26,28 +28,9 @@ import {
   isDisplayBounty,
 } from "./bounties";
 
+import { DAY_NAMES, OPENING_HOURS } from "@/lib/opening-hours";
+
 const TZ = "America/Los_Angeles";
-
-/** Opening hours [openHour, closeHour) in America/Los_Angeles. 0 = Sunday. */
-export const DISPLAY_OPENING_HOURS: Record<number, [number, number]> = {
-  0: [11, 17],
-  1: [16, 20],
-  2: [16, 20],
-  3: [15, 20],
-  4: [11, 20],
-  5: [11, 20],
-  6: [11, 18],
-};
-
-const DAY_NAMES = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
 
 const SEAT_STATUSES = new Set(["booked", "awaiting_payment", "attended"]);
 
@@ -127,6 +110,13 @@ function bookedCount(
   return bookings.filter(
     (b) => b.classSessionId === classSessionId && SEAT_STATUSES.has(b.status),
   ).length;
+}
+
+/** Where the display loads a photo from. */
+export function displayPhotoUrl(
+  photo: Pick<DisplayPhoto, "id" | "staticPath">,
+): string {
+  return photo.staticPath || `/api/display/photos/${photo.id}`;
 }
 
 export function buildMachineStatuses(input: {
@@ -230,16 +220,18 @@ export function buildDisplayFeed(input: {
   membershipProducts: MembershipProduct[];
   promoSlides: PromoSlide[];
   displayConfig: DisplayConfig;
+  displayPhotos?: DisplayPhoto[];
   bounties?: Bounty[];
 }): DisplayFeed {
   const now = input.now ?? new Date();
   const nowIso = now.toISOString();
   const parts = laParts(now);
-  const [openHour, closeHour] = DISPLAY_OPENING_HOURS[parts.weekday] ?? [
-    11, 17,
-  ];
-  const isOpen = parts.hour >= openHour && parts.hour < closeHour;
-  const hoursLabel = `${DAY_NAMES[parts.weekday]} ${formatHourLabel(openHour)} – ${formatHourLabel(closeHour)}`;
+  const window = OPENING_HOURS[parts.weekday] ?? null;
+  const [openHour, closeHour] = window ?? [0, 0];
+  const isOpen = window != null && parts.hour >= openHour && parts.hour < closeHour;
+  const hoursLabel = window
+    ? `${DAY_NAMES[parts.weekday]} ${formatHourLabel(openHour)} – ${formatHourLabel(closeHour)}`
+    : `${DAY_NAMES[parts.weekday]} · Closed`;
 
   const mode = input.displayConfig.nameDisplayMode;
   const todayKey = parts.dateKey;
@@ -360,6 +352,15 @@ export function buildDisplayFeed(input: {
     )
     .sort((a, b) => a.sortOrder - b.sortOrder);
 
+  const photos: DisplayFeedPhoto[] = (input.displayPhotos ?? [])
+    .filter((p) => p.active && !p.deletedAt)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((p) => ({
+      id: p.id,
+      url: displayPhotoUrl(p),
+      caption: p.caption ?? null,
+    }));
+
   const membership: DisplayMembershipTier = {
     joinUrl: `${siteBase()}/join`,
     products: input.membershipProducts
@@ -406,6 +407,7 @@ export function buildDisplayFeed(input: {
       label: hoursLabel,
       openHour,
       closeHour,
+      closed: window == null,
     },
     isOpen,
     todaySessions,
@@ -424,6 +426,7 @@ export function buildDisplayFeed(input: {
     onlineCerts,
     bounties,
     promos,
+    photos,
     membership,
     config: structuredClone(input.displayConfig),
   };

@@ -772,35 +772,8 @@ async function main() {
     }),
   );
 
-  const promos = readJson<Array<Record<string, unknown>>>("promos.json");
-  for (const p of promos) {
-    await prisma.promoSlide.upsert({
-      where: { id: String(p.id) },
-      create: {
-        id: String(p.id),
-        title: String(p.title),
-        body: String(p.body),
-        imageUrl: p.imageUrl == null ? null : String(p.imageUrl),
-        qrUrl: p.qrUrl == null ? null : String(p.qrUrl),
-        startsAt: asDate(p.startsAt as string)!,
-        endsAt: asDate(p.endsAt as string)!,
-        active: Boolean(p.active ?? true),
-        sortOrder: Number(p.sortOrder ?? 0),
-        createdAt: asDate(p.createdAt as string) ?? new Date(),
-        updatedAt: asDate(p.updatedAt as string) ?? new Date(),
-      },
-      update: {
-        title: String(p.title),
-        body: String(p.body),
-        imageUrl: p.imageUrl == null ? null : String(p.imageUrl),
-        qrUrl: p.qrUrl == null ? null : String(p.qrUrl),
-        startsAt: asDate(p.startsAt as string)!,
-        endsAt: asDate(p.endsAt as string)!,
-        active: Boolean(p.active ?? true),
-        sortOrder: Number(p.sortOrder ?? 0),
-      },
-    });
-  }
+  // Promo slides are not seeded: staff write them in Admin → Display, and a
+  // sample slide in the database would show on the lobby TV.
 
   const displayConfig = readJson<Record<string, unknown>>("display-config.json");
   await prisma.displayConfig.upsert({
@@ -817,6 +790,7 @@ async function main() {
       membershipEveryNRotations: Number(
         displayConfig.membershipEveryNRotations ?? 3,
       ),
+      motion: displayConfig.motion === "calm" ? "calm" : "full",
     },
     update: {
       panelOrder: JSON.stringify(displayConfig.panelOrder ?? []),
@@ -829,6 +803,7 @@ async function main() {
       membershipEveryNRotations: Number(
         displayConfig.membershipEveryNRotations ?? 3,
       ),
+      motion: displayConfig.motion === "calm" ? "calm" : "full",
     },
   });
 

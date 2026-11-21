@@ -48,7 +48,7 @@ function makeStore(seed?: {
       priceCents: 3500,
       zeffyCampaignId: "camp-1",
       prerequisiteCertificationIds: [],
-      location: "The Box",
+      location: "Discover Burien Makerspace",
       cancellationCutoffHours: 24,
       published: true,
       createdAt: "2026-08-01T00:00:00Z",

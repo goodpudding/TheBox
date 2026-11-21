@@ -21,13 +21,13 @@ export default function HistoryPage() {
       <div className="grid items-end gap-8 lg:grid-cols-[1.1fr_0.9fr]">
         <PageHero
           eyebrow="About"
-          title="How The Box got here"
+          title="How the makerspace got here"
           description="A public shop in downtown Burien, run by Discover Burien — from a Farmers Market problem to memberships, certs, and classes in this portal."
         />
         <div className="relative aspect-[16/10] overflow-hidden bg-brown/10 lg:mb-1">
           <Image
             src="/images/the-box-exterior.jpg"
-            alt="Looking toward The Box from the surrounding parking area"
+            alt="Looking toward the makerspace from the surrounding parking area"
             fill
             sizes="(max-width: 1024px) 100vw, 40vw"
             className="object-cover object-[center_30%]"

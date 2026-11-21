@@ -34,6 +34,10 @@ export function headerRules(): {
   return [
     { source: "/:path*", headers: SECURITY_HEADERS },
     {
+      source: "/api/display/photos/:id*",
+      headers: [{ key: "Content-Security-Policy", value: PHOTO_CSP }],
+    },
+    {
       source: "/api/inventory/photos/:id*",
       headers: [{ key: "Content-Security-Policy", value: PHOTO_CSP }],
     },

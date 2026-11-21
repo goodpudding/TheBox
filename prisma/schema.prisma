@@ -766,6 +766,31 @@ model DisplayConfig {
   nameDisplayMode            String   @default("first")
   membershipEveryNRotations  Int      @default(3)
   updatedAt                  DateTime @updatedAt
+  // "full" | "calm". Last so the column order matches ALTER TABLE on D1.
+  motion                     String   @default("full")
+}
+
+/// A photo the lobby display rotates through. The image itself is in
+/// DisplayPhotoBlob so loading every row here never loads the pictures.
+model DisplayPhoto {
+  id        String    @id
+  caption   String?
+  active    Boolean   @default(true)
+  sortOrder Int       @default(0)
+  mimeType  String
+  width     Int?
+  height    Int?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
+
+/// Image bytes for a display photo or a promo image, base64 text. D1 caps one
+/// value at 2 MB, so uploads are limited to 1.4 MB before encoding.
+model DisplayPhotoBlob {
+  id         String   @id
+  dataBase64 String
+  createdAt  DateTime @default(now())
 }
 
 // ── Shared Windows workstations (Tauri kiosk) ────────────────────────────────

@@ -11,37 +11,35 @@ function absoluteUrl(pathOrUrl: string): string {
   return `${base}${pathOrUrl.startsWith("/") ? "" : "/"}${pathOrUrl}`;
 }
 
+/**
+ * A slide staff wrote in Admin → Display. Its picture, if it has one, is
+ * shown on the picture side by the page, not here.
+ */
 export function PanelPromos({ slides }: { slides: PromoSlide[] }) {
   const slide = slides[0];
   if (!slide) return null;
 
   return (
-    <div className="flex h-full flex-col justify-center gap-[2.5vh]">
-      {slide.imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={slide.imageUrl}
-          alt=""
-          className="max-h-[42vh] w-full object-cover"
-        />
-      ) : null}
-      <div className="flex flex-wrap items-end justify-between gap-[2vw]">
-        <div className="max-w-[70%]">
-          <h1 className="font-display text-[clamp(2rem,4vw,4rem)] font-semibold leading-tight text-brown">
-            {slide.title}
-          </h1>
-          <p className="mt-[1.5vh] font-display text-[clamp(1.15rem,2.1vw,1.9rem)] leading-snug text-secondary">
-            {slide.body}
-          </p>
-        </div>
-        {slide.qrUrl ? (
+    <div className="flex min-h-0 flex-1 flex-col justify-center">
+      <div className="h-[1vh] w-[9vw] shrink-0 rounded-full bg-display-coral" aria-hidden />
+      <h1 className="mt-[2.4vh] line-clamp-3 shrink-0 text-[4.4vw] font-extrabold leading-[1.06] text-display-ink">
+        {slide.title}
+      </h1>
+      <p className="mt-[2.2vh] line-clamp-5 shrink-0 text-[2.1vw] leading-[1.3] text-display-muted">
+        {slide.body}
+      </p>
+      {slide.qrUrl ? (
+        <div className="mt-[3vh] flex shrink-0 items-center gap-[1.4vw]">
           <DisplayQr
             url={absoluteUrl(slide.qrUrl)}
-            size={150}
             label={slide.title}
+            className="h-[9vw] w-[9vw]"
           />
-        ) : null}
-      </div>
+          <p className="text-[1.6vw] font-bold text-display-ink">
+            Scan to find out more
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }

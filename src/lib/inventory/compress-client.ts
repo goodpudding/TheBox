@@ -6,7 +6,8 @@ import {
   INVENTORY_THUMB_LONG_EDGE,
 } from "./config";
 
-async function resizeBlob(
+/** Scale a picture down to `maxEdge` on its long side, as a JPEG. */
+export async function resizeBlob(
   file: Blob,
   maxEdge: number,
   quality: number,

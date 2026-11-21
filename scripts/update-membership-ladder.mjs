@@ -106,7 +106,7 @@ const products = [
   {
     id: "mp-friend",
     tier: "friend",
-    name: "Friend of The Box",
+    name: "Friend of the Makerspace",
     summary:
       "No shop access. Newsletter, member-night invites, 10% off classes, and a sticker — for neighbors and supporters who want to belong without making.",
     priceCents: 1000,
@@ -231,7 +231,7 @@ fs.writeFileSync(
 );
 
 const settings = {
-  orgName: "The Box · Discover Burien Makerspace",
+  orgName: "Discover Burien Makerspace",
   paymentUrl: "https://www.zeffy.com/en-US/donation-form/example-the-box",
   donationUrl: "https://www.zeffy.com/en-US/donation-form/example-the-box-donate",
   scholarshipDonationUrl:
@@ -312,7 +312,7 @@ Object.assign(byId["u-kai"], {
   tier: "friend",
   billingInterval: "monthly",
   shopAccess: false,
-  _notes: "Friend of The Box — supporter, no shop access",
+  _notes: "Friend of the Makerspace — supporter, no shop access",
 });
 
 const extras = [
@@ -390,7 +390,7 @@ const supportPages = [
     id: "content-support",
     notionId: null,
     slug: "support",
-    title: "Support The Box",
+    title: "Support the makerspace",
     html:
       "<p>Membership keeps the lights on. Donations and sponsorships open the door wider — scholarships, tools, and programs for Burien neighbors who couldn’t otherwise join.</p>",
     markdownPath: "content/support/support.md",
@@ -445,7 +445,7 @@ fs.writeFileSync(
 fs.mkdirSync("data/mock/content/support", { recursive: true });
 fs.writeFileSync(
   "data/mock/content/support/support.md",
-  `# Support The Box
+  `# Support the makerspace
 
 Membership keeps the lights on. Donations and sponsorships open the door wider — scholarships, tools, and programs for Burien neighbors who couldn’t otherwise join.
 `,

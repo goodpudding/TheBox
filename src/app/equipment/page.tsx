@@ -65,12 +65,12 @@ export default function EquipmentIndexPage() {
         <PageHero
           eyebrow="Shop floor"
           title="Equipment"
-          description="Everything available in The Box and where it lives. Scan the QR on a machine for certifications, a getting-started video, and reservations."
+          description="Everything available in the makerspace and where it lives. Scan the QR on a machine for certifications, a getting-started video, and reservations."
         />
         <div className="relative aspect-[16/10] overflow-hidden bg-brown/10 lg:mb-1">
           <Image
             src="/images/the-box-doors.jpg"
-            alt="The Box Maker Space doors"
+            alt="The makerspace doors"
             fill
             sizes="(max-width: 1024px) 100vw, 40vw"
             className="object-cover object-center"

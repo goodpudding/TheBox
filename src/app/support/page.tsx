@@ -37,7 +37,7 @@ export default function SupportPage() {
         <div className="relative aspect-[16/10] overflow-hidden bg-brown/10 lg:mb-1">
           <Image
             src="/images/the-box-doors.jpg"
-            alt="The Box entrance — orange Maker Space doors"
+            alt="The makerspace entrance — orange Maker Space doors"
             fill
             sizes="(max-width: 1024px) 100vw, 40vw"
             className="object-cover object-center"
@@ -129,9 +129,9 @@ export default function SupportPage() {
           Interested? Email{" "}
           <a
             className="text-primary-text underline"
-            href={`mailto:${settings?.contactEmail ?? "thebox@discoverburien.org"}`}
+            href={`mailto:${settings?.contactEmail ?? "discovermakers@gmail.com"}`}
           >
-            {settings?.contactEmail ?? "thebox@discoverburien.org"}
+            {settings?.contactEmail ?? "discovermakers@gmail.com"}
           </a>
           , or{" "}
           <Link href="/bounties#request" className="text-primary-text underline">

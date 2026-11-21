@@ -71,7 +71,7 @@ export function ClassForm({
         zeffyUrl: String(form.get("zeffyUrl") ?? "").trim() || null,
         zeffyCampaignId:
           String(form.get("zeffyCampaignId") ?? "").trim() || null,
-        location: String(form.get("location") ?? "").trim() || "The Box",
+        location: String(form.get("location") ?? "").trim() || "Discover Burien Makerspace",
         prerequisiteCertificationIds: prereqs,
         published,
       });
@@ -219,7 +219,7 @@ export function ClassForm({
         <Input
           id="location"
           name="location"
-          defaultValue={initial?.location ?? "The Box"}
+          defaultValue={initial?.location ?? "Discover Burien Makerspace"}
         />
       </div>
 

@@ -24,7 +24,7 @@ function session(partial: Partial<CalendarSession> = {}): CalendarSession {
     priceCents: 3500,
     capacity: 6,
     zeffyUrl: "https://www.zeffy.com/en-US/ticketing/lathe",
-    location: "The Box",
+    location: "Discover Burien Makerspace",
     source: "zeffy",
     googleEventId: null,
     googleCalendarId: null,

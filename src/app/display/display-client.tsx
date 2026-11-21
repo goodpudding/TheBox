@@ -1,9 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useData } from "@/components/providers";
+import { DisplayMap } from "@/components/display/display-map";
+import { DisplayPhotoSide } from "@/components/display/display-photo";
 import { DisplayShell } from "@/components/display/display-shell";
+import {
+  START_OF_ROTATION,
+  advanceRotation,
+} from "@/components/display/rotation";
 import { PanelToday } from "@/components/display/panel-today";
 import { PanelMachines } from "@/components/display/panel-machines";
 import { PanelUpcoming } from "@/components/display/panel-upcoming";
@@ -11,6 +17,7 @@ import { PanelCerts } from "@/components/display/panel-certs";
 import { PanelPromos } from "@/components/display/panel-promos";
 import { PanelMembership } from "@/components/display/panel-membership";
 import { PanelBounties } from "@/components/display/panel-bounties";
+import { PanelFindUs } from "@/components/display/panel-findus";
 import type { DisplayFeed, DisplayPanelId } from "@/lib/data";
 import { laParts } from "@/lib/data/display-feed";
 
@@ -60,6 +67,8 @@ function panelHasContent(id: DisplayPanelId, feed: DisplayFeed): boolean {
       return feed.promos.length > 0;
     case "membership":
       return feed.membership.products.length > 0;
+    case "findus":
+      return true;
   }
 }
 
@@ -90,9 +99,10 @@ export default function DisplayClient() {
   // When the feed last loaded. Read only to say how stale it is, never shown.
   const fetchedAtRef = useRef<number | null>(null);
   const [staleMinutes, setStaleMinutes] = useState<number | null>(null);
-  const [panelIndex, setPanelIndex] = useState(0);
-  const [cycle, setCycle] = useState(0);
-  const [promoIndex, setPromoIndex] = useState(0);
+  const [{ slide, panelIndex, cycle, promoIndex }, advance] = useReducer(
+    advanceRotation,
+    START_OF_ROTATION,
+  );
   const [nowTick, setNowTick] = useState(0);
 
   // No token in the address is a refusal before any request is made.
@@ -150,55 +160,86 @@ export default function DisplayClient() {
 
   const cadenceMs = (feed?.config.cadenceSeconds ?? 12) * 1000;
 
+  // Depends on whether there is a feed, not on which one: the feed is re-read
+  // every minute, and restarting this timer each time would stretch the slide
+  // on screen and stop a slide longer than a minute from ever changing.
+  const ready = feed != null;
   useEffect(() => {
-    if (!feed || rotation.length === 0) return;
-    const t = setInterval(() => {
-      setPanelIndex((i) => {
-        const next = i + 1;
-        if (next >= rotation.length) {
-          setCycle((c) => c + 1);
-          setPromoIndex((p) => p + 1);
-          return 0;
-        }
-        return next;
-      });
-    }, cadenceMs);
+    if (!ready || rotation.length === 0) return;
+    const t = setInterval(() => advance(rotation.length), cadenceMs);
     return () => clearInterval(t);
-  }, [feed, rotation.length, cadenceMs]);
+  }, [ready, rotation.length, cadenceMs]);
+
+  // Fetch the next photo while this one is up, so the change is a fade and
+  // not a picture loading top to bottom.
+  const photos = feed?.photos;
+  const nextPhotoUrl =
+    photos && photos.length > 1
+      ? photos[(slide + 1) % photos.length]!.url
+      : null;
+  useEffect(() => {
+    if (!nextPhotoUrl) return;
+    const preload = new Image();
+    preload.src = nextPhotoUrl;
+  }, [nextPhotoUrl]);
 
   void nowTick;
 
   if (denied) {
     return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-page">
-        <p className="font-display text-2xl text-brown">Display unavailable</p>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-display-panel">
+        <p className="font-display text-2xl text-display-ink">
+          Display unavailable
+        </p>
       </div>
     );
   }
 
   if (!feed) {
     return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-page">
-        <p className="font-display text-2xl text-secondary">Loading…</p>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-display-panel">
+        <p className="font-display text-2xl text-display-muted">Loading…</p>
       </div>
     );
   }
 
   const activeId = rotation[panelIndex % Math.max(rotation.length, 1)];
-  const promoSlide =
+  const promo =
     feed.promos.length > 0
-      ? [feed.promos[promoIndex % feed.promos.length]!]
-      : [];
+      ? feed.promos[promoIndex % feed.promos.length]!
+      : null;
+  const photoAt = (n: number) =>
+    feed.photos.length > 0
+      ? feed.photos[((n % feed.photos.length) + feed.photos.length) % feed.photos.length]!
+      : null;
 
   return (
     <div className="fixed inset-0 z-[100]">
-      <DisplayShell feed={feed} staleMinutes={staleMinutes}>
+      <DisplayShell
+        feed={feed}
+        staleMinutes={staleMinutes}
+        slideKey={`${slide}-${activeId ?? "none"}`}
+        cadenceMs={cadenceMs}
+        photoSide={
+          // The Find us slide brings its own picture: the map.
+          activeId === "findus" ? (
+            <DisplayMap />
+          ) : (
+            <DisplayPhotoSide
+              photo={photoAt(slide)}
+              previous={slide > 0 ? photoAt(slide - 1) : null}
+              overrideSrc={activeId === "promos" ? promo?.imageUrl : null}
+              motion={feed.config.motion}
+            />
+          )
+        }
+      >
         {activeId === "today" ? <PanelToday feed={feed} /> : null}
         {activeId === "machines" ? (
-          <PanelMachines machines={feed.machines} />
+          <PanelMachines machines={feed.machines} turn={cycle} />
         ) : null}
         {activeId === "upcoming" ? (
-          <PanelUpcoming items={feed.upcoming} />
+          <PanelUpcoming items={feed.upcoming} turn={cycle} />
         ) : null}
         {activeId === "certs" ? (
           <PanelCerts
@@ -207,14 +248,17 @@ export default function DisplayClient() {
           />
         ) : null}
         {activeId === "bounties" ? (
-          <PanelBounties bounties={feed.bounties ?? []} />
+          <PanelBounties bounties={feed.bounties ?? []} turn={cycle} />
         ) : null}
-        {activeId === "promos" ? <PanelPromos slides={promoSlide} /> : null}
+        {activeId === "promos" && promo ? (
+          <PanelPromos slides={[promo]} />
+        ) : null}
         {activeId === "membership" ? (
-          <PanelMembership membership={feed.membership} />
+          <PanelMembership membership={feed.membership} turn={cycle} />
         ) : null}
+        {activeId === "findus" ? <PanelFindUs /> : null}
         {rotation.length === 0 ? (
-          <p className="font-display text-[clamp(1.2rem,2vw,1.8rem)] text-secondary">
+          <p className="text-[1.8vw] text-display-muted">
             Nothing scheduled to show right now.
           </p>
         ) : null}

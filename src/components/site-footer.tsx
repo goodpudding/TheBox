@@ -20,7 +20,7 @@ export function SiteFooter() {
           </div>
           <div>
             <p className="font-display text-lg font-semibold tracking-tight">
-              The Box · Discover Burien Makerspace
+              Discover Burien Makerspace
             </p>
             <p className="mt-1 text-sm text-white/55">
               611 SW 152nd St (lower level) · access from SW 153rd · Burien, WA
