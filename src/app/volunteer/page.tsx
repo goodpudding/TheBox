@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SHOP_LEAD_COMPLETED_TOOLS } from "@/lib/data";
-import { isLiveDataMode } from "@/lib/data/mode";
 import type {
   ContentPage,
   Machine,
@@ -18,8 +17,6 @@ import type {
   VolunteerRole,
 } from "@/lib/data";
 
-// Tool Champion terms are not persisted on the live site yet.
-const championsPersist = !isLiveDataMode();
 
 export default function VolunteerPage() {
   const { provider, currentUser, revision, bump } = useData();
@@ -48,7 +45,7 @@ export default function VolunteerPage() {
       setRoleContent(map);
       setVolunteeringPolicy(await provider.getContentBySlug("volunteering"));
       setMachines((await provider.listMachines()).filter((m) => m.active));
-      if (currentUser && championsPersist) {
+      if (currentUser) {
         setProgress(await provider.getToolChampionProgress(currentUser.id));
       } else {
         setProgress(null);
@@ -57,8 +54,7 @@ export default function VolunteerPage() {
   }, [provider, revision, currentUser]);
 
   const selectedRole = roles.find((r) => r.id === roleId);
-  const isToolChampion =
-    championsPersist && selectedRole?.slug === "tool-champion";
+  const isToolChampion = selectedRole?.slug === "tool-champion";
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

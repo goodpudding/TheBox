@@ -3,11 +3,13 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { AdminShell } from "@/components/admin-shell";
 import { useData } from "@/components/providers";
+import { compressInventoryPhoto } from "@/lib/inventory/compress-client";
+import { PHOTO_UPLOAD_FAILED } from "@/lib/inventory/config";
+import { readJson } from "@/lib/read-json";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { isLiveDataMode } from "@/lib/data/mode";
 import type {
   DisplayConfig,
   DisplayPanelId,
@@ -96,7 +98,6 @@ export default function AdminDisplayPage() {
   const [error, setError] = useState<string | null>(null);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const [kioskError, setKioskError] = useState<string | null>(null);
-  const live = isLiveDataMode();
 
   useEffect(() => {
     let cancelled = false;
@@ -168,15 +169,18 @@ export default function AdminDisplayPage() {
   }
 
   async function onUpload(file: File) {
+    // Shrunk in the browser first, like inventory photos: a phone picture is
+    // several megabytes and the lobby screen needs a fraction of that.
+    const compressed = await compressInventoryPhoto(file);
     const body = new FormData();
-    body.set("file", file);
+    body.set("file", compressed.full, "promo.jpg");
     const res = await fetch("/api/display/upload", { method: "POST", body });
-    if (!res.ok) {
-      const data = (await res.json().catch(() => null)) as { error?: string } | null;
-      throw new Error(data?.error ?? "Upload failed");
+    const data = await readJson<{ url?: string; error?: string }>(res);
+    if (!res.ok || !data?.url) {
+      throw new Error(data?.error ?? PHOTO_UPLOAD_FAILED);
     }
-    const data = (await res.json()) as { url: string };
-    setForm((f) => ({ ...f, imageUrl: data.url }));
+    const url = data.url;
+    setForm((f) => ({ ...f, imageUrl: url }));
   }
 
   function movePanel(id: DisplayPanelId, dir: -1 | 1) {
@@ -211,14 +215,6 @@ export default function AdminDisplayPage() {
         </p>
       ) : null}
       {message ? <p className="mb-4 text-sm text-secondary">{message}</p> : null}
-      {live ? (
-        <p
-          className="mb-6 rounded-2xl border border-border bg-surface/60 px-4 py-3 text-sm text-brown"
-          role="status"
-        >
-          Display settings and promos are not saved on the live site yet.
-        </p>
-      ) : null}
 
       <section className="max-w-3xl">
         <h2 className="font-display text-xl font-semibold text-brown">
@@ -253,7 +249,7 @@ export default function AdminDisplayPage() {
       </section>
 
       {config ? (
-        <fieldset disabled={live} className="mt-12 max-w-xl space-y-4">
+        <fieldset className="mt-12 max-w-xl space-y-4">
           <h2 className="font-display text-xl font-semibold text-brown">
             Panels
           </h2>
@@ -379,7 +375,7 @@ export default function AdminDisplayPage() {
           {form.id ? "Edit promo" : "New promo"}
         </h2>
         <form onSubmit={onSavePromo} className="mt-4">
-          <fieldset disabled={live} className="space-y-4">
+          <fieldset className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="title">Title</Label>
               <Input
@@ -497,7 +493,7 @@ export default function AdminDisplayPage() {
                   {p.active ? "" : " · inactive"}
                 </p>
               </div>
-              <fieldset disabled={live} className="flex gap-2">
+              <fieldset className="flex gap-2">
                 <Button
                   type="button"
                   size="sm"

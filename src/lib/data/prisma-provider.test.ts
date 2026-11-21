@@ -479,40 +479,80 @@ describe("payments applied by the system", () => {
   });
 });
 
-describe("what the live site cannot store yet", () => {
-  it("refuses a wishlist purchase report instead of accepting and dropping it", async () => {
-    // These collections are not saved in the database yet. The pages hide the
-    // forms on the live site; a direct call must not be told it worked.
+describe("lists that have no table of their own", () => {
+  // The staff directory, wishlist, lobby promos, display settings and tool
+  // champion terms used to be read from fixture files on the live site, and
+  // every write to them was refused. They are kept as SiteRecord rows now.
+  function records(collection: string): Row[] {
+    return [...table("siteRecord").values()]
+      .filter((row) => row.collection === collection)
+      .map((row) => JSON.parse(String(row.data)) as Row);
+  }
+
+  it("keeps a wishlist purchase report, and a later request sees it", async () => {
     await seedDatabase();
     const { createPrismaDataProvider } = await import("./prisma-provider");
     const provider = await createPrismaDataProvider(null, { fresh: true });
+    const before = records("wishlistPurchaseReports").length;
     const catalog = await provider.getWishlistCatalog();
     const item = catalog.items.find((i) => i.status !== "fulfilled")!;
-    await expect(
-      provider.reportWishlistPurchase({
-        itemId: item.id,
-        name: "Pat",
-        email: "pat@example.com",
-      }),
-    ).rejects.toThrow(/not available on the live site/i);
-    expect(upserts("auditEvent")).toHaveLength(0);
+    await provider.reportWishlistPurchase({
+      itemId: item.id,
+      name: "Pat",
+      email: "pat@example.com",
+    });
+    const stored = records("wishlistPurchaseReports");
+    expect(stored).toHaveLength(before + 1);
+    expect(stored.some((r) => r.itemId === item.id && r.name === "Pat")).toBe(true);
+
+    const staff = await createPrismaDataProvider("u-admin", { fresh: true });
+    const reports = await staff.adminListWishlistPurchaseReports();
+    expect(reports.some((r) => r.itemId === item.id && r.name === "Pat")).toBe(true);
   });
 
-  it("refuses display settings, promo slides and tool champion requests the same way", async () => {
+  it("writes only the row that changed", async () => {
     await seedDatabase();
     const { createPrismaDataProvider } = await import("./prisma-provider");
     const admin = await createPrismaDataProvider("u-admin", { fresh: true });
-    await expect(admin.saveDisplayConfig({ cadenceSeconds: 20 })).rejects.toThrow(
-      /not available on the live site/i,
-    );
-    await expect(admin.deletePromo("promo-welcome")).rejects.toThrow(
-      /not available on the live site/i,
-    );
-    await expect(
-      admin.requestToolChampionTerm({ userId: "u-maya", machineId: "m-sewing-1" }),
-    ).rejects.toThrow(/not available on the live site/i);
-    // Reading them still works.
-    expect((await admin.getDisplayConfig()).cadenceSeconds).toBeGreaterThan(0);
-    expect((await admin.listPromos()).length).toBeGreaterThan(0);
+    const promo = (await admin.listPromos())[0]!;
+    await admin.savePromo({ ...promo, title: "Holiday hours" });
+    const written = upserts("siteRecord").map((u) => u.where.id);
+    expect(written).toEqual([`promoSlides:${promo.id}`]);
+  });
+
+  it("keeps display settings, a deleted promo and a tool champion request", async () => {
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    await admin.saveDisplayConfig({ cadenceSeconds: 20 });
+    await admin.deletePromo("promo-welcome");
+    await admin.requestToolChampionTerm({ userId: "u-maya", machineId: "m-miter-saw" });
+
+    const later = await createPrismaDataProvider("u-admin", { fresh: true });
+    expect((await later.getDisplayConfig()).cadenceSeconds).toBe(20);
+    expect((await later.listPromos()).map((p) => p.id)).not.toContain("promo-welcome");
+    expect(records("toolChampionTerms").some((t) => t.userId === "u-maya" && t.machineId === "m-miter-saw")).toBe(true);
+  });
+
+  it("reads the staff directory from the database, not from the fixture file", async () => {
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const first = await createPrismaDataProvider(null, { fresh: true });
+    const person = (await first.listPeople())[0]!;
+    writeElsewhere("siteRecord", `people:${person.id}`, {
+      data: JSON.stringify({ ...person, name: "Renamed In The Database" }),
+    });
+    const second = await createPrismaDataProvider(null, { fresh: true });
+    expect((await second.listPeople()).map((p) => p.name)).toContain("Renamed In The Database");
+  });
+
+  it("shows nothing, not sample rows, when the database has none", async () => {
+    await seedDatabase();
+    for (const id of [...table("siteRecord").keys()]) {
+      if (id.startsWith("people:")) table("siteRecord").delete(id);
+    }
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const provider = await createPrismaDataProvider(null, { fresh: true });
+    expect(await provider.listPeople()).toEqual([]);
   });
 });

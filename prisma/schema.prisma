@@ -983,6 +983,21 @@ model InventoryItem {
   @@index([name])
 }
 
+/// One row of a list the site shows that has no table of its own: the staff
+/// directory, the wishlist, lobby promos, display settings, tool champion
+/// terms. `data` is the row as JSON. The app reads a collection whole and
+/// writes one row at a time.
+model SiteRecord {
+  /// "<collection>:<row id>"
+  id         String   @id
+  collection String
+  data       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([collection])
+}
+
 /// File bytes kept in the database, because a Worker has no disk. Inventory
 /// photos today. The app never loads this table with the rest of the data;
 /// rows are read one at a time by key (`db:<id>`).
