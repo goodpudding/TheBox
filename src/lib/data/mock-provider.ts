@@ -49,6 +49,7 @@ import type {
   PendingCheckoff,
   ProfileInput,
   PromoSlideInput,
+  DisplayPhotoInput,
   PublishModuleResult,
   QuestionInput,
   QuizAttemptResult,
@@ -82,6 +83,7 @@ import type {
   WishlistPurchaseReportInput,
   WishlistPurchaseReportView,
 } from "./provider";
+import { DISPLAY_CAPTION_MAX, DISPLAY_PHOTO_LIMIT } from "./provider";
 import { buildDisplayFeed, buildMachineStatuses } from "./display-feed";
 import {
   boardNeedsExpiry,
@@ -128,6 +130,7 @@ import type {
   CreditLedgerKind,
   CreditWallet,
   DisplayConfig,
+  DisplayPhoto,
   DisplayPanelId,
   ISODate,
   ISODateTime,
@@ -5218,6 +5221,7 @@ export class MockDataProvider implements DataProvider {
       membershipProducts: this.state.membershipProducts,
       promoSlides: this.state.promoSlides,
       displayConfig: this.state.displayConfig,
+      displayPhotos: this.state.displayPhotos,
       bounties: this.state.bounties,
     });
   }
@@ -5317,10 +5321,86 @@ export class MockDataProvider implements DataProvider {
         data.membershipEveryNRotations,
       );
     }
+    if (data.motion === "full" || data.motion === "calm") {
+      this.state.displayConfig.motion = data.motion;
+    }
     this.state.displayConfig.updatedAt = this.now();
     return structuredClone(this.state.displayConfig);
   }
+
+  async listDisplayPhotos(): Promise<DisplayPhoto[]> {
+    return (this.state.displayPhotos ?? [])
+      .filter((p) => !p.deletedAt)
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((p) => structuredClone(p));
+  }
+
+  async saveDisplayPhoto(data: DisplayPhotoInput): Promise<DisplayPhoto> {
+    const photos = (this.state.displayPhotos ??= []);
+    const now = this.now();
+    const caption =
+      data.caption === undefined
+        ? undefined
+        : data.caption?.trim().slice(0, DISPLAY_CAPTION_MAX) || null;
+
+    const existing = photos.find((p) => p.id === data.id && !p.deletedAt);
+    if (existing) {
+      if (caption !== undefined) existing.caption = caption;
+      if (data.active !== undefined) existing.active = Boolean(data.active);
+      if (data.sortOrder !== undefined && Number.isFinite(data.sortOrder)) {
+        existing.sortOrder = Math.trunc(data.sortOrder);
+      }
+      existing.updatedAt = now;
+      return structuredClone(existing);
+    }
+
+    // A new row stands for a file the upload route just stored, so it must
+    // carry that route's id and the type the route worked out.
+    if (!DISPLAY_PHOTO_ID.test(data.id) || !isPhotoMimeType(data.mimeType)) {
+      throw new Error("Unknown photo");
+    }
+    const kept = photos.filter((p) => !p.deletedAt);
+    if (kept.length >= DISPLAY_PHOTO_LIMIT) {
+      throw new Error(
+        `The display holds ${DISPLAY_PHOTO_LIMIT} photos at most. Delete one first.`,
+      );
+    }
+    const size = (value: number | null | undefined): number | null =>
+      typeof value === "number" && value > 0 && value < 100_000
+        ? Math.round(value)
+        : null;
+    const photo: DisplayPhoto = {
+      id: data.id,
+      caption: caption ?? null,
+      active: data.active ?? true,
+      sortOrder:
+        data.sortOrder !== undefined && Number.isFinite(data.sortOrder)
+          ? Math.trunc(data.sortOrder)
+          : Math.max(0, ...kept.map((p) => p.sortOrder)) + 1,
+      mimeType: data.mimeType,
+      width: size(data.width),
+      height: size(data.height),
+      createdAt: now,
+      updatedAt: now,
+    };
+    photos.push(photo);
+    return structuredClone(photo);
+  }
+
+  async deleteDisplayPhoto(id: string): Promise<void> {
+    const photo = (this.state.displayPhotos ?? []).find(
+      (p) => p.id === id && !p.deletedAt,
+    );
+    if (!photo) throw new Error("Photo not found");
+    photo.deletedAt = this.now();
+    photo.active = false;
+    photo.updatedAt = this.now();
+  }
 }
+
+/** Ids the photo upload route issues: a random UUID. */
+const DISPLAY_PHOTO_ID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export function createMockDataProvider(
   initialUserId?: string | null,

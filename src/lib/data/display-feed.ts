@@ -4,6 +4,7 @@ import type {
   Certification,
   ClassSession,
   DisplayConfig,
+  DisplayPhoto,
   LearningModule,
   Machine,
   MachineFloorStatus,
@@ -18,6 +19,7 @@ import type {
 import type {
   DisplayBounty,
   DisplayFeed,
+  DisplayFeedPhoto,
   DisplayMachineStatus,
   DisplayMembershipTier,
 } from "./provider";
@@ -129,6 +131,13 @@ function bookedCount(
   ).length;
 }
 
+/** Where the display loads a photo from. */
+export function displayPhotoUrl(
+  photo: Pick<DisplayPhoto, "id" | "staticPath">,
+): string {
+  return photo.staticPath || `/api/display/photos/${photo.id}`;
+}
+
 export function buildMachineStatuses(input: {
   machines: Machine[];
   usageSessions: UsageSession[];
@@ -230,6 +239,7 @@ export function buildDisplayFeed(input: {
   membershipProducts: MembershipProduct[];
   promoSlides: PromoSlide[];
   displayConfig: DisplayConfig;
+  displayPhotos?: DisplayPhoto[];
   bounties?: Bounty[];
 }): DisplayFeed {
   const now = input.now ?? new Date();
@@ -360,6 +370,15 @@ export function buildDisplayFeed(input: {
     )
     .sort((a, b) => a.sortOrder - b.sortOrder);
 
+  const photos: DisplayFeedPhoto[] = (input.displayPhotos ?? [])
+    .filter((p) => p.active && !p.deletedAt)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((p) => ({
+      id: p.id,
+      url: displayPhotoUrl(p),
+      caption: p.caption ?? null,
+    }));
+
   const membership: DisplayMembershipTier = {
     joinUrl: `${siteBase()}/join`,
     products: input.membershipProducts
@@ -424,6 +443,7 @@ export function buildDisplayFeed(input: {
     onlineCerts,
     bounties,
     promos,
+    photos,
     membership,
     config: structuredClone(input.displayConfig),
   };
