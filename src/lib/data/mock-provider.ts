@@ -182,6 +182,8 @@ import type {
   WishlistPurchaseReport,
   Project,
   SiteInfo,
+  UserRole,
+  MembershipTier,
 } from "./types";
 import {
   canInventory,
@@ -433,6 +435,22 @@ export function mergeStaffEdits(
   }
   return [...owned];
 }
+
+const MEMBER_ROLES: readonly UserRole[] = ["member", "staff", "admin"];
+
+const MEMBERSHIP_TIERS: readonly MembershipTier[] = [
+  "day",
+  "community",
+  "maker",
+  "household_addon",
+  "patron",
+  "friend",
+  "scholarship",
+  "maker_pro",
+  "unlimited",
+  "team",
+  "shop_steward",
+];
 
 /** Ten past the largest order in the list, so a new row lands at the end. */
 function nextSortOrder(rows: { sortOrder: number }[]): number {
@@ -2873,6 +2891,77 @@ export class MockDataProvider implements DataProvider {
       entityId: id,
       metadata: { from: prev, to: status },
     });
+    return user;
+  }
+
+  async adminUpdateMember(
+    id: string,
+    patch: {
+      role?: UserRole;
+      tier?: MembershipTier | null;
+      shopAccess?: boolean;
+      notes?: string;
+    },
+  ): Promise<User> {
+    const user = this.requireUser(id);
+    // Who is acting comes from the session, not from the request. A role
+    // change that trusted a sent id could be claimed in an admin's name.
+    const actor = this.state.users.find((u) => u.id === this.currentUserId) ?? null;
+
+    if (patch.role !== undefined && patch.role !== user.role) {
+      if (!MEMBER_ROLES.includes(patch.role)) throw new Error("Unknown role.");
+      if (actor?.role !== "admin") throw new Error("Only an admin can change roles.");
+      if (actor.id === user.id) throw new Error("You cannot change your own role.");
+      const otherActiveAdmins = this.state.users.filter(
+        (u) => u.role === "admin" && u.status === "active" && u.id !== user.id,
+      );
+      if (user.role === "admin" && user.status === "active" && otherActiveAdmins.length === 0) {
+        throw new Error("This is the last active admin. Make someone else an admin first.");
+      }
+      const from = user.role;
+      user.role = patch.role;
+      this.pushAudit({
+        action: "member_role_changed",
+        actorId: actor.id,
+        subjectUserId: id,
+        entityType: "User",
+        entityId: id,
+        metadata: { from, to: patch.role },
+      });
+    }
+
+    const changed: Record<string, unknown> = {};
+    if (patch.tier !== undefined && patch.tier !== (user.tier ?? null)) {
+      if (patch.tier !== null && !MEMBERSHIP_TIERS.includes(patch.tier)) {
+        throw new Error("Unknown membership.");
+      }
+      changed.tier = { from: user.tier ?? null, to: patch.tier };
+      user.tier = patch.tier;
+    }
+    if (patch.shopAccess !== undefined && patch.shopAccess !== user.shopAccess) {
+      changed.shopAccess = { from: user.shopAccess, to: patch.shopAccess };
+      user.shopAccess = patch.shopAccess;
+    }
+    if (patch.notes !== undefined) {
+      const notes = optionalText(patch.notes, "Staff note", MESSAGE_MAX) ?? "";
+      if (notes !== (user._notes ?? "")) {
+        // The note itself stays out of the audit trail.
+        changed.notes = true;
+        if (notes) user._notes = notes;
+        else delete user._notes;
+      }
+    }
+    if (Object.keys(changed).length > 0) {
+      this.pushAudit({
+        action: "member_updated",
+        actorId: actor?.id ?? null,
+        subjectUserId: id,
+        entityType: "User",
+        entityId: id,
+        metadata: changed,
+      });
+    }
+    this.touch(user);
     return user;
   }
 

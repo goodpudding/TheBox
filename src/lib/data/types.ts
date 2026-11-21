@@ -6,6 +6,8 @@ export type ISODate = string;
 export type Role = "member" | "staff" | "admin";
 export type MembershipStatus = "active" | "lapsed" | "suspended" | "pending";
 
+export type UserRole = "member" | "staff" | "admin";
+
 /** Product ladder — base Maker rates unchanged; new tiers sit beside them. */
 export type MembershipTier =
   | "day"
@@ -101,6 +103,8 @@ export type AccessDenyReason =
   | "reservation_required";
 
 export type AuditAction =
+  | "member_role_changed"
+  | "member_updated"
   | "content_page_created"
   | "content_page_updated"
   | "waiver_signed"

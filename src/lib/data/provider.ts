@@ -9,6 +9,8 @@ import type {
   ClassCategory,
   ContentCategory,
   ContentPage,
+  MembershipTier,
+  UserRole,
   WishlistItemTier,
   SiteInfo,
   Project,
@@ -937,6 +939,21 @@ export interface DataProvider {
     id: string,
     status: MembershipStatus,
     actorId: string,
+  ): Promise<User>;
+  /**
+   * Change a member's role, membership tier, shop access or staff note.
+   * The person acting is whoever is signed in, never an id the caller sends.
+   * Only an admin may change a role, never their own, and the last active
+   * admin cannot be demoted.
+   */
+  adminUpdateMember(
+    id: string,
+    patch: {
+      role?: UserRole;
+      tier?: MembershipTier | null;
+      shopAccess?: boolean;
+      notes?: string;
+    },
   ): Promise<User>;
   /** Member chooses their shop PIN. Rejects bad and trivial PINs. Clears a reset flag. */
   setMyKioskPin(userId: string, pin: string): Promise<User>;

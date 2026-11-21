@@ -4,12 +4,34 @@ Member-facing web app and back office for **The Box**, the community makerspace 
 
 ## Status
 
-**Phase 5 (current):** Prisma schema + seed, PrismaDataProvider, Auth.js magic links, Google Drive CMS sync scaffold, Docker Compose (Mailpit), Vitest, Playwright smoke tests. UI still defaults to **mock** data for day-to-day work.
+**Live** at `https://discoverburienmakerspace.com` on Cloudflare Workers + D1 (Workers Paid plan). Local `next dev` still runs on fixtures.
+
+**Phase 5:** Prisma schema + seed, PrismaDataProvider, Auth.js magic links, Google Drive CMS sync scaffold, Docker Compose (Mailpit), Vitest, Playwright smoke tests.
 
 **Phase 4:** staff admin + `/dev/reader`  
 **Phase 3:** classes, reserve, learn/quizzes  
 **Phase 2:** onboarding, dashboard, account, certifications, usage  
 **Phase 1:** shell, fixtures, public pages  
+
+## What staff edit without a developer
+
+The rule: how the site looks is code; what it says is edited in the admin. Everything below saves to the live database.
+
+| What | Where |
+|---|---|
+| Waiver, hours, policies, FAQ, history, staff intro, support and lesson text | Admin → Content (rich-text editor; a new waiver version asks every member to sign again) |
+| Machines, certifications | Admin → Machines, Admin → Certifications (switched-off ones stay listed) |
+| Staff and instructor directory | Admin → People |
+| "Made at The Box" gallery | Admin → Gallery |
+| Wishlist items, purchase reports | Admin → Wishlist |
+| Lobby display promos and settings | Admin → Display |
+| Shop name, address, footer text, social links, checkout links, limits | Admin → Settings |
+| A member's membership, shop access, staff note, and (admins only) role | Admin → Members → a member |
+| Shop inventory with photos | Inventory → Add item |
+
+Lists with no table of their own (directory, gallery, wishlist, promos, display settings, shop details, tool champion terms) are rows in `SiteRecord`, one JSON row each (`src/lib/data/persist-delta.ts`). Uploaded pictures are rows in `StoredFile`, because a Worker has no disk; set `INVENTORY_PHOTO_STORAGE=drive` to send new photos to a Google shared drive instead (`src/lib/inventory/storage.ts`).
+
+Still in code: page headings and explanatory copy on Join, Support and Wishlist, the machine rate card (`src/lib/credits.ts`), and the class-category and machine-area lists.
 
 ## Local development (mock UI — default)
 
@@ -302,7 +324,7 @@ chromium-browser --kiosk --noerrdialogs --disable-infobars \
 
 Disable screen sleep on the device (e.g. `xset s off`, `xset -dpms`, or Raspberry Pi OS screen blanking settings). Use a systemd user service or desktop autostart that opens the URL after network is up.
 
-Staff edit promos, panel order, cadence, and name display under **Admin → Display**. The rotation includes a **Bounty board** panel (open and recently claimed requests, no claim form). Promo images upload to `public/uploads/promos` in development, and `npm run sync:google` drops images from Drive `Photos/Promos/` into the same folder; for production, point uploads at object storage (S3/R2) and store the resulting URL on the promo.
+Staff edit promos, panel order, cadence, and name display under **Admin → Display**. The rotation includes a **Bounty board** panel (open and recently claimed requests, no claim form). A promo picture uploaded from Admin → Display is shrunk in the browser and kept in the database with the other uploaded photos.
 
 ## Env
 

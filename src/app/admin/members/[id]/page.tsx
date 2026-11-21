@@ -10,6 +10,7 @@ import {
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { AdminShell } from "@/components/admin-shell";
+import { MemberAccessForm } from "@/components/admin/member-access-form";
 import { StatusPill } from "@/components/status-pill";
 import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
@@ -515,6 +516,7 @@ export default function AdminMemberDetailPage() {
             ))}
           </select>
         </div>
+        <MemberAccessForm key={member.id} member={member} />
         {currentUser?.role === "staff" || currentUser?.role === "admin" ? (
           <div className="mt-6 space-y-3">
             <Button
