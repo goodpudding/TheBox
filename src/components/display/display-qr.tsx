@@ -10,7 +10,7 @@ type DisplayQrProps = {
   className?: string;
 };
 
-/** Bitmap width. Scaled with sharp edges, so it does not need to be large. */
+/** Bitmap width: a little over the largest size a code is shown at on 1080p. */
 const QR_PIXELS = 320;
 
 export function DisplayQr({
@@ -49,7 +49,7 @@ export function DisplayQr({
     <img
       src={dataUrl}
       alt={label ?? "QR code"}
-      className={`display-qr shrink-0 rounded-[0.6vw] bg-white p-[0.3vw] ${className}`}
+      className={`shrink-0 rounded-[0.6vw] bg-white p-[0.3vw] ${className}`}
     />
   );
 }

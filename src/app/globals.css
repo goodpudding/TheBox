@@ -212,11 +212,6 @@ button,
   will-change: transform;
 }
 
-/* QR codes are scaled up from a small bitmap; keep the squares sharp. */
-.display-qr {
-  image-rendering: pixelated;
-}
-
 /* Schedule-X public events calendar */
 .sx-calendar {
   --sx-color-primary: #cf9426;

@@ -271,7 +271,113 @@ test.describe("Lobby display", () => {
       expect(overflow.right).toBeLessThanOrEqual(overflow.width);
     });
   }
+
+  test("a slide set to stay up longer than a minute still changes", async ({
+    page,
+  }) => {
+    // The feed is re-read every 60 s. That must not restart the slide's timer.
+    await page.clock.install();
+    let served = 0;
+    await page.route("**/api/display/feed*", async (route) => {
+      const feed = await (await route.fetch()).json();
+      feed.config.panelOrder = ["upcoming", "membership"];
+      feed.config.pinnedPanel = null;
+      feed.config.membershipEveryNRotations = 1;
+      feed.config.cadenceSeconds = 90;
+      await route.fulfill({ json: feed });
+      served += 1;
+    });
+    await page.goto(`/display?token=${encodeURIComponent(TOKEN)}`);
+    await expect(page.getByRole("heading", { name: "Coming up" })).toBeVisible({
+      timeout: 15_000,
+    });
+    // Let the 60 s re-read happen and reach the page before time moves on.
+    await page.clock.runFor(61_000);
+    await expect.poll(() => served).toBeGreaterThanOrEqual(2);
+    await page.waitForTimeout(500);
+    await page.clock.runFor(31_000);
+    await expect(page.getByRole("heading", { name: "Membership" })).toBeVisible();
+  });
+
+  test("a photo that failed to load is tried again a few minutes later", async ({
+    page,
+  }) => {
+    await page.clock.install();
+    let offline = true;
+    await page.route("**/images/projects/**", (route) =>
+      offline ? route.abort() : route.continue(),
+    );
+    await page.route("**/api/display/feed*", async (route) => {
+      const feed = await (await route.fetch()).json();
+      feed.photos = feed.photos.slice(0, 1);
+      feed.config.panelOrder = ["upcoming"];
+      feed.config.pinnedPanel = null;
+      await route.fulfill({ json: feed });
+    });
+    await page.goto(`/display?token=${encodeURIComponent(TOKEN)}`);
+    await expect(page.getByTestId("display-brand-panel")).toBeVisible({
+      timeout: 15_000,
+    });
+
+    offline = false;
+    await page.clock.runFor(6 * 60_000);
+    await expect(
+      page.getByTestId("display-photo").locator("img").first(),
+    ).toBeVisible();
+    await expect(page.getByTestId("display-brand-panel")).toHaveCount(0);
+  });
+
+  test("the join and bounty codes are at least as large as before", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    for (const [panel, alt] of [
+      ["membership", "Join"],
+      ["bounties", "Bounty board"],
+    ] as const) {
+      await page.route("**/api/display/feed*", async (route) => {
+        const feed = await (await route.fetch()).json();
+        feed.config.panelOrder = [panel];
+        feed.config.pinnedPanel = null;
+        feed.config.membershipEveryNRotations = 1;
+        await route.fulfill({ json: feed });
+      });
+      await page.goto(`/display?token=${encodeURIComponent(TOKEN)}`);
+      const code = page.getByAltText(alt, { exact: true });
+      await expect(code).toBeVisible({ timeout: 15_000 });
+      const box = await code.boundingBox();
+      // Both were 140 px wide on a 1080p screen before the new look.
+      expect(box!.width).toBeGreaterThanOrEqual(140);
+      expect(box!.height).toBeGreaterThanOrEqual(140);
+      await page.unroute("**/api/display/feed*");
+    }
+  });
+
+  test("bounties past one screen are shown on the next rotation, not dropped", async ({
+    page,
+  }) => {
+    await page.route("**/api/display/feed*", async (route) => {
+      const feed = await (await route.fetch()).json();
+      feed.bounties = Array.from({ length: 6 }, (_, i) => ({
+        ...feed.bounties[0],
+        id: `b${i}`,
+        title: `Bounty number ${i + 1}`,
+      }));
+      feed.config.panelOrder = ["bounties"];
+      feed.config.pinnedPanel = null;
+      await route.fulfill({ json: feed });
+    });
+    await page.clock.install();
+    await page.goto(`/display?token=${encodeURIComponent(TOKEN)}`);
+    await expect(page.getByText("Bounty number 1", { exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByText("1 of 2")).toBeVisible();
+    await page.clock.runFor(12_500);
+    await expect(page.getByText("Bounty number 6", { exact: true })).toBeVisible();
+  });
 });
+
 
 test.describe("Admin → Display", () => {
   test("staff add a photo, caption it and delete it", async ({ page }) => {
@@ -342,6 +448,32 @@ test.describe("Admin → Display", () => {
     await motion.selectOption("calm");
     await expect(page.getByText("Display settings saved.")).toBeVisible();
     await expect(motion).toHaveValue("calm");
+  });
+
+  test("deleting a promo also removes the picture uploaded for it", async ({
+    page,
+  }) => {
+    await page.goto("/join");
+    await switchUser(page, "Avery Admin");
+    await page.goto("/admin/display");
+    await page.getByLabel("Title").fill("Holiday market");
+    await page.getByLabel("Body").fill("Sat 12 Dec, 10 to 4.");
+    await page
+      .locator('form input[type="file"]')
+      .setInputFiles(path.join(__dirname, "fixtures", "display-photo.jpg"));
+    const imageUrl = page.getByLabel("Image URL");
+    await expect(imageUrl).toHaveValue(/^\/api\/display\/photos\/[0-9a-f-]{36}$/, {
+      timeout: 15_000,
+    });
+    const src = await imageUrl.inputValue();
+    expect((await page.request.get(src)).status()).toBe(200);
+
+    await page.getByRole("button", { name: "Create promo" }).click();
+    await expect(page.getByText("Promo created.")).toBeVisible();
+    const row = page.getByRole("listitem").filter({ hasText: "Holiday market" });
+    await row.getByRole("button", { name: "Delete" }).click();
+    await expect(row).toHaveCount(0);
+    await expect.poll(async () => (await page.request.get(src)).status()).toBe(404);
   });
 });
 

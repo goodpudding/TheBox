@@ -62,3 +62,18 @@ export async function uploadDisplayPicture(file: Blob): Promise<{
     height: shrunk.height,
   };
 }
+
+const STORED_PICTURE = /^\/api\/display\/photos\/[0-9a-f-]{36}$/;
+
+/**
+ * Remove a picture this site stored, given the address the display loads it
+ * from. Any other address (a file under /public, another site) is left alone.
+ * Failing is not reported: the row that pointed at the picture is already
+ * gone, and a leftover picture costs storage, not correctness.
+ */
+export async function removeDisplayPicture(
+  url: string | null | undefined,
+): Promise<void> {
+  if (!url || !STORED_PICTURE.test(url)) return;
+  await fetch(url, { method: "DELETE" }).catch(() => {});
+}

@@ -45,6 +45,8 @@ function BrandPanel() {
   );
 }
 
+const RETRY_FAILED_PHOTO_MS = 5 * 60_000;
+
 type DisplayPhotoSideProps = {
   /** The rotating photo due on this slide, if there are any. */
   photo: DisplayFeedPhoto | null;
@@ -61,11 +63,17 @@ export function DisplayPhotoSide({
   overrideSrc,
   motion,
 }: DisplayPhotoSideProps) {
-  // Sources that failed to load. A photo that fails once is skipped for good:
-  // retrying every rotation would flash the brand panel each time.
+  // Sources that failed to load. A failed photo is left alone for a few
+  // minutes, so the brand panel does not flash on every rotation, then tried
+  // again: a short Wi-Fi drop should not cost the photo for the rest of the day.
   const [failed, setFailed] = useState<readonly string[]>([]);
-  const fail = (src: string) =>
+  const fail = (src: string) => {
     setFailed((list) => (list.includes(src) ? list : [...list, src]));
+    window.setTimeout(
+      () => setFailed((list) => list.filter((item) => item !== src)),
+      RETRY_FAILED_PHOTO_MS,
+    );
+  };
 
   const ownPicture = overrideSrc && !failed.includes(overrideSrc);
   const src = ownPicture ? overrideSrc : photo?.url;

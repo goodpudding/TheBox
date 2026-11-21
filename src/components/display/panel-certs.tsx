@@ -41,7 +41,13 @@ export function PanelCerts({
         lead="Get"
         accent="certified"
         sub="Learn online, then check off in the shop"
-        aside={<DisplayQr url={learnUrl()} label="Start online learning" />}
+        aside={
+          <DisplayQr
+            url={learnUrl()}
+            label="Start online learning"
+            className="h-[13vh] w-[13vh]"
+          />
+        }
       />
 
       <div className="mt-[2.2vh] flex min-h-0 flex-1 flex-col">

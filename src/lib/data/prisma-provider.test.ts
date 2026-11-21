@@ -10,6 +10,8 @@ const calls: Array<{ model: string; method: string; args: unknown }> = [];
 const tables = new Map<string, Map<string, Row>>();
 /** While set, a `findMany` reads its rows and then waits here before returning. */
 let hold: Promise<void> | null = null;
+/** Delegates whose reads fail, as when a table or column is not there yet. */
+const broken = new Set<string>();
 
 function table(model: string): Map<string, Row> {
   let rows = tables.get(model);
@@ -30,11 +32,13 @@ vi.mock("@/lib/db", () => {
   const delegate = (model: string) => {
     const methods: Record<string, (args?: Args) => Promise<unknown>> = {
       async findMany() {
+        if (broken.has(model)) throw new Error(`no such table: ${model}`);
         const rows = [...table(model).values()].map((row) => ({ ...row }));
         if (hold) await hold;
         return rows;
       },
       async findUnique(args) {
+        if (broken.has(model)) throw new Error(`no such table: ${model}`);
         const row = table(model).get(String(args?.where?.id));
         return row ? { ...row } : null;
       },
@@ -121,6 +125,7 @@ beforeEach(() => {
   calls.length = 0;
   tables.clear();
   hold = null;
+  broken.clear();
 });
 
 afterEach(() => {
@@ -610,5 +615,22 @@ describe("the lobby display on the live site", () => {
     expect((await third.getDisplayFeed()).photos.map((p) => p.id)).not.toContain(
       PHOTO_ID,
     );
+  });
+
+  it("keeps the rest of the site up when the display's own tables cannot be read", async () => {
+    // Every page loads the same data. A problem with the lobby display's
+    // tables must cost the display its extras, not take the portal down.
+    await seedDatabase();
+    broken.add("displayPhoto");
+    broken.add("displayConfig");
+    broken.add("promoSlide");
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const provider = await createPrismaDataProvider(null, { fresh: true });
+    const feed = await provider.getDisplayFeed();
+    expect(feed.photos).toEqual([]);
+    expect(feed.promos).toEqual([]);
+    expect(feed.config).toMatchObject({ cadenceSeconds: 12, motion: "full" });
+    expect(feed.membership.products.length).toBeGreaterThan(0);
   });
 });

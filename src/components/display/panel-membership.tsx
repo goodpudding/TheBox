@@ -37,7 +37,11 @@ export function PanelMembership({
         aside={
           <div className="flex shrink-0 items-start gap-[1vw]">
             <PageNote page={screen.page} pages={screen.pages} />
-            <DisplayQr url={membership.joinUrl} label="Join" />
+            <DisplayQr
+              url={membership.joinUrl}
+              label="Join"
+              className="h-[13vh] w-[13vh]"
+            />
           </div>
         }
       />

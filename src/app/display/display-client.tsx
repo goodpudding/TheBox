@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useData } from "@/components/providers";
 import { DisplayPhotoSide } from "@/components/display/display-photo";
 import { DisplayShell } from "@/components/display/display-shell";
+import {
+  START_OF_ROTATION,
+  advanceRotation,
+} from "@/components/display/rotation";
 import { PanelToday } from "@/components/display/panel-today";
 import { PanelMachines } from "@/components/display/panel-machines";
 import { PanelUpcoming } from "@/components/display/panel-upcoming";
@@ -91,11 +95,10 @@ export default function DisplayClient() {
   // When the feed last loaded. Read only to say how stale it is, never shown.
   const fetchedAtRef = useRef<number | null>(null);
   const [staleMinutes, setStaleMinutes] = useState<number | null>(null);
-  const [panelIndex, setPanelIndex] = useState(0);
-  const [cycle, setCycle] = useState(0);
-  const [promoIndex, setPromoIndex] = useState(0);
-  // Counts every slide shown. Picks the photo and replays the slide entrance.
-  const [slide, setSlide] = useState(0);
+  const [{ slide, panelIndex, cycle, promoIndex }, advance] = useReducer(
+    advanceRotation,
+    START_OF_ROTATION,
+  );
   const [nowTick, setNowTick] = useState(0);
 
   // No token in the address is a refusal before any request is made.
@@ -153,22 +156,15 @@ export default function DisplayClient() {
 
   const cadenceMs = (feed?.config.cadenceSeconds ?? 12) * 1000;
 
+  // Depends on whether there is a feed, not on which one: the feed is re-read
+  // every minute, and restarting this timer each time would stretch the slide
+  // on screen and stop a slide longer than a minute from ever changing.
+  const ready = feed != null;
   useEffect(() => {
-    if (!feed || rotation.length === 0) return;
-    const t = setInterval(() => {
-      setSlide((n) => n + 1);
-      setPanelIndex((i) => {
-        const next = i + 1;
-        if (next >= rotation.length) {
-          setCycle((c) => c + 1);
-          setPromoIndex((p) => p + 1);
-          return 0;
-        }
-        return next;
-      });
-    }, cadenceMs);
+    if (!ready || rotation.length === 0) return;
+    const t = setInterval(() => advance(rotation.length), cadenceMs);
     return () => clearInterval(t);
-  }, [feed, rotation.length, cadenceMs]);
+  }, [ready, rotation.length, cadenceMs]);
 
   // Fetch the next photo while this one is up, so the change is a fade and
   // not a picture loading top to bottom.
@@ -243,7 +239,7 @@ export default function DisplayClient() {
           />
         ) : null}
         {activeId === "bounties" ? (
-          <PanelBounties bounties={feed.bounties ?? []} />
+          <PanelBounties bounties={feed.bounties ?? []} turn={cycle} />
         ) : null}
         {activeId === "promos" && promo ? (
           <PanelPromos slides={[promo]} />

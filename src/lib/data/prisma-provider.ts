@@ -394,11 +394,25 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
     prismaLoose.itemEvent?.findMany?.() ?? Promise.resolve([]),
   ]);
 
+  // Every page loads this bundle. The lobby display's tables are extras: if
+  // one cannot be read (a migration not applied yet, say) the display loses
+  // its promos, photos or settings, and the rest of the site carries on.
+  const displayExtra = async <T,>(what: string, read: unknown, fallback: T) => {
+    try {
+      return ((await read) as T | undefined) ?? fallback;
+    } catch (err) {
+      console.error(`[display] could not load ${what}`, err);
+      return fallback;
+    }
+  };
   const [promoRows, displayPhotoRows, displayConfigDbRow] = await Promise.all([
-    prismaLoose.promoSlide?.findMany?.() ?? Promise.resolve([]),
-    prismaLoose.displayPhoto?.findMany?.() ?? Promise.resolve([]),
-    prismaLoose.displayConfig?.findUnique?.({ where: { id: "default" } }) ??
-      Promise.resolve(null),
+    displayExtra<unknown[]>("promo slides", prismaLoose.promoSlide?.findMany?.(), []),
+    displayExtra<unknown[]>("photos", prismaLoose.displayPhoto?.findMany?.(), []),
+    displayExtra<unknown>(
+      "settings",
+      prismaLoose.displayConfig?.findUnique?.({ where: { id: "default" } }),
+      null,
+    ),
   ]);
 
   if (!settingsRow) {

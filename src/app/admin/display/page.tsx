@@ -8,7 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { uploadDisplayPicture } from "@/lib/display/compress-client";
+import {
+  removeDisplayPicture,
+  uploadDisplayPicture,
+} from "@/lib/display/compress-client";
+import { fromLocalInput, toLocalInput } from "@/lib/display/datetime-local";
 import type {
   DisplayConfig,
   DisplayMotion,
@@ -81,8 +85,8 @@ function emptyPromo(): {
     body: "",
     imageUrl: "",
     qrUrl: "",
-    startsAt: start.toISOString().slice(0, 16),
-    endsAt: end.toISOString().slice(0, 16),
+    startsAt: toLocalInput(start),
+    endsAt: toLocalInput(end),
     active: true,
     sortOrder: 1,
   };
@@ -147,17 +151,21 @@ export default function AdminDisplayPage() {
     setPending(true);
     setError(null);
     try {
+      const before = promos.find((p) => p.id === form.id)?.imageUrl ?? null;
+      const imageUrl = form.imageUrl.trim() || null;
       await provider.savePromo({
         id: form.id,
         title: form.title.trim(),
         body: form.body.trim(),
-        imageUrl: form.imageUrl.trim() || null,
+        imageUrl,
         qrUrl: form.qrUrl.trim() || null,
-        startsAt: new Date(form.startsAt).toISOString(),
-        endsAt: new Date(form.endsAt).toISOString(),
+        startsAt: fromLocalInput(form.startsAt),
+        endsAt: fromLocalInput(form.endsAt),
         active: form.active,
         sortOrder: form.sortOrder,
       });
+      // The picture this promo had before is no longer shown anywhere.
+      if (before !== imageUrl) await removeDisplayPicture(before);
       setForm(emptyPromo());
       bump();
       setMessage(form.id ? "Promo updated." : "Promo created.");
@@ -171,6 +179,10 @@ export default function AdminDisplayPage() {
   async function onUpload(file: File) {
     try {
       const picture = await uploadDisplayPicture(file);
+      // A picture chosen a moment ago and never saved with a promo is dropped.
+      const replaced = form.imageUrl.trim();
+      const saved = promos.find((p) => p.id === form.id)?.imageUrl ?? null;
+      if (replaced && replaced !== saved) await removeDisplayPicture(replaced);
       setForm((f) => ({ ...f, imageUrl: picture.url }));
     } catch (err) {
       const reason = err instanceof Error ? err.message : "could not be added";
@@ -526,8 +538,8 @@ export default function AdminDisplayPage() {
                       body: p.body,
                       imageUrl: p.imageUrl ?? "",
                       qrUrl: p.qrUrl ?? "",
-                      startsAt: p.startsAt.slice(0, 16),
-                      endsAt: p.endsAt.slice(0, 16),
+                      startsAt: toLocalInput(p.startsAt),
+                      endsAt: toLocalInput(p.endsAt),
                       active: p.active,
                       sortOrder: p.sortOrder,
                     })
@@ -540,7 +552,10 @@ export default function AdminDisplayPage() {
                   size="sm"
                   variant="ghost"
                   onClick={() =>
-                    void provider.deletePromo(p.id).then(() => bump())
+                    void provider
+                      .deletePromo(p.id)
+                      .then(() => removeDisplayPicture(p.imageUrl))
+                      .then(() => bump())
                   }
                 >
                   Delete

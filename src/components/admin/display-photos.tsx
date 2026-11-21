@@ -8,14 +8,15 @@ import { Label } from "@/components/ui/label";
 import type { DisplayPhoto } from "@/lib/data";
 import { displayPhotoUrl } from "@/lib/data/display-feed";
 import { DISPLAY_CAPTION_MAX, DISPLAY_PHOTO_LIMIT } from "@/lib/data/provider";
-import { uploadDisplayPicture } from "@/lib/display/compress-client";
+import {
+  removeDisplayPicture,
+  uploadDisplayPicture,
+} from "@/lib/display/compress-client";
 
-/** Remove a picture's stored bytes. Sample photos in dev are plain files. */
+/** Remove a photo's stored picture. Sample photos in dev are plain files. */
 async function removeStoredPicture(photo: Pick<DisplayPhoto, "id" | "staticPath">) {
   if (photo.staticPath) return;
-  await fetch(`/api/display/photos/${photo.id}`, { method: "DELETE" }).catch(
-    () => {},
-  );
+  await removeDisplayPicture(`/api/display/photos/${photo.id}`);
 }
 
 /**
