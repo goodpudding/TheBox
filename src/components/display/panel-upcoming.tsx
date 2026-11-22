@@ -8,7 +8,6 @@ import {
   SlideRow,
   SlideRows,
   dayLabel,
-  spotsLabel,
   timeLabel,
   toneAt,
 } from "./display-parts";
@@ -23,7 +22,7 @@ function BookingRow({ item, index }: { item: DisplayUpcomingItem; index: number 
     <SlideRow
       tone={toneAt(index)}
       title={item.title}
-      meta={`${dayLabel(item.startsAt)} · ${timeLabel(item.startsAt)} · ${spotsLabel(item.spotsRemaining)}`}
+      meta={`${dayLabel(item.startsAt)} · ${timeLabel(item.startsAt)}`}
       aside={<DisplayQr url={item.bookingUrl} label={`Book ${item.title}`} />}
     />
   );
@@ -73,7 +72,7 @@ export function PanelUpcoming({
               {next.title}
             </h2>
             <p className="mt-[0.6vh] truncate text-[1.6vw] font-semibold">
-              {spotsLabel(next.spotsRemaining)} — scan to book
+              Scan to book
             </p>
           </div>
           <DisplayQr

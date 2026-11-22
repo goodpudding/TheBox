@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dayLabel, pageOf, spotsLabel, timeLabel } from "./display-parts";
+import { dayLabel, pageOf, timeLabel } from "./display-parts";
 
 describe("pageOf", () => {
   const seventeen = Array.from({ length: 17 }, (_, i) => i);
@@ -40,11 +40,5 @@ describe("display labels", () => {
     expect(timeLabel("2026-11-22T21:00:00.000Z")).toBe("1:00 PM");
     // 02:00 UTC on the 25th is still the evening of the 24th in Burien.
     expect(dayLabel("2026-11-25T02:00:00.000Z")).toBe("Tue Nov 24");
-  });
-
-  it("says how many spots are left", () => {
-    expect(spotsLabel(8)).toBe("8 spots left");
-    expect(spotsLabel(1)).toBe("1 spot left");
-    expect(spotsLabel(0)).toBe("Full");
   });
 });

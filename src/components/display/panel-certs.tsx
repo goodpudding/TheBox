@@ -10,7 +10,6 @@ import {
   SlideRow,
   SlideRows,
   dayLabel,
-  spotsLabel,
   timeLabel,
   toneAt,
 } from "./display-parts";
@@ -63,7 +62,7 @@ export function PanelCerts({
                 key={c.id}
                 tone={toneAt(i)}
                 title={c.title}
-                meta={`${dayLabel(c.startsAt)} · ${timeLabel(c.startsAt)} · ${spotsLabel(c.spotsRemaining)}`}
+                meta={`${dayLabel(c.startsAt)} · ${timeLabel(c.startsAt)}`}
               />
             ))}
           </SlideRows>
