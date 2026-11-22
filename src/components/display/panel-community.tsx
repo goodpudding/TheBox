@@ -8,7 +8,6 @@ import {
   SlideRows,
   dateBlock,
   pageOf,
-  spotsLabel,
   timeLabel,
   toneAt,
 } from "./display-parts";
@@ -44,8 +43,8 @@ export function PanelCommunity({
         accent="events"
         sub={
           allFree
-            ? "Free. Everyone welcome — scan to save a spot"
-            : "Everyone welcome — scan to save a spot"
+            ? "Free. Everyone welcome — scan to sign up"
+            : "Everyone welcome — scan to sign up"
         }
         aside={<PageNote page={screen.page} pages={screen.pages} />}
       />
@@ -70,7 +69,8 @@ export function PanelCommunity({
                   {event.title}
                 </p>
                 <p className="mt-[0.3vh] truncate text-[1.4vw] text-display-muted">
-                  {timeLabel(event.startsAt)} · {spotsLabel(event.spotsRemaining)}
+                  {timeLabel(event.startsAt)}
+                  {event.priceCents <= 0 ? " · Free" : ""}
                 </p>
               </div>
               <DisplayQr

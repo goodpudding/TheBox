@@ -8,7 +8,6 @@ import {
   SlideHeading,
   SlideRow,
   SlideRows,
-  spotsLabel,
   timeLabel,
   toneAt,
 } from "./display-parts";
@@ -43,7 +42,7 @@ export function PanelToday({ feed }: { feed: DisplayFeed }) {
                 key={s.id}
                 tone={toneAt(i)}
                 title={s.title}
-                meta={`${timeLabel(s.startsAt)} – ${timeLabel(s.endsAt)} · ${spotsLabel(s.spotsRemaining)}`}
+                meta={`${timeLabel(s.startsAt)} – ${timeLabel(s.endsAt)}`}
               />
             ))}
           </SlideRows>

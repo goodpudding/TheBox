@@ -5,7 +5,6 @@ import { DisplayQr } from "./display-qr";
 import {
   longDayLabel,
   priceLabel,
-  spotsLabel,
   timeRangeLabel,
 } from "./display-parts";
 
@@ -78,8 +77,10 @@ export function PanelSpotlight({
         />
         <div className="min-w-0">
           <p className="truncate text-[2.1vw] font-bold">Scan to sign up</p>
+          {/* No count of places: Zeffy sells the tickets and the site is not
+              told how many there are or how many are taken. */}
           <p className="truncate text-[1.5vw] font-semibold text-[#fbc84b]">
-            {spotsLabel(event.spotsRemaining)}
+            Opens the sign-up page on your phone
           </p>
         </div>
       </div>

@@ -73,11 +73,6 @@ export function priceLabel(cents: number): string {
   return `$${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)}`;
 }
 
-export function spotsLabel(spots: number): string {
-  if (spots <= 0) return "Full";
-  return `${spots} spot${spots === 1 ? "" : "s"} left`;
-}
-
 export type Tone = "coral" | "teal" | "gold";
 
 const TONES: readonly Tone[] = ["coral", "teal", "gold"];

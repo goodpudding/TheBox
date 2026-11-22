@@ -211,7 +211,7 @@ test.describe("Lobby display", () => {
     await expect(
       page.getByText("Bring something broken. Volunteers help you fix it."),
     ).toBeVisible();
-    await expect(page.getByText("5 spots left")).toBeVisible();
+    await expect(page.getByText("Scan to sign up")).toBeVisible();
     await expect(page.getByAltText("Sign up for Repair Café")).toBeVisible();
 
     // The next time round it is the next event's turn.
@@ -220,8 +220,29 @@ test.describe("Lobby display", () => {
       page.getByRole("heading", { name: "Stained Glass Ornaments" }),
     ).toBeVisible();
     await expect(page.getByText("Workshop · $65")).toBeVisible();
-    await expect(page.getByText("1 spot left")).toBeVisible();
   });
+
+  // The site does not know how many places an event has or how many are
+  // taken: Zeffy sells the tickets and sends neither number, so every event
+  // read "8 spots left", the default class size. The display says nothing
+  // about spots rather than something untrue.
+  for (const panel of ["upcoming", "today", "certs", "spotlight", "community"]) {
+    test(`the ${panel} slide makes no claim about spots`, async ({ page }) => {
+      await page.route("**/api/display/feed*", async (route) => {
+        const feed = await (await route.fetch()).json();
+        feed.config.panelOrder = [panel];
+        feed.config.pinnedPanel = null;
+        await route.fulfill({ json: feed });
+      });
+      await page.goto(`/display?token=${encodeURIComponent(TOKEN)}`);
+      const content = page.getByTestId("display-content");
+      await expect(content.getByRole("heading").first()).toBeVisible({
+        timeout: 15_000,
+      });
+      await expect(content).not.toContainText(/\bspots?\b/i);
+      await expect(content).not.toContainText(/\bfull\b/i);
+    });
+  }
 
   test("free community events share one slide", async ({ page }) => {
     await page.route("**/api/display/feed*", async (route) => {
