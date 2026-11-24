@@ -5,6 +5,7 @@
 // @ts-ignore `.open-next/worker.js` is generated at build time.
 import { default as handler } from "../.open-next/worker.js";
 import { useScheduledD1 } from "./lib/db";
+import { lapseEndedMemberships } from "./lib/memberships/lapse";
 import { runClassSync } from "./lib/sync/run";
 import { prunePinRows } from "./lib/workstation/pin-throttle";
 
@@ -25,6 +26,9 @@ const worker = {
           // Never throws: a failed prune must not stop the class sync.
           const pruned = await prunePinRows();
           if (pruned > 0) console.info(JSON.stringify({ cron: "pin-rows", pruned }));
+          // Never throws either. Gifted memberships that have run out.
+          const lapsed = await lapseEndedMemberships();
+          if (lapsed > 0) console.info(JSON.stringify({ cron: "memberships", lapsed }));
           const result = await runClassSync();
           console.info(JSON.stringify({ cron: "zeffy-classes", ...result }));
         } finally {

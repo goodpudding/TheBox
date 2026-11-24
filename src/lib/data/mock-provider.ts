@@ -24,6 +24,7 @@ import {
 import { isBadgeUid, normalizeBadgeUid } from "./badge-uid";
 import { cloneFixtures, loadFixtures } from "./load-fixtures";
 import { pictureAddress, webAddress } from "./site-info";
+import { generateCode, normalizeCode } from "@/lib/redemption-code";
 import {
   applyRateCardPatch,
   normalizeRateCard,
@@ -105,6 +106,10 @@ import type {
   WishlistItemInput,
   BountyModeration,
   VolunteerRoleInput,
+  CodeOffer,
+  CodeRedemption,
+  CreateCodesInput,
+  RedemptionCodeView,
 } from "./provider";
 import { DISPLAY_CAPTION_MAX, DISPLAY_PHOTO_LIMIT } from "./provider";
 import { buildDisplayFeed, buildMachineStatuses } from "./display-feed";
@@ -201,6 +206,7 @@ import type {
   MembershipTier,
   VideoRole,
   AreaSteward,
+  RedemptionCode,
 } from "./types";
 import {
   canInventory,
@@ -478,6 +484,64 @@ const MEMBERSHIP_TIERS: readonly MembershipTier[] = [
 /** Ten past the largest order in the list, so a new row lands at the end. */
 function nextSortOrder(rows: { sortOrder: number }[]): number {
   return rows.reduce((max, row) => Math.max(max, row.sortOrder), 0) + 10;
+}
+
+export const CODE_NOT_VALID =
+  "That code is not valid. Check it and try again, or ask staff.";
+export const CODE_ALREADY_USED = "That code has already been used.";
+const CODE_EXPIRED = "That code has expired. Ask staff about it.";
+
+/**
+ * A change to a code that the database has to agree to before anything else
+ * is saved. Two requests can each load a code as unused; only the one whose
+ * conditional write lands may go on. See createPersistingProxy.
+ */
+export type CodeClaim =
+  | { codeId: string; action: "redeem"; userId: string; at: string }
+  | { codeId: string; action: "void"; userId: string | null; at: string };
+
+/** The same day of the month, `months` later; the last day when there is no such day. */
+function addCalendarMonths(iso: string, months: number): string {
+  const from = new Date(iso);
+  const to = new Date(from.getTime());
+  to.setUTCDate(1);
+  to.setUTCMonth(from.getUTCMonth() + months);
+  const lastDay = new Date(
+    Date.UTC(to.getUTCFullYear(), to.getUTCMonth() + 1, 0),
+  ).getUTCDate();
+  to.setUTCDate(Math.min(from.getUTCDate(), lastDay));
+  return to.toISOString();
+}
+
+/**
+ * A date staff typed ("2027-01-31") as the last second of that day at the
+ * shop, or a full time as it is. Null when it is neither.
+ */
+function endOfShopDay(value: string): string | null {
+  const text = value.trim();
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
+  if (!day) {
+    const time = new Date(text).getTime();
+    return /^\d{4}-\d{2}-\d{2}T/.test(text) && Number.isFinite(time)
+      ? new Date(time).toISOString()
+      : null;
+  }
+  const [y, m, d] = [Number(day[1]), Number(day[2]), Number(day[3])];
+  // Pacific time is 8 hours behind UTC in winter and 7 in summer.
+  for (const offset of [8, 7]) {
+    const candidate = new Date(Date.UTC(y, m - 1, d, 23 + offset, 59, 59));
+    const hour = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Los_Angeles",
+      hour: "numeric",
+      hourCycle: "h23",
+    }).format(candidate);
+    if (Number(hour) === 23) return candidate.toISOString();
+  }
+  return null;
+}
+
+function dollars(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`;
 }
 
 /** "SawStop Table Saw" → "sawstop-table-saw", for a made-up reader key. */
@@ -3064,6 +3128,360 @@ export class MockDataProvider implements DataProvider {
     });
   }
 
+  // ── Redemption codes ──────────────────────────────────────────────────────
+
+  private codeClaims: CodeClaim[] = [];
+
+  /** The claims the last call made. Server helper; not part of DataProvider. */
+  takeCodeClaims(): CodeClaim[] {
+    const claims = this.codeClaims;
+    this.codeClaims = [];
+    return claims;
+  }
+
+  /** The code someone typed, if it can be used right now. Otherwise why not. */
+  private usableCode(text: string): RedemptionCode {
+    const wanted = normalizeCode(text);
+    const code = wanted
+      ? this.state.redemptionCodes.find((c) => c.code === wanted)
+      : undefined;
+    // One answer for "no such code" and "staff cancelled it", so a guess
+    // learns nothing from the difference.
+    if (!code || code.voidedAt) throw new Error(CODE_NOT_VALID);
+    if (code.redeemedAt) throw new Error(CODE_ALREADY_USED);
+    if (code.expiresAt && new Date(code.expiresAt).getTime() <= Date.now()) {
+      throw new Error(CODE_EXPIRED);
+    }
+    return code;
+  }
+
+  /** When a membership code would run to for this person, or why it cannot be used. */
+  private membershipEndFor(user: User, code: RedemptionCode): string {
+    const now = this.now();
+    const active = user.status === "active" && Boolean(user.tier);
+    const endsAt = user.membershipEndsAt ?? null;
+    const running = endsAt !== null && new Date(endsAt).getTime() > Date.now();
+    if (active && endsAt === null) {
+      throw new Error(
+        "You already have a membership, so this code cannot be added to it here. Bring it to staff and they can turn it into shop credit.",
+      );
+    }
+    if (active && running && user.tier !== code.tier) {
+      throw new Error(
+        "You have a different gifted membership that is still running. See staff to combine it with this code.",
+      );
+    }
+    const base = active && running ? endsAt! : now;
+    return addCalendarMonths(base, code.months ?? 0);
+  }
+
+  private shopAccessForTier(tier: MembershipTier): boolean {
+    const product = this.state.membershipProducts.find((p) => p.tier === tier);
+    return product ? product.shopAccess : tier !== "friend";
+  }
+
+  /** Why this person cannot use the code on this class, or null when they can. */
+  private classCodeProblem(
+    code: RedemptionCode,
+    session: ClassSession | undefined,
+    userId: string,
+  ): string | null {
+    if (
+      !session ||
+      !session.published ||
+      session.cancelledAt ||
+      session.deletedAt ||
+      new Date(session.startsAt).getTime() <= Date.now()
+    ) {
+      return "That class is not available. Choose another.";
+    }
+    if (code.classSessionId) {
+      if (code.classSessionId !== session.id) return "This code is for a different class.";
+    } else if (session.priceCents > (code.maxPriceCents ?? 0)) {
+      return `This code does not cover that class. It is good for one class up to ${dollars(code.maxPriceCents ?? 0)}.`;
+    }
+    const mine = this.state.bookings.some(
+      (b) =>
+        b.classSessionId === session.id &&
+        b.userId === userId &&
+        !["cancelled", "expired", "no_show"].includes(b.status),
+    );
+    if (mine) return "You already have a booking for that class.";
+    const seats = this.state.bookings.filter(
+      (b) => b.classSessionId === session.id && SEAT_STATUSES.includes(b.status),
+    ).length;
+    if (seats >= session.capacity) {
+      return "That class is full. Choose another, or ask staff.";
+    }
+    return null;
+  }
+
+  async getCodeOffer(userId: string, codeText: string): Promise<CodeOffer> {
+    const user = this.requireUser(userId);
+    const code = this.usableCode(codeText);
+    const offer: CodeOffer = { kind: code.kind, expiresAt: code.expiresAt ?? null };
+    if (code.kind === "credit") {
+      offer.amountCents = code.amountCents ?? 0;
+    } else if (code.kind === "membership") {
+      offer.tier = code.tier ?? undefined;
+      offer.months = code.months ?? undefined;
+      offer.membershipEndsAt = this.membershipEndFor(user, code);
+    } else {
+      offer.maxPriceCents = code.classSessionId ? null : (code.maxPriceCents ?? 0);
+      offer.classes = this.state.classSessions
+        .filter((s) => this.classCodeProblem(code, s, userId) === null)
+        .filter((s) => code.classSessionId || s.priceCents > 0)
+        .sort(
+          (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
+        )
+        .map((s) => ({
+          id: s.id,
+          title: s.title,
+          startsAt: s.startsAt,
+          priceCents: s.priceCents,
+        }));
+    }
+    return offer;
+  }
+
+  async redeemCode(
+    userId: string,
+    codeText: string,
+    choice?: { classSessionId?: string },
+  ): Promise<CodeRedemption> {
+    const user = this.requireUser(userId);
+    const code = this.usableCode(codeText);
+    const now = this.now();
+    const done: CodeRedemption = { kind: code.kind };
+    let summary: string;
+    let granted: Record<string, unknown>;
+
+    if (code.kind === "credit") {
+      const amountCents = code.amountCents ?? 0;
+      this.appendLedger({
+        // The row id comes from the code, so a repeat lands on the same row.
+        id: `cl-code-${code.id}`,
+        userId,
+        kind: "gift_code",
+        amountCents,
+        sourcePaymentId: `code:${code.id}`,
+        note: "Redeemed a code",
+        occurredAt: now,
+      });
+      done.amountCents = amountCents;
+      summary = `${dollars(amountCents)} shop credit`;
+      granted = { amountCents };
+    } else if (code.kind === "membership") {
+      const tier = code.tier!;
+      const endsAt = this.membershipEndFor(user, code);
+      user.status = "active";
+      user.tier = tier;
+      user.shopAccess = this.shopAccessForTier(tier);
+      user.membershipEndsAt = endsAt;
+      this.touch(user);
+      done.tier = tier;
+      done.membershipEndsAt = endsAt;
+      summary = `${tier} membership, ${code.months} month${code.months === 1 ? "" : "s"}, to ${endsAt.slice(0, 10)}`;
+      granted = { tier, months: code.months, membershipEndsAt: endsAt };
+    } else {
+      const sessionId = choice?.classSessionId ?? code.classSessionId ?? "";
+      if (!sessionId) throw new Error("Choose a class to use this code on.");
+      const session = this.state.classSessions.find((c) => c.id === sessionId);
+      const problem = this.classCodeProblem(code, session, userId);
+      if (problem || !session) throw new Error(problem ?? "That class is not available.");
+
+      // Credit for exactly this class, then the ordinary booking and payment,
+      // so seats, cancelling and refunds follow the rules every booking does.
+      // If any step refuses, put everything back and leave the code unused.
+      const before = {
+        ledger: [...this.state.creditLedgerEntries],
+        bookings: this.state.bookings.map((b) => ({ ...b })),
+        audit: this.state.auditEvents.length,
+      };
+      try {
+        if (session.priceCents > 0) {
+          this.appendLedger({
+            id: `cl-code-${code.id}`,
+            userId,
+            kind: "gift_code",
+            amountCents: session.priceCents,
+            sourcePaymentId: `code:${code.id}`,
+            note: `Class code · ${session.title}`,
+            occurredAt: now,
+          });
+        }
+        const booking = await this.book(session.id, userId);
+        if (booking.status === "waitlisted") {
+          throw new Error("That class is full. Choose another, or ask staff.");
+        }
+        if (session.priceCents > 0) {
+          await this.payBookingWithCredits(booking.id, userId);
+        }
+        done.bookingId = booking.id;
+      } catch (err) {
+        this.state.creditLedgerEntries = before.ledger;
+        this.state.bookings = before.bookings;
+        this.state.auditEvents.length = before.audit;
+        throw err;
+      }
+      done.classSessionId = session.id;
+      done.classTitle = session.title;
+      summary = `Booked: ${session.title}`;
+      granted = { classSessionId: session.id, amountCents: session.priceCents };
+    }
+
+    code.redeemedAt = now;
+    code.redeemedByUserId = userId;
+    code.redeemedSummary = summary;
+    code.updatedAt = now;
+    this.codeClaims.push({ codeId: code.id, action: "redeem", userId, at: now });
+    this.pushAudit({
+      action: "code_redeemed",
+      actorId: userId,
+      subjectUserId: userId,
+      entityType: "RedemptionCode",
+      entityId: code.id,
+      metadata: { codeId: code.id, kind: code.kind, ...granted },
+    });
+    done.balanceCents = (await this.getCreditWallet(userId)).balanceCents;
+    return done;
+  }
+
+  async adminListCodes(): Promise<RedemptionCodeView[]> {
+    return [...this.state.redemptionCodes]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .map((code) => ({
+        ...code,
+        redeemedByName: code.redeemedByUserId
+          ? (this.state.users.find((u) => u.id === code.redeemedByUserId)?.displayName ??
+            null)
+          : null,
+        classTitle: code.classSessionId
+          ? (this.state.classSessions.find((c) => c.id === code.classSessionId)?.title ??
+            null)
+          : null,
+      }));
+  }
+
+  async adminCreateCodes(input: CreateCodesInput): Promise<RedemptionCode[]> {
+    const now = this.now();
+    const quantity = Math.trunc(Number(input.quantity));
+    if (!Number.isFinite(quantity) || quantity < 1 || quantity > 50) {
+      throw new Error("Make between 1 and 50 codes at a time.");
+    }
+    const fields: Partial<RedemptionCode> = {};
+    if (input.kind === "credit") {
+      const amountCents = Math.round(Number(input.amountCents));
+      if (!Number.isFinite(amountCents) || amountCents < 100 || amountCents > 100_000) {
+        throw new Error("Enter an amount between $1 and $1,000.");
+      }
+      fields.amountCents = amountCents;
+    } else if (input.kind === "membership") {
+      if (!input.tier || !MEMBERSHIP_TIERS.includes(input.tier)) {
+        throw new Error("Choose which membership the code is for.");
+      }
+      const months = Math.trunc(Number(input.months));
+      if (!Number.isFinite(months) || months < 1 || months > 36) {
+        throw new Error("Enter how many months, from 1 to 36.");
+      }
+      fields.tier = input.tier;
+      fields.months = months;
+    } else if (input.kind === "class") {
+      if (input.classSessionId) {
+        const session = this.state.classSessions.find((c) => c.id === input.classSessionId);
+        if (!session) throw new Error("That class no longer exists. Choose another.");
+        fields.classSessionId = session.id;
+      } else {
+        const max = Math.round(Number(input.maxPriceCents));
+        if (!Number.isFinite(max) || max < 100 || max > 100_000) {
+          throw new Error(
+            "Choose the class this code is for, or the highest class price it covers (from $1 to $1,000).",
+          );
+        }
+        fields.maxPriceCents = max;
+      }
+    } else {
+      throw new Error("Choose what the code is for.");
+    }
+    let expiresAt: string | null = null;
+    if (input.expiresAt && input.expiresAt.trim()) {
+      expiresAt = endOfShopDay(input.expiresAt);
+      if (!expiresAt) throw new Error("Enter the expiry as a date.");
+      if (new Date(expiresAt).getTime() <= Date.now()) {
+        throw new Error("That expiry date is in the past.");
+      }
+    }
+    const note = optionalText(input.note, "Note", 200);
+    const zeffyPaymentId = optionalText(input.zeffyPaymentId, "Zeffy payment ID", 100);
+
+    const taken = new Set(this.state.redemptionCodes.map((c) => c.code));
+    const made: RedemptionCode[] = [];
+    while (made.length < quantity) {
+      const text = generateCode();
+      if (taken.has(text)) continue;
+      taken.add(text);
+      made.push({
+        id: `code-${crypto.randomUUID()}`,
+        code: text,
+        kind: input.kind,
+        amountCents: null,
+        tier: null,
+        months: null,
+        classSessionId: null,
+        maxPriceCents: null,
+        ...fields,
+        note,
+        zeffyPaymentId,
+        expiresAt,
+        createdById: this.currentUserId ?? null,
+        redeemedAt: null,
+        redeemedByUserId: null,
+        redeemedSummary: null,
+        voidedAt: null,
+        voidedById: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+    this.state.redemptionCodes.push(...made);
+    this.pushAudit({
+      action: "codes_created",
+      actorId: this.currentUserId ?? null,
+      entityType: "RedemptionCode",
+      entityId: made[0]!.id,
+      // What was made, never the codes themselves.
+      metadata: { count: made.length, kind: input.kind, ...fields, expiresAt },
+    });
+    return made.map((c) => ({ ...c }));
+  }
+
+  async adminVoidCode(id: string): Promise<RedemptionCode> {
+    const code = this.state.redemptionCodes.find((c) => c.id === id);
+    if (!code) throw new Error("That code no longer exists.");
+    if (code.redeemedAt) {
+      throw new Error("That code has already been redeemed, so it cannot be voided.");
+    }
+    if (code.voidedAt) return { ...code };
+    const now = this.now();
+    code.voidedAt = now;
+    code.voidedById = this.currentUserId ?? null;
+    code.updatedAt = now;
+    this.codeClaims.push({
+      codeId: code.id,
+      action: "void",
+      userId: this.currentUserId ?? null,
+      at: now,
+    });
+    this.pushAudit({
+      action: "code_voided",
+      actorId: this.currentUserId ?? null,
+      entityType: "RedemptionCode",
+      entityId: code.id,
+      metadata: { codeId: code.id, kind: code.kind },
+    });
+    return { ...code };
+  }
+
   async adminUpdateMemberStatus(
     id: string,
     status: MembershipStatus,
@@ -3091,6 +3509,7 @@ export class MockDataProvider implements DataProvider {
       tier?: MembershipTier | null;
       shopAccess?: boolean;
       notes?: string;
+      membershipEndsAt?: string | null;
     },
   ): Promise<User> {
     const user = this.requireUser(id);
@@ -3131,6 +3550,15 @@ export class MockDataProvider implements DataProvider {
     if (patch.shopAccess !== undefined && patch.shopAccess !== user.shopAccess) {
       changed.shopAccess = { from: user.shopAccess, to: patch.shopAccess };
       user.shopAccess = patch.shopAccess;
+    }
+    if (patch.membershipEndsAt !== undefined) {
+      const text = (patch.membershipEndsAt ?? "").trim();
+      const endsAt = text ? endOfShopDay(text) : null;
+      if (text && !endsAt) throw new Error("Enter the end date as a date.");
+      if (endsAt !== (user.membershipEndsAt ?? null)) {
+        changed.membershipEndsAt = { from: user.membershipEndsAt ?? null, to: endsAt };
+        user.membershipEndsAt = endsAt;
+      }
     }
     if (patch.notes !== undefined) {
       const notes = optionalText(patch.notes, "Staff note", MESSAGE_MAX) ?? "";
@@ -4078,6 +4506,9 @@ export class MockDataProvider implements DataProvider {
             user.tier = input.tier;
             user.billingInterval = input.billingInterval ?? user.billingInterval;
             user.shopAccess = input.shopAccess;
+            // A paying member now. The end date of a gifted membership would
+            // otherwise lapse them while Zeffy is still billing.
+            user.membershipEndsAt = null;
             if (!user.firstName && input.firstName) {
               user.firstName = input.firstName;
             }

@@ -85,6 +85,7 @@ const ARRAY_KEYS = [
   "inventoryItems",
   "itemPhotos",
   "itemEvents",
+  "redemptionCodes",
   "promoSlides",
   "displayPhotos",
 ] as const;

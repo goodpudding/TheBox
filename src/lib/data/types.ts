@@ -129,6 +129,10 @@ export type AuditAction =
   | "booking_cancelled_by_staff"
   | "member_role_changed"
   | "member_updated"
+  | "codes_created"
+  | "code_voided"
+  | "code_redeemed"
+  | "membership_lapsed"
   | "content_page_created"
   | "content_page_updated"
   | "waiver_signed"
@@ -203,6 +207,11 @@ export interface User extends Timestamps {
   /** Day-pass credit toward first month if joining within this window. */
   dayPassCreditExpiresAt?: ISODateTime | null;
   scholarshipExpiresAt?: ISODateTime | null;
+  /**
+   * When a membership that came from a redemption code ends. Empty for a
+   * member who pays through Zeffy, whose payments are what keep them active.
+   */
+  membershipEndsAt?: ISODateTime | null;
   emergencyContactName?: string;
   emergencyContactPhone?: string;
   emergencyContactRelation?: string;
@@ -426,7 +435,8 @@ export type CreditLedgerKind =
   | "machine"
   | "machine_refund"
   | "class"
-  | "class_refund";
+  | "class_refund"
+  | "gift_code";
 
 /**
  * One in-app wallet. Zeffy never holds the balance. Signed cents:
@@ -445,6 +455,38 @@ export interface CreditLedgerEntry extends Timestamps {
   actorId?: string | null;
   note?: string | null;
   occurredAt: ISODateTime;
+}
+
+export type RedemptionCodeKind = "credit" | "membership" | "class";
+
+/**
+ * A code staff create and one person redeems, once: a gift card, a prize, a
+ * promo. What it gives depends on its kind.
+ */
+export interface RedemptionCode extends Timestamps {
+  id: string;
+  /** Fifteen characters, stored without dashes. See src/lib/redemption-code.ts. */
+  code: string;
+  kind: RedemptionCodeKind;
+  /** credit: how much shop credit. */
+  amountCents?: number | null;
+  /** membership: which tier, and for how many months. */
+  tier?: MembershipTier | null;
+  months?: number | null;
+  /** class: this class only, or any one class up to a price. One of the two. */
+  classSessionId?: string | null;
+  maxPriceCents?: number | null;
+  /** For staff: who bought it, a card number. Never shown to the redeemer. */
+  note?: string | null;
+  zeffyPaymentId?: string | null;
+  expiresAt?: ISODateTime | null;
+  createdById?: string | null;
+  redeemedAt?: ISODateTime | null;
+  redeemedByUserId?: string | null;
+  /** What it turned into, for the staff list: "$25.00 shop credit". */
+  redeemedSummary?: string | null;
+  voidedAt?: ISODateTime | null;
+  voidedById?: string | null;
 }
 
 export interface CreditWallet {
@@ -1035,6 +1077,7 @@ export interface MockFixtureBundle {
   auditEvents: AuditEvent[];
   membershipProducts: MembershipProduct[];
   creditLedgerEntries: CreditLedgerEntry[];
+  redemptionCodes: RedemptionCode[];
   inventoryAreas: InventoryArea[];
   areaStewards: AreaSteward[];
   inventoryItems: InventoryItem[];

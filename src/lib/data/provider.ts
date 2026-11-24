@@ -11,6 +11,8 @@ import type {
   ClassCategory,
   ContentCategory,
   ContentPage,
+  RedemptionCodeKind,
+  RedemptionCode,
   AreaSteward,
   MembershipTier,
   UserRole,
@@ -442,6 +444,59 @@ export interface BountyModeration {
   hidden?: boolean;
   /** Back to open: drops the claim and the completion. */
   reopen?: boolean;
+}
+
+/** What staff fill in to make one code or a batch of the same kind. */
+export interface CreateCodesInput {
+  kind: RedemptionCodeKind;
+  amountCents?: number;
+  tier?: MembershipTier;
+  months?: number;
+  classSessionId?: string | null;
+  maxPriceCents?: number | null;
+  /** 1 to 50. */
+  quantity: number;
+  note?: string;
+  zeffyPaymentId?: string;
+  /** A date ("2027-01-31") or a full time. Empty: the code never expires. */
+  expiresAt?: string | null;
+}
+
+/** A code as staff see it in the list. */
+export interface RedemptionCodeView extends RedemptionCode {
+  redeemedByName?: string | null;
+  classTitle?: string | null;
+}
+
+/** What a code would give the person who typed it. Never the code itself. */
+export interface CodeOffer {
+  kind: RedemptionCodeKind;
+  amountCents?: number;
+  tier?: MembershipTier;
+  months?: number;
+  /** When the membership would run to if redeemed now. */
+  membershipEndsAt?: ISODateTime;
+  /** class: the classes this person could use it on right now. */
+  classes?: Array<{
+    id: string;
+    title: string;
+    startsAt: ISODateTime;
+    priceCents: number;
+  }>;
+  maxPriceCents?: number | null;
+  expiresAt?: ISODateTime | null;
+}
+
+/** What redeeming a code did. */
+export interface CodeRedemption {
+  kind: RedemptionCodeKind;
+  amountCents?: number;
+  balanceCents?: number;
+  tier?: MembershipTier;
+  membershipEndsAt?: ISODateTime;
+  bookingId?: string;
+  classSessionId?: string;
+  classTitle?: string;
 }
 
 export interface UsageFilters {
@@ -1034,8 +1089,25 @@ export interface DataProvider {
       tier?: MembershipTier | null;
       shopAccess?: boolean;
       notes?: string;
+      /** A date, a full time, or null to clear it. */
+      membershipEndsAt?: string | null;
     },
   ): Promise<User>;
+
+  /**
+   * Redemption codes. The person redeeming is whoever is signed in. A code
+   * works once; on the live site the database, not this object, has the last
+   * word on that (see createPersistingProxy in prisma-provider.ts).
+   */
+  getCodeOffer(userId: string, code: string): Promise<CodeOffer>;
+  redeemCode(
+    userId: string,
+    code: string,
+    choice?: { classSessionId?: string },
+  ): Promise<CodeRedemption>;
+  adminListCodes(): Promise<RedemptionCodeView[]>;
+  adminCreateCodes(input: CreateCodesInput): Promise<RedemptionCode[]>;
+  adminVoidCode(id: string): Promise<RedemptionCode>;
   /** Member chooses their shop PIN. Rejects bad and trivial PINs. Clears a reset flag. */
   setMyKioskPin(userId: string, pin: string): Promise<User>;
   /**

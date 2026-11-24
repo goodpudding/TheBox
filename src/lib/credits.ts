@@ -203,7 +203,8 @@ export type CreditLedgerKind =
   | "machine"
   | "machine_refund"
   | "class"
-  | "class_refund";
+  | "class_refund"
+  | "gift_code";
 
 export function inferCreditGrantCents(input: {
   name: string;
@@ -615,6 +616,8 @@ export function ledgerKindLabel(kind: CreditLedgerKind): string {
       return "Class";
     case "class_refund":
       return "Class refund";
+    case "gift_code":
+      return "Gift code";
     default:
       return kind;
   }

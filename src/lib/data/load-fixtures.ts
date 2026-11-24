@@ -310,6 +310,7 @@ export function loadFixtures(): MockFixtureBundle {
     })),
     creditLedgerEntries:
       creditLedger as MockFixtureBundle["creditLedgerEntries"],
+    redemptionCodes: [],
     inventoryAreas: inventoryAreas as MockFixtureBundle["inventoryAreas"],
     areaStewards: areaStewards as MockFixtureBundle["areaStewards"],
     inventoryItems: inventoryItems as MockFixtureBundle["inventoryItems"],
