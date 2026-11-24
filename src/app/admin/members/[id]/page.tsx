@@ -244,19 +244,32 @@ export default function AdminMemberDetailPage() {
     setError(null);
     setMessage(null);
     try {
-      await provider.adminGrantCredits({
+      const already = new Set((wallet?.entries ?? []).map((entry) => entry.id));
+      const entry = await provider.adminGrantCredits({
         userId: member.id,
         amountCents: Math.round(dollars * 100),
         actorId: currentUser.id,
         note: grantNote.trim() || undefined,
         sourcePaymentId: grantPaymentId.trim() || null,
       });
+      // A number that was applied before comes back as the old entry, and
+      // nothing is added. Say so, in place of "applied".
+      if (entry.userId !== member.id) {
+        setError("That number was already applied to another member. Nothing was added.");
+        return;
+      }
+      if (already.has(entry.id)) {
+        setError(
+          `That number was already applied here on ${formatDateTime(entry.occurredAt)}. Nothing was added.`,
+        );
+        return;
+      }
       setGrantNote("");
       setGrantPaymentId("");
       bump();
       setMessage(
         grantPaymentId.trim()
-          ? "Zeffy payment applied as credit."
+          ? "Applied as credit."
           : "Credit ledger updated.",
       );
     } catch (err) {
@@ -650,13 +663,20 @@ export default function AdminMemberDetailPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="grant-payment">Zeffy payment id (optional)</Label>
+              <Label htmlFor="grant-payment">
+                Zeffy payment ID or card number (optional)
+              </Label>
               <Input
                 id="grant-payment"
                 value={grantPaymentId}
                 onChange={(e) => setGrantPaymentId(e.target.value)}
                 placeholder="pay-…"
+                aria-describedby="grant-payment-help"
               />
+              <p id="grant-payment-help" className="text-sm text-secondary">
+                The same number cannot be applied twice, to this member or anyone
+                else.
+              </p>
             </div>
           </div>
           <div className="space-y-2">
