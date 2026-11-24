@@ -50,7 +50,7 @@ export const TEXT_BLOCKS: readonly TextBlock[] = [
   {
     slug: "join-how-it-works",
     title: "Join page: how joining works",
-    html: "<ul><li>Payments stay on our external checkout (Zeffy). This portal manages account, waiver, certifications, and shop access after staff activate you.</li><li>Class tickets include a day pass good for 30 days; join in that window and your first month can start at the Community rate.</li><li>Gift memberships and class + membership bundles roll out for the holiday season — ask staff or check Support.</li></ul>",
+    html: "<ul><li>Payments stay on our external checkout (Zeffy). This portal manages account, waiver, certifications, and shop access after staff activate you.</li><li>Class tickets include a day pass good for 30 days; join in that window and your first month can start at the Community rate.</li><li>Gift memberships and class + membership bundles roll out for the holiday season — ask staff or check Support.</li><li>Have a gift card or a code? Sign in and open <a href=\"/redeem\">Redeem a code</a>.</li></ul>",
   },
 
   // Support
@@ -203,6 +203,11 @@ export const TEXT_BLOCKS: readonly TextBlock[] = [
     slug: "reserve-hero",
     title: "Reserve page: line under the heading",
     html: "<p>See what’s open or booked right now, then pick a time. A reservation is priority — not exclusive lockout.</p>",
+  },
+  {
+    slug: "redeem-intro",
+    title: "Redeem a code page: introduction",
+    html: "<p>Have a gift card or a code from the makerspace? Type it here. It can be shop credit for machine time and classes, a membership, or a seat in a class.</p>",
   },
   {
     slug: "reserve-limits",

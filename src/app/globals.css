@@ -270,3 +270,14 @@ button,
     height: 560px;
   }
 }
+
+/* Printing a page of gift codes (Admin → Codes): the sheet only, without the
+   site header, footer, menus or the buttons that opened it. */
+@media print {
+  header,
+  footer,
+  nav,
+  .no-print {
+    display: none !important;
+  }
+}

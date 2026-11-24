@@ -19,6 +19,7 @@ const LINKS = [
   { href: "/admin/volunteers", label: "Volunteers" },
   { href: "/admin/bounties", label: "Bounties" },
   { href: "/admin/wishlist", label: "Wishlist" },
+  { href: "/admin/codes", label: "Codes" },
   { href: "/admin/content", label: "Content" },
   { href: "/admin/people", label: "People" },
   { href: "/admin/gallery", label: "Gallery" },

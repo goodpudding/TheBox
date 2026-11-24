@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { AdminNotice } from "@/components/admin/admin-notice";
 import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatTier } from "@/lib/utils";
@@ -29,6 +30,17 @@ const ROLE_LABEL: Record<UserRole, string> = {
   admin: "Admin (can also change roles)",
 };
 
+/** The day a time falls on at the shop, as a date input wants it: "2027-01-31". */
+function shopDate(iso: string | null | undefined): string {
+  if (!iso) return "";
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(iso));
+}
+
 const selectClass =
   "h-11 w-full rounded-full border border-border bg-surface px-4 text-charcoal";
 
@@ -43,6 +55,8 @@ export function MemberAccessForm({ member }: { member: User }) {
   const [shopAccess, setShopAccess] = useState(member.shopAccess);
   const [role, setRole] = useState<UserRole>(member.role as UserRole);
   const [notes, setNotes] = useState(member._notes ?? "");
+  const startingEnd = shopDate(member.membershipEndsAt);
+  const [endsOn, setEndsOn] = useState(startingEnd);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +73,8 @@ export function MemberAccessForm({ member }: { member: User }) {
         tier: tier ? (tier as MembershipTier) : null,
         shopAccess,
         notes,
+        // Only when staff changed it: a date from a code keeps its exact time.
+        membershipEndsAt: endsOn === startingEnd ? undefined : endsOn || null,
         role: canSetRole ? role : undefined,
       });
       setMessage("Saved.");
@@ -94,6 +110,20 @@ export function MemberAccessForm({ member }: { member: User }) {
         <p className="text-sm text-secondary">
           A Zeffy payment sets this by itself. Change it here for a membership Zeffy
           does not know about.
+        </p>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="member-ends">Membership ends on (optional)</Label>
+        <Input
+          id="member-ends"
+          type="date"
+          value={endsOn}
+          onChange={(e) => setEndsOn(e.target.value)}
+          aria-describedby="member-ends-help"
+        />
+        <p id="member-ends-help" className="text-sm text-secondary">
+          Set by a redeemed membership code: the member lapses by themselves after
+          this day. Leave it empty for someone who pays through Zeffy.
         </p>
       </div>
       <label className="flex items-center gap-3 text-charcoal">
