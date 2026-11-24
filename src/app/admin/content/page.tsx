@@ -329,10 +329,10 @@ export default function AdminContentPage() {
 
           {draft.category === "hours" ? (
             <p className="rounded-2xl border border-border bg-surface/60 px-4 py-3 text-sm text-brown">
-              This changes the words on the Hours page only. The lobby display’s
-              “Open now” and the hours machines can be reserved follow the
-              opening hours kept in the code, so tell a developer when the
-              hours themselves change.
+              The weekly hours are not typed here. Set them under Admin →
+              Settings → Opening hours, and the Join page, the lobby display
+              and reservations all follow. Use this page for anything extra,
+              such as holiday closures; it shows under the week on Join.
             </p>
           ) : null}
           {waiverVersionChanged ? (

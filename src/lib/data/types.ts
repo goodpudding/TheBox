@@ -1,3 +1,4 @@
+import type { OpeningHours } from "@/lib/opening-hours";
 import type { RateCard } from "@/lib/rate-card";
 
 /** Shared domain types for the Discover Burien Makerspace portal. Fixtures and Prisma mirror these. */
@@ -106,6 +107,7 @@ export type AccessDenyReason =
 
 export type AuditAction =
   | "rate_card_changed"
+  | "opening_hours_changed"
   | "volunteer_role_saved"
   | "badge_registered"
   | "badge_deactivated"
@@ -1021,6 +1023,8 @@ export interface MockFixtureBundle {
   siteInfo: SiteInfo;
   /** Machine prices. See src/lib/rate-card.ts. */
   rateCard: RateCard;
+  /** The week the shop is open. Edited under Admin → Settings. */
+  openingHours: OpeningHours;
   bounties: Bounty[];
   wishlistZones: WishlistZone[];
   wishlistItems: WishlistItem[];

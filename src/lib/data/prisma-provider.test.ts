@@ -639,6 +639,44 @@ describe("lists that have no table of their own", () => {
     expect(await provider.getRateCard()).toEqual(DEFAULT_RATE_CARD);
   });
 
+  it("keeps the opening hours as one row and reads them back", async () => {
+    await seedDatabase();
+    const { DEFAULT_OPENING_HOURS } = await import("@/lib/opening-hours");
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    const week = DEFAULT_OPENING_HOURS.map((d) => (d ? { ...d } : null));
+    week[1] = { open: 630, close: 870 };
+    await admin.adminSaveOpeningHours(week);
+    expect(upserts("siteRecord").map((u) => u.where.id)).toEqual(["openingHours:default"]);
+    expect(JSON.parse(String(table("siteRecord").get("openingHours:default")?.data))).toEqual(week);
+
+    const later = await createPrismaDataProvider(null, { fresh: true });
+    expect(await later.getOpeningHours()).toEqual(week);
+  });
+
+  it("uses the default hours for each day the database has wrong, and all of them when it has none", async () => {
+    await seedDatabase();
+    const { DEFAULT_OPENING_HOURS } = await import("@/lib/opening-hours");
+    const stored = DEFAULT_OPENING_HOURS.map((d) => (d ? { ...d } : null)) as unknown[];
+    stored[2] = { open: "one", close: 1200 };
+    stored[6] = { open: 600, close: 720 };
+    table("siteRecord").set("openingHours:default", {
+      id: "openingHours:default",
+      collection: "openingHours",
+      data: JSON.stringify(stored),
+    });
+    const { createPrismaDataProvider, invalidateBundleCache } = await import("./prisma-provider");
+    const provider = await createPrismaDataProvider(null, { fresh: true });
+    const read = await provider.getOpeningHours();
+    expect(read[2]).toEqual(DEFAULT_OPENING_HOURS[2]);
+    expect(read[6]).toEqual({ open: 600, close: 720 });
+
+    table("siteRecord").delete("openingHours:default");
+    invalidateBundleCache();
+    const fresh = await createPrismaDataProvider(null, { fresh: true });
+    expect(await fresh.getOpeningHours()).toEqual(DEFAULT_OPENING_HOURS);
+  });
+
   it("shows nothing, not sample rows, when the database has none", async () => {
     await seedDatabase();
     for (const id of [...table("siteRecord").keys()]) {

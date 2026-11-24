@@ -109,7 +109,7 @@ export const RECORD_KEYS = [
 export type RecordKey = (typeof RECORD_KEYS)[number];
 
 /** Single objects kept the same way, under the row id "default". */
-export const RECORD_SINGLETONS = ["siteInfo", "rateCard"] as const;
+export const RECORD_SINGLETONS = ["siteInfo", "rateCard", "openingHours"] as const;
 
 export type RecordSingleton = (typeof RECORD_SINGLETONS)[number];
 

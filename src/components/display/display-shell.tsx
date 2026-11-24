@@ -15,9 +15,13 @@ type DisplayShellProps = {
   children: ReactNode;
 };
 
-function hourLabel(hour: number): string {
+/** "1 PM", "10:30 AM". Minutes since midnight. */
+function clockLabel(minutes: number): string {
+  const hour = Math.floor(minutes / 60);
+  const minute = minutes % 60;
   const h12 = ((hour + 11) % 12) + 1;
-  return `${h12} ${hour < 12 || hour === 24 ? "AM" : "PM"}`;
+  const half = hour < 12 || hour === 24 ? "AM" : "PM";
+  return `${h12}${minute ? `:${String(minute).padStart(2, "0")}` : ""} ${half}`;
 }
 
 /**
@@ -40,7 +44,10 @@ export function DisplayShell({
   }).format(new Date(feed.now));
   const hours = feed.hours.closed
     ? "Closed today"
-    : `${hourLabel(feed.hours.openHour)} – ${hourLabel(feed.hours.closeHour)}`;
+    : // A feed from before half hours existed has only the whole hours.
+      `${clockLabel(feed.hours.openMinute ?? feed.hours.openHour * 60)} – ${clockLabel(
+        feed.hours.closeMinute ?? feed.hours.closeHour * 60,
+      )}`;
   const calm = feed.config.motion === "calm";
   const style = { "--display-cadence": `${cadenceMs}ms` } as CSSProperties;
 

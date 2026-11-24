@@ -1,3 +1,4 @@
+import type { OpeningHours } from "@/lib/opening-hours";
 import type { RateCard } from "@/lib/rate-card";
 import type {
   AccessLog,
@@ -644,7 +645,10 @@ export interface ClassInterestBoardView
 
 export interface DisplayHoursToday {
   label: string;
-  /** Both 0 on a day the shop does not open. */
+  /** Minutes since midnight. Both 0 on a day the shop does not open. */
+  openMinute: number;
+  closeMinute: number;
+  /** The same times as whole hours, for a display page loaded before half hours existed. */
   openHour: number;
   closeHour: number;
   /** True on a day the shop does not open at all. */
@@ -1265,6 +1269,14 @@ export interface DataProvider {
   getRateCard(): Promise<RateCard>;
   /** Change some of the prices. Refuses the whole change if any value will not do. */
   adminSaveRateCard(patch: Partial<RateCard>): Promise<RateCard>;
+
+  /**
+   * The week the shop is open: what the lobby display, machine reservations
+   * and the hours on the Join page all follow.
+   */
+  getOpeningHours(): Promise<OpeningHours>;
+  /** Replaces the whole week. Refuses one that makes no sense, in plain words. */
+  adminSaveOpeningHours(week: OpeningHours): Promise<OpeningHours>;
 
   getSiteInfo(): Promise<SiteInfo>;
   adminSaveSiteInfo(input: Partial<SiteInfo>): Promise<SiteInfo>;

@@ -1,5 +1,6 @@
 import type { MockFixtureBundle } from "./types";
 import { billingFor, inferCreditGrantCents } from "../credits";
+import { DEFAULT_OPENING_HOURS } from "../opening-hours";
 import { DEFAULT_RATE_CARD } from "../rate-card";
 import { DEFAULT_PROJECTS, DEFAULT_SITE_INFO } from "./site-info";
 
@@ -281,6 +282,7 @@ export function loadFixtures(): MockFixtureBundle {
     projects: DEFAULT_PROJECTS.map((p) => ({ ...p })),
     siteInfo: { ...DEFAULT_SITE_INFO },
     rateCard: { ...DEFAULT_RATE_CARD },
+    openingHours: DEFAULT_OPENING_HOURS.map((day) => (day ? { ...day } : null)),
     bounties: bounties as MockFixtureBundle["bounties"],
     wishlistZones: wishlistZones as MockFixtureBundle["wishlistZones"],
     wishlistItems: wishlistItems as MockFixtureBundle["wishlistItems"],

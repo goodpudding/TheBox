@@ -181,6 +181,8 @@ export const RPC_RULES = {
   adminDeleteWishlistItem: { access: "staff", arg: -1 },
   getRateCard: { access: "public", arg: -1 },
   adminSaveRateCard: { access: "staff", arg: -1 },
+  getOpeningHours: { access: "public", arg: -1 },
+  adminSaveOpeningHours: { access: "staff", arg: -1 },
   getSiteInfo: { access: "public", arg: -1 },
   adminSaveSiteInfo: { access: "staff", arg: -1 },
   adminListVolunteerRoles: { access: "staff", arg: -1 },

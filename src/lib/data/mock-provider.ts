@@ -212,7 +212,12 @@ import {
 } from "../inventory";
 import { notifyStewardsOfIssue } from "../inventory/notify";
 import { isIssuedPhotoKey, isPhotoMimeType } from "../inventory/upload-policy";
-import { OPENING_HOURS } from "../opening-hours";
+import {
+  checkedOpeningHours,
+  normalizeOpeningHours,
+  openingHoursChanges,
+  type OpeningHours,
+} from "../opening-hours";
 
 const TZ = "America/Los_Angeles";
 
@@ -284,12 +289,11 @@ function checkedPhotoInputs(raw: unknown): InventoryPhotoInput[] {
   return raw.map(checkedPhotoInput);
 }
 
-function endsAfterShopClosing(endsAt: string): boolean {
+function endsAfterShopClosing(endsAt: string, hours: OpeningHours): boolean {
   const end = laParts(endsAt);
-  const window = OPENING_HOURS[end.weekday];
-  if (!window) return true;
-  const [, close] = window;
-  return end.hour * 60 + end.minute > close * 60;
+  const day = hours[end.weekday];
+  if (!day) return true;
+  return end.hour * 60 + end.minute > day.close;
 }
 
 const VIDEO_ROLES: readonly VideoRole[] = ["primary", "supporting", "conditional"];
@@ -365,16 +369,19 @@ function laParts(iso: string | Date): {
   };
 }
 
-function isWithinOpeningHours(startsAt: string, endsAt: string): boolean {
+function isWithinOpeningHours(
+  startsAt: string,
+  endsAt: string,
+  hours: OpeningHours,
+): boolean {
   const start = laParts(startsAt);
   const end = laParts(endsAt);
   if (start.dateKey !== end.dateKey) return false;
-  const window = OPENING_HOURS[start.weekday];
-  if (!window) return false;
-  const [open, close] = window;
+  const day = hours[start.weekday];
+  if (!day) return false;
   const startMin = start.hour * 60 + start.minute;
   const endMin = end.hour * 60 + end.minute;
-  return startMin >= open * 60 && endMin <= close * 60 && endMin > startMin;
+  return startMin >= day.open && endMin <= day.close && endMin > startMin;
 }
 
 function addHours(iso: string, hours: number): string {
@@ -1941,13 +1948,13 @@ export class MockDataProvider implements DataProvider {
       );
     }
 
-    if (!isWithinOpeningHours(input.startsAt, input.endsAt)) {
+    if (!isWithinOpeningHours(input.startsAt, input.endsAt, this.openingHours())) {
       throw new Error("Reservation is outside opening hours");
     }
 
     if (
       machine.attendedOperationRequired &&
-      endsAfterShopClosing(input.endsAt)
+      endsAfterShopClosing(input.endsAt, this.openingHours())
     ) {
       throw new Error(
         "Attended-operation machines cannot be reserved past shop closing",
@@ -2072,6 +2079,7 @@ export class MockDataProvider implements DataProvider {
       throw new Error("Date range is too long");
     }
     const now = Date.now();
+    const openingHours = this.openingHours();
 
     for (
       let cursor = fromDate.getTime();
@@ -2081,16 +2089,16 @@ export class MockDataProvider implements DataProvider {
       const startsAt = new Date(cursor).toISOString();
       const endsAt = new Date(cursor + slotMin * 60_000).toISOString();
       const startParts = laParts(startsAt);
-      const window = OPENING_HOURS[startParts.weekday];
+      const day = openingHours[startParts.weekday];
       const startMin = startParts.hour * 60 + startParts.minute;
       const endParts = laParts(endsAt);
       const endMin = endParts.hour * 60 + endParts.minute;
 
       if (
-        !window ||
+        !day ||
         startParts.dateKey !== endParts.dateKey ||
-        startMin < window[0] * 60 ||
-        endMin > window[1] * 60
+        startMin < day.open ||
+        endMin > day.close
       ) {
         slots.push({ startsAt, endsAt, available: false, reason: "closed" });
         continue;
@@ -4186,7 +4194,7 @@ export class MockDataProvider implements DataProvider {
     }
     if (
       machine.attendedOperationRequired &&
-      endsAfterShopClosing(input.endsAt)
+      endsAfterShopClosing(input.endsAt, this.openingHours())
     ) {
       throw new Error(
         "Attended-operation machines cannot be reserved past shop closing",
@@ -5228,6 +5236,32 @@ export class MockDataProvider implements DataProvider {
       metadata: changes,
     });
     return { ...after };
+  }
+
+  /** The stored week, with the default for any day that cannot be read. */
+  private openingHours(): OpeningHours {
+    return normalizeOpeningHours(this.state.openingHours);
+  }
+
+  async getOpeningHours(): Promise<OpeningHours> {
+    return this.openingHours();
+  }
+
+  async adminSaveOpeningHours(week: OpeningHours): Promise<OpeningHours> {
+    const before = this.openingHours();
+    // Throws on the first day that will not do, before anything is changed.
+    const after = checkedOpeningHours(week);
+    const changes = openingHoursChanges(before, after);
+    if (Object.keys(changes).length === 0) return before;
+    this.state.openingHours = after;
+    this.pushAudit({
+      action: "opening_hours_changed",
+      actorId: this.currentUserId ?? null,
+      entityType: "opening_hours",
+      entityId: "default",
+      metadata: changes,
+    });
+    return after.map((day) => (day ? { ...day } : null));
   }
 
   async getSiteInfo(): Promise<SiteInfo> {
@@ -6433,6 +6467,7 @@ export class MockDataProvider implements DataProvider {
       membershipProducts: this.state.membershipProducts,
       promoSlides: this.state.promoSlides,
       displayConfig: this.state.displayConfig,
+      openingHours: this.openingHours(),
       displayPhotos: this.state.displayPhotos,
       contentPages: this.state.contentPages,
       bounties: this.state.bounties,

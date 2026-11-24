@@ -19,7 +19,8 @@ The rule: how the site looks is code; what it says is edited in the admin. Every
 
 | What | Where |
 |---|---|
-| Waiver, hours, policies, FAQ, history, staff intro, support and lesson text | Admin → Content (rich-text editor; a new waiver version asks every member to sign again) |
+| Waiver, policies, FAQ, history, staff intro, support and lesson text; holiday closures and other notes about hours | Admin → Content (rich-text editor; a new waiver version asks every member to sign again) |
+| Opening hours, day by day | Admin → Settings → Opening hours |
 | The explanatory text on Join, Support, Wishlist, Staff, History, Events, Bounties, Volunteer, Equipment, Made here, a class page and Reserve | Admin → Content → Text on pages. Each piece starts with its built-in wording (`src/lib/data/text-blocks.ts`) and can go back to it |
 | Machines (incl. attended-only, longest booking, order) and certifications (incl. what each covers, prerequisites, order) | Admin → Machines, Admin → Certifications (switched-off ones stay listed) |
 | Classes: details, description, cancel or restore; add a member or cancel a booking | Admin → Classes (lists drafts, cancelled and past classes too). Cancelling moves no money: Zeffy refunds are made in Zeffy |
@@ -37,10 +38,12 @@ The rule: how the site looks is code; what it says is edited in the admin. Every
 | Maintenance blocks: change or remove | Admin → Reservations → Maintenance blocks |
 | Maintenance blocks: schedule or change one as a Shop Steward who is not staff | `/maintenance` |
 | Inventory areas (rename, switch off) and who stewards each | Inventory → Areas |
-| Which page is the hours and which policy new members agree to; the every-safety-question quiz rule | Admin → Settings |
+| Which page shows under the hours on Join and which policy new members agree to; the every-safety-question quiz rule | Admin → Settings |
 | Shop inventory with photos | Inventory → Add item |
 
 Lists with no table of their own (directory, gallery, wishlist, shop details, machine rates, tool champion terms) are rows in `SiteRecord`, one JSON row each (`src/lib/data/persist-delta.ts`). Lobby promos, display settings and lobby photos have tables of their own (see Lobby display). Inventory and gallery pictures are rows in `StoredFile`, because a Worker has no disk; set `INVENTORY_PHOTO_STORAGE=drive` to send new photos to a Google shared drive instead (`src/lib/inventory/storage.ts`).
+
+The opening hours are one stored week (`SiteRecord` row `openingHours:default`; `src/lib/opening-hours.ts` holds the default and the rules). The lobby display's "Open now", the hours a machine can be reserved in and the list on the Join page are all worked out from it, on the hour or the half hour. The Hours page under Admin → Content shows beneath that list and is for anything extra.
 
 Still in code: page headings, button labels and the messages built from data (dashboard notices, quiz results, booking confirmations), which machines are included with membership and which bill by time, gram or print (`src/lib/credits.ts`), and the class-category and machine-area lists. To make another paragraph editable, add it to `TEXT_BLOCKS` and draw it with `<TextBlock slug="…" />`.
 

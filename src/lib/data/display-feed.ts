@@ -30,7 +30,12 @@ import {
   isDisplayBounty,
 } from "./bounties";
 
-import { DAY_NAMES, OPENING_HOURS } from "@/lib/opening-hours";
+import {
+  DAY_NAMES,
+  DEFAULT_OPENING_HOURS,
+  timeLabel,
+  type OpeningHours,
+} from "@/lib/opening-hours";
 
 const TZ = "America/Los_Angeles";
 
@@ -80,12 +85,6 @@ export function laParts(iso: string | Date): {
     weekday: weekdayMap[parts.weekday!] ?? 0,
     dateKey: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
   };
-}
-
-function formatHourLabel(hour: number): string {
-  const h12 = ((hour + 11) % 12) + 1;
-  const ampm = hour < 12 ? "AM" : "PM";
-  return `${h12}:00 ${ampm}`;
 }
 
 export function formatDisplayName(
@@ -258,6 +257,8 @@ export function buildDisplayFeed(input: {
   membershipProducts: MembershipProduct[];
   promoSlides: PromoSlide[];
   displayConfig: DisplayConfig;
+  /** The week the shop is open. The default week when left out. */
+  openingHours?: OpeningHours;
   displayPhotos?: DisplayPhoto[];
   /** Class description pages. Without them events have no description. */
   contentPages?: ContentPage[];
@@ -266,11 +267,13 @@ export function buildDisplayFeed(input: {
   const now = input.now ?? new Date();
   const nowIso = now.toISOString();
   const parts = laParts(now);
-  const window = OPENING_HOURS[parts.weekday] ?? null;
-  const [openHour, closeHour] = window ?? [0, 0];
-  const isOpen = window != null && parts.hour >= openHour && parts.hour < closeHour;
-  const hoursLabel = window
-    ? `${DAY_NAMES[parts.weekday]} ${formatHourLabel(openHour)} – ${formatHourLabel(closeHour)}`
+  const today = (input.openingHours ?? DEFAULT_OPENING_HOURS)[parts.weekday] ?? null;
+  const openMinute = today?.open ?? 0;
+  const closeMinute = today?.close ?? 0;
+  const nowMinute = parts.hour * 60 + parts.minute;
+  const isOpen = today != null && nowMinute >= openMinute && nowMinute < closeMinute;
+  const hoursLabel = today
+    ? `${DAY_NAMES[parts.weekday]} ${timeLabel(openMinute)} – ${timeLabel(closeMinute)}`
     : `${DAY_NAMES[parts.weekday]} · Closed`;
 
   const mode = input.displayConfig.nameDisplayMode;
@@ -506,9 +509,11 @@ export function buildDisplayFeed(input: {
     now: nowIso,
     hours: {
       label: hoursLabel,
-      openHour,
-      closeHour,
-      closed: window == null,
+      openMinute,
+      closeMinute,
+      openHour: Math.floor(openMinute / 60),
+      closeHour: Math.ceil(closeMinute / 60),
+      closed: today == null,
     },
     isOpen,
     todaySessions,

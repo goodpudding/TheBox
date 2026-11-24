@@ -1,22 +1,25 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { createMockDataProvider } from "./data/mock-provider";
+import { DatabaseSync } from "node:sqlite";
+import { describe, expect, it } from "vitest";
 import { loadFixtures } from "./data/load-fixtures";
-import { OPENING_HOURS, openingHoursLines } from "./opening-hours";
+import {
+  DEFAULT_OPENING_HOURS,
+  checkedOpeningHours,
+  normalizeOpeningHours,
+  openingHoursLines,
+  timeLabel,
+} from "./opening-hours";
 
 /**
  * Tuesday to Friday 1 to 8 PM, Saturday 11 to 5, Sunday 11 to 4, closed on
- * Mondays. The lobby display, machine reservations and the published Hours
- * page all have to say the same thing.
+ * Mondays, until staff save other hours under Admin → Settings. The lobby
+ * display, machine reservations and the hours members read all come from the
+ * same stored week; see opening-hours-admin.test.ts for that.
  */
 describe("opening hours", () => {
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it("are the hours the makerspace keeps", () => {
-    expect(openingHoursLines()).toEqual([
+  it("start as the hours the makerspace keeps", () => {
+    expect(openingHoursLines(DEFAULT_OPENING_HOURS)).toEqual([
       "Sunday 11:00 AM – 4:00 PM",
       "Monday Closed",
       "Tuesday 1:00 – 8:00 PM",
@@ -25,65 +28,117 @@ describe("opening hours", () => {
       "Friday 1:00 – 8:00 PM",
       "Saturday 11:00 AM – 5:00 PM",
     ]);
-    expect(OPENING_HOURS[1]).toBeNull();
+    expect(DEFAULT_OPENING_HOURS[1]).toBeNull();
+    expect(loadFixtures().openingHours).toEqual(DEFAULT_OPENING_HOURS);
   });
 
-  it("the Hours page shipped with the site lists the same hours", () => {
+  it("write a half hour the way a clock shows it", () => {
+    expect(timeLabel(10 * 60 + 30)).toBe("10:30 AM");
+    expect(timeLabel(12 * 60)).toBe("12:00 PM");
+    expect(timeLabel(24 * 60)).toBe("12:00 AM");
+    const week = DEFAULT_OPENING_HOURS.map((day, i) =>
+      i === 1 ? { open: 10 * 60 + 30, close: 14 * 60 + 30 } : day,
+    );
+    expect(openingHoursLines(week)[1]).toBe("Monday 10:30 AM – 2:30 PM");
+  });
+
+  it("the Hours page no longer repeats the week, so it cannot disagree with it", () => {
     const page = loadFixtures().contentPages.find((p) => p.slug === "hours")!;
-    for (const line of openingHoursLines()) {
-      expect(page.html).toContain(`<li>${line}</li>`);
-    }
-    expect(page.html.match(/<li>/g)).toHaveLength(7);
+    expect(page.html).not.toMatch(/Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday/);
+    expect(page.html).toContain("Holiday closures");
+  });
+});
+
+describe("hours read back from the database", () => {
+  it("take the default for a day that is damaged, and only that day", () => {
+    const stored = [
+      { open: 600, close: 900 },
+      null,
+      { open: "noon", close: 1200 },
+      { open: 900, close: 600 },
+      { open: 615, close: 900 },
+      undefined,
+      { open: 0, close: 1440 },
+    ];
+    expect(normalizeOpeningHours(stored)).toEqual([
+      { open: 600, close: 900 },
+      null,
+      DEFAULT_OPENING_HOURS[2],
+      DEFAULT_OPENING_HOURS[3],
+      DEFAULT_OPENING_HOURS[4],
+      DEFAULT_OPENING_HOURS[5],
+      { open: 0, close: 1440 },
+    ]);
   });
 
-  it("a migration puts the same hours on the live Hours page", () => {
+  it("are the default week when nothing usable is stored", () => {
+    for (const stored of [null, undefined, "closed", {}, [], [null, null]]) {
+      expect(normalizeOpeningHours(stored)).toEqual(DEFAULT_OPENING_HOURS);
+    }
+  });
+});
+
+describe("hours staff try to save", () => {
+  const week = () => DEFAULT_OPENING_HOURS.map((d) => (d ? { ...d } : null));
+
+  it("are refused in plain words when they make no sense", () => {
+    const closesFirst = week();
+    closesFirst[2] = { open: 20 * 60, close: 13 * 60 };
+    expect(() => checkedOpeningHours(closesFirst)).toThrow(
+      "Tuesday closes before it opens. Set the closing time after the opening time.",
+    );
+    const oddMinute = week();
+    oddMinute[3] = { open: 13 * 60 + 10, close: 20 * 60 };
+    expect(() => checkedOpeningHours(oddMinute)).toThrow(
+      "Wednesday: use times on the hour or the half hour.",
+    );
+    const pastMidnight = week();
+    pastMidnight[6] = { open: 11 * 60, close: 25 * 60 };
+    expect(() => checkedOpeningHours(pastMidnight)).toThrow(/Saturday/);
+    expect(() => checkedOpeningHours([null, null, null, null, null, null, null])).toThrow(
+      "Leave at least one day open. For a holiday closure, add a note on the Hours page instead.",
+    );
+    expect(() => checkedOpeningHours(week().slice(0, 5))).toThrow("Send all seven days.");
+    expect(() => checkedOpeningHours("always")).toThrow("Send all seven days.");
+  });
+
+  it("are kept as sent when they are fine", () => {
+    const fine = week();
+    fine[1] = { open: 10 * 60 + 30, close: 14 * 60 };
+    fine[0] = null;
+    expect(checkedOpeningHours(fine)).toEqual(fine);
+  });
+});
+
+describe("the migration that takes the week off the live Hours page", () => {
+  function hoursPageAfter(html: string): string {
+    const db = new DatabaseSync(":memory:");
+    db.exec('CREATE TABLE "ContentPage" ("slug" TEXT PRIMARY KEY, "html" TEXT, "updatedAt" TEXT)');
+    db.prepare('INSERT INTO "ContentPage" ("slug", "html", "updatedAt") VALUES (?, ?, ?)').run(
+      "hours",
+      html,
+      "2026-11-21T00:00:00.000Z",
+    );
     const dir = path.join(process.cwd(), "migrations");
-    const sql = readdirSync(dir)
-      .filter((name) => name.includes("opening_hours"))
-      .map((name) => readFileSync(path.join(dir, name), "utf8"))
-      .join("\n");
-    for (const line of openingHoursLines()) {
-      expect(sql).toContain(`<li>${line}</li>`);
-    }
-  });
-
-  /** Which half-hour starts on a day can be booked, by Burien clock time. */
-  async function bookable(day: string): Promise<string[]> {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2026-11-21T09:00:00-08:00"));
-    const provider = createMockDataProvider("u-maya");
-    const slots = await provider.getMachineAvailability("m-bambu-a1", day, day);
-    return slots
-      .filter((s) => s.reason !== "closed" && s.reason !== "past")
-      .filter(
-        (s) =>
-          new Intl.DateTimeFormat("en-CA", {
-            timeZone: "America/Los_Angeles",
-          }).format(new Date(s.startsAt)) === day,
-      )
-      .map((s) =>
-        new Intl.DateTimeFormat("en-GB", {
-          timeZone: "America/Los_Angeles",
-          hour: "2-digit",
-          minute: "2-digit",
-        }).format(new Date(s.startsAt)),
-      );
+    db.exec(readFileSync(path.join(dir, "0022_hours_page_notes.sql"), "utf8"));
+    return String(
+      (db.prepare('SELECT "html" FROM "ContentPage" WHERE "slug" = ?').get("hours") as { html: string }).html,
+    );
   }
 
-  it("no machine can be reserved on a Monday", async () => {
-    expect(await bookable("2026-11-23")).toEqual([]);
+  /** What migration 0013 wrote, which is what the live page holds. */
+  const live = /SET "html" = '([^']+)'/.exec(
+    readFileSync(path.join(process.cwd(), "migrations", "0013_opening_hours.sql"), "utf8"),
+  )![1]!;
+
+  it("leaves the note and drops the list of days", () => {
+    expect(hoursPageAfter(live)).toBe(
+      "<p>Holiday closures and special events are posted at the shop and on the Discover Burien calendar.</p>",
+    );
   });
 
-  it("a weekday can be reserved from 1 PM to 8 PM", async () => {
-    const tuesday = await bookable("2026-11-24");
-    expect(tuesday[0]).toBe("13:00");
-    expect(tuesday.at(-1)).toBe("19:30");
-  });
-
-  it("Saturday runs 11 to 5 and Sunday 11 to 4", async () => {
-    const saturday = await bookable("2026-11-28");
-    expect([saturday[0], saturday.at(-1)]).toEqual(["11:00", "16:30"]);
-    const sunday = await bookable("2026-11-29");
-    expect([sunday[0], sunday.at(-1)]).toEqual(["11:00", "15:30"]);
+  it("does not touch a page staff have rewritten", () => {
+    const rewritten = "<p>Closed 24 to 26 December.</p><ul><li>Sunday 12 to 4</li></ul>";
+    expect(hoursPageAfter(rewritten)).toBe(rewritten);
   });
 });
