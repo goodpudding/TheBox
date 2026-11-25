@@ -19,7 +19,8 @@ The rule: how the site looks is code; what it says is edited in the admin. Every
 
 | What | Where |
 |---|---|
-| Waiver, hours, policies, FAQ, history, staff intro, support and lesson text | Admin → Content (rich-text editor; a new waiver version asks every member to sign again) |
+| Waiver, policies, FAQ, history, staff intro, support and lesson text; holiday closures and other notes about hours | Admin → Content (rich-text editor; a new waiver version asks every member to sign again) |
+| Opening hours, day by day | Admin → Settings → Opening hours |
 | The explanatory text on Join, Support, Wishlist, Staff, History, Events, Bounties, Volunteer, Equipment, Made here, a class page and Reserve | Admin → Content → Text on pages. Each piece starts with its built-in wording (`src/lib/data/text-blocks.ts`) and can go back to it |
 | Machines (incl. attended-only, longest booking, order) and certifications (incl. what each covers, prerequisites, order) | Admin → Machines, Admin → Certifications (switched-off ones stay listed) |
 | Classes: details, description, cancel or restore; add a member or cancel a booking | Admin → Classes (lists drafts, cancelled and past classes too). Cancelling moves no money: Zeffy refunds are made in Zeffy |
@@ -37,12 +38,31 @@ The rule: how the site looks is code; what it says is edited in the admin. Every
 | Maintenance blocks: change or remove | Admin → Reservations → Maintenance blocks |
 | Maintenance blocks: schedule or change one as a Shop Steward who is not staff | `/maintenance` |
 | Inventory areas (rename, switch off) and who stewards each | Inventory → Areas |
-| Which page is the hours and which policy new members agree to; the every-safety-question quiz rule | Admin → Settings |
+| Gift cards and promo codes | Admin → Codes |
+| Which page shows under the hours on Join and which policy new members agree to; the every-safety-question quiz rule | Admin → Settings |
 | Shop inventory with photos | Inventory → Add item |
 
 Lists with no table of their own (directory, gallery, wishlist, shop details, machine rates, tool champion terms) are rows in `SiteRecord`, one JSON row each (`src/lib/data/persist-delta.ts`). Lobby promos, display settings and lobby photos have tables of their own (see Lobby display). Inventory and gallery pictures are rows in `StoredFile`, because a Worker has no disk; set `INVENTORY_PHOTO_STORAGE=drive` to send new photos to a Google shared drive instead (`src/lib/inventory/storage.ts`).
 
+The opening hours are one stored week (`SiteRecord` row `openingHours:default`; `src/lib/opening-hours.ts` holds the default and the rules). The lobby display's "Open now", the hours a machine can be reserved in and the list on the Join page are all worked out from it, on the hour or the half hour. The Hours page under Admin → Content shows beneath that list and is for anything extra.
+
 Still in code: page headings, button labels and the messages built from data (dashboard notices, quiz results, booking confirmations), which machines are included with membership and which bill by time, gram or print (`src/lib/credits.ts`), and the class-category and machine-area lists. To make another paragraph editable, add it to `TEXT_BLOCKS` and draw it with `<TextBlock slug="…" />`.
+
+## Redemption codes
+
+Gift cards and promo codes. Staff make them under Admin → Codes, one at a time or up to 50 to print; the person signs in, opens **Redeem a code** (`/redeem`) and types it. A code works once.
+
+| Kind | What redeeming does |
+|---|---|
+| Shop credit | Adds the amount to the member's shop credit (ledger kind `gift_code`), which pays for machine time and classes. |
+| Membership | Sets the tier, makes the member active, and sets `User.membershipEndsAt` that many months out. The hourly cron (`src/lib/memberships/lapse.ts`) lapses them when it passes. A Zeffy membership payment clears the date. A second code for the same tier adds to a membership that is still running. Someone already paying through Zeffy is sent to staff and the code is not used up. |
+| A class | One named class, or any one class up to a price. The person picks the class; the code grants that class's price as credit and the ordinary booking and pay-with-credit run, so seats, cancelling and refunds follow the usual rules. If the booking is refused, nothing is granted and the code stays unused. |
+
+- **Exactly once.** Two requests can both load a code as unused. Before anything is saved, the request claims the code with one conditional write (`updateMany` where it is still unredeemed and unvoided, `createPersistingProxy` in `src/lib/data/prisma-provider.ts`); the one that changes no row is refused. The credit row's id comes from the code (`cl-code-<id>`), so a repeated save cannot add it twice. If the save fails twice after a claim, the code stays held for that person and Admin → Codes shows it as claimed but not finished, for staff to settle by hand; it is never handed to someone else.
+- **The code itself** is 15 characters from 31 (no 0, O, 1, I or L), about 74 bits, printed as `XXXXX-XXXXX-XXXXX` and accepted in any case with or without dashes (`src/lib/redemption-code.ts`). Checking and redeeming are limited to 10 a minute per member (`RL_REDEEM_CODE`).
+- **Privacy.** Only staff can list, make or void codes. A member learns only what the code they typed gives; an unknown code and a voided one get the same answer. Codes are not written to the audit trail or the logs.
+- **Expiry** is optional and off by default. Washington generally does not allow a gift card someone paid for to expire; use it for free or promotional codes.
+- **Gift cards sold through Zeffy:** nothing is automatic yet. When the payment arrives, make a code with the Zeffy payment ID in its form and send it to the buyer.
 
 ## Local development (mock UI — default)
 

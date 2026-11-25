@@ -266,6 +266,12 @@ function DashboardBody() {
           href: "/join",
         });
       }
+      if (currentUser.membershipEndsAt && currentUser.status === "active") {
+        notes.push({
+          tone: "info",
+          text: `Your membership from a code runs through ${formatDateTime(currentUser.membershipEndsAt)}.`,
+        });
+      }
       if (currentUser.scholarshipExpiresAt) {
         notes.push({
           tone: "info",

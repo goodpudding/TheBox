@@ -205,7 +205,8 @@ async function enrichClassCampaigns(
   return detailed;
 }
 
-async function pushGoogle(now: Date): Promise<ClassSyncCounts["calendar"]> {
+/** Brings the two Google calendars in line with the class list. Exported for its test. */
+export async function pushGoogle(now: Date): Promise<ClassSyncCounts["calendar"]> {
   const empty = { created: 0, updated: 0, deleted: 0, errors: [] as string[] };
   const account = calendarAccount();
   const ids = getCalendarIds();

@@ -81,6 +81,10 @@ model User {
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
   deletedAt                DateTime?
+  /// When a membership that came from a redemption code ends. Null for a
+  /// member who pays through Zeffy. Kept last, where the migration's ADD
+  /// COLUMN puts it, so prisma/seed-data.sql (values by position) lines up.
+  membershipEndsAt         DateTime?
 
   householdPrimary User?  @relation("Household", fields: [householdPrimaryUserId], references: [id])
   householdMembers User[] @relation("Household")
@@ -1006,6 +1010,35 @@ model InventoryItem {
   @@index([reviewStatus])
   @@index([serialNumber])
   @@index([name])
+}
+
+/// A code staff create and one person redeems, once: shop credit, a
+/// membership for some months, or a seat in a class. `redeemedAt` is set by a
+/// conditional write (only where it is still null), which is what makes a
+/// code work exactly once when two requests arrive together.
+model RedemptionCode {
+  id               String    @id
+  /// Fifteen characters, no dashes. See src/lib/redemption-code.ts.
+  code             String    @unique
+  kind             String // credit | membership | class
+  amountCents      Int?
+  tier             String?
+  months           Int?
+  classSessionId   String?
+  maxPriceCents    Int?
+  note             String?
+  zeffyPaymentId   String?
+  expiresAt        DateTime?
+  createdById      String?
+  redeemedAt       DateTime?
+  redeemedByUserId String?
+  redeemedSummary  String?
+  voidedAt         DateTime?
+  voidedById       String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([redeemedByUserId])
 }
 
 /// One row of a list the site shows that has no table of its own: the staff

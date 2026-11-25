@@ -8,7 +8,8 @@ import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { formatDateTime } from "@/lib/format";
+import Link from "next/link";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { formatBillingInterval, formatMoney, formatTier } from "@/lib/utils";
 import type { CreditWallet, MembershipProduct, OrgSettings, WaiverSignature } from "@/lib/data";
 import {
@@ -166,6 +167,22 @@ function AccountBody() {
           {currentUser.shopAccess ? "Shop access" : "No shop access"}
         </StatusPill>
       </div>
+
+      {currentUser.membershipEndsAt ? (
+        <p className="mt-4 max-w-2xl text-charcoal">
+          {currentUser.status === "active"
+            ? `Your membership came from a code and runs until ${formatDate(currentUser.membershipEndsAt)}. To keep it going after that, join on the Join page.`
+            : `Your membership from a code ended on ${formatDate(currentUser.membershipEndsAt)}.`}
+        </p>
+      ) : null}
+      <p className="mt-4">
+        <Link
+          href="/redeem"
+          className="font-display text-sm font-semibold text-primary-text underline-offset-2 hover:underline"
+        >
+          Have a gift card or a code? Redeem it
+        </Link>
+      </p>
 
       <div className="mt-6 flex flex-wrap gap-3">
         <Button asChild>

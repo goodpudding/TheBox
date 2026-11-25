@@ -2,8 +2,14 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { loadFixtures } from "./load-fixtures";
 import { DEFAULT_SITE_INFO } from "./site-info";
+import { normalizeOpeningHours } from "../opening-hours";
 import { normalizeRateCard } from "../rate-card";
-import { MockDataProvider } from "./mock-provider";
+import {
+  CODE_ALREADY_USED,
+  CODE_NOT_VALID,
+  MockDataProvider,
+  type CodeClaim,
+} from "./mock-provider";
 import type { DataProvider } from "./provider";
 import {
   changedColumns,
@@ -83,6 +89,7 @@ import type {
   DisplayPhoto,
   NameDisplayMode,
   PromoSlide,
+  RedemptionCode,
 } from "./types";
 
 function parseJsonArray<T = string>(str: string | null | undefined): T[] {
@@ -211,6 +218,7 @@ function mapUser(row: {
   shopAccess: boolean;
   dayPassCreditExpiresAt: Date | null;
   scholarshipExpiresAt: Date | null;
+  membershipEndsAt?: Date | null;
   emergencyContactName: string | null;
   emergencyContactPhone: string | null;
   emergencyContactRelation: string | null;
@@ -250,6 +258,9 @@ function mapUser(row: {
   }
   if (row.scholarshipExpiresAt) {
     user.scholarshipExpiresAt = toIsoRequired(row.scholarshipExpiresAt);
+  }
+  if (row.membershipEndsAt) {
+    user.membershipEndsAt = toIsoRequired(row.membershipEndsAt);
   }
   if (row.emergencyContactName) {
     user.emergencyContactName = row.emergencyContactName;
@@ -415,6 +426,8 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
     ]);
   const creditLedgerRows =
     (await prismaLoose.creditLedgerEntry?.findMany?.()) ?? [];
+  const redemptionCodeRows =
+    (await prismaLoose.redemptionCode?.findMany?.()) ?? [];
   const siteRecords = readSiteRecords(
     ((await prismaLoose.siteRecord?.findMany?.()) ?? []) as SiteRecordRow[],
   );
@@ -986,6 +999,8 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
     projects: siteRecords.list("projects"),
     // A missing or damaged field takes its default, one field at a time.
     rateCard: normalizeRateCard(siteRecords.single("rateCard")),
+    // A missing or damaged day takes its default, one day at a time.
+    openingHours: normalizeOpeningHours(siteRecords.single("openingHours")),
     siteInfo: {
       ...DEFAULT_SITE_INFO,
       ...(siteRecords.single<Partial<MockFixtureBundle["siteInfo"]>>("siteInfo") ?? {}),
@@ -1010,6 +1025,29 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
         createdAt: toIsoRequired(e.createdAt as Date),
         updatedAt: toIsoRequired(e.updatedAt as Date),
         deletedAt: toIso(e.deletedAt as Date | null),
+      }),
+    ),
+    redemptionCodes: (redemptionCodeRows as Array<Record<string, unknown>>).map(
+      (c): RedemptionCode => ({
+        id: String(c.id),
+        code: String(c.code),
+        kind: c.kind as RedemptionCode["kind"],
+        amountCents: (c.amountCents as number | null) ?? null,
+        tier: (c.tier as RedemptionCode["tier"]) ?? null,
+        months: (c.months as number | null) ?? null,
+        classSessionId: (c.classSessionId as string | null) ?? null,
+        maxPriceCents: (c.maxPriceCents as number | null) ?? null,
+        note: (c.note as string | null) ?? null,
+        zeffyPaymentId: (c.zeffyPaymentId as string | null) ?? null,
+        expiresAt: toIso(c.expiresAt as Date | null),
+        createdById: (c.createdById as string | null) ?? null,
+        redeemedAt: toIso(c.redeemedAt as Date | null),
+        redeemedByUserId: (c.redeemedByUserId as string | null) ?? null,
+        redeemedSummary: (c.redeemedSummary as string | null) ?? null,
+        voidedAt: toIso(c.voidedAt as Date | null),
+        voidedById: (c.voidedById as string | null) ?? null,
+        createdAt: toIsoRequired(c.createdAt as Date),
+        updatedAt: toIsoRequired(c.updatedAt as Date),
       }),
     ),
     inventoryAreas: (inventoryAreaRows as Array<Record<string, unknown>>).map(
@@ -1272,6 +1310,72 @@ export function invalidateBundleCache(): void {
   bundleInflight = null;
 }
 
+/**
+ * Claim each code for this request with one conditional write. Two requests
+ * can both have loaded a code as unused, in two isolates; the database lets
+ * exactly one of these writes change a row. The one that changed nothing
+ * stops here, before anything the code gives has been saved.
+ */
+async function claimCodes(claims: CodeClaim[]): Promise<void> {
+  for (const claim of claims) {
+    const at = new Date(claim.at);
+    const { count } = await prisma.redemptionCode.updateMany({
+      where: { id: claim.codeId, redeemedAt: null, voidedAt: null },
+      data:
+        claim.action === "redeem"
+          ? { redeemedAt: at, redeemedByUserId: claim.userId }
+          : { voidedAt: at, voidedById: claim.userId },
+    });
+    if (count === 1) continue;
+    invalidateBundleCache();
+    const row = await prisma.redemptionCode.findUnique({
+      where: { id: claim.codeId },
+    });
+    if (claim.action === "void") {
+      throw new Error(
+        row?.redeemedAt
+          ? "That code has already been redeemed, so it cannot be voided."
+          : "That code has already been voided.",
+      );
+    }
+    throw new Error(row?.redeemedAt ? CODE_ALREADY_USED : CODE_NOT_VALID);
+  }
+}
+
+/**
+ * The claim landed but saving what the code gives did not. Every row is
+ * written by its id, so trying once more is safe and usually enough. If that
+ * fails too, the code stays claimed for this person: letting go of it could
+ * hand out the same value twice, because some rows may already be saved.
+ * Staff see it in Admin → Codes as claimed and unfinished and settle it by
+ * hand.
+ */
+async function finishClaimedSave(
+  next: MockFixtureBundle,
+  snapshot: MockFixtureBundle,
+  claims: CodeClaim[],
+  firstError: unknown,
+): Promise<void> {
+  try {
+    await persistBundleToPrisma(next, snapshot);
+  } catch (err) {
+    console.error(
+      JSON.stringify({
+        redemption: "claimed but not saved",
+        codeIds: claims.map((c) => c.codeId),
+        first: String(firstError),
+        second: String(err),
+      }),
+    );
+    if (claims.some((c) => c.action === "redeem")) {
+      throw new Error(
+        "We could not finish redeeming that code. It is being held for you, and nobody else can use it. Ask staff to finish it.",
+      );
+    }
+    throw err;
+  }
+}
+
 function createPersistingProxy(mock: MockDataProvider): DataProvider {
   let snapshot = cloneBundle(mock.getState());
   return new Proxy(mock, {
@@ -1313,10 +1417,18 @@ function createPersistingProxy(mock: MockDataProvider): DataProvider {
           }
           return result;
         }
+        // A redeemed or voided code is claimed in the database first, with a
+        // write that only lands while the code is still unused. Nothing the
+        // code gives is saved unless that write lands.
+        const claims = target.takeCodeClaims();
+        if (claims.length > 0) await claimCodes(claims);
         if (shouldPersistAfter(name)) {
           const next = target.getState();
           try {
             await persistBundleToPrisma(next, snapshot);
+          } catch (err) {
+            if (claims.length === 0) throw err;
+            await finishClaimedSave(next, snapshot, claims, err);
           } finally {
             // Also after a failure: some rows may already be written.
             invalidateBundleCache();

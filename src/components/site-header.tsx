@@ -122,6 +122,7 @@ export function SiteHeader() {
     { href: "/dashboard", label: "Dashboard" },
     { href: "/usage", label: "Usage" },
     { href: "/account", label: "Account" },
+    { href: "/redeem", label: "Redeem a code" },
     ...(canMaintenance
       ? [{ href: "/maintenance", label: "Maintenance" }]
       : []),

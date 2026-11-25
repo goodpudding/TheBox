@@ -26,6 +26,9 @@ const MAX_BODY_BYTES = 1_000_000;
 
 const NO_STORE = { "Cache-Control": "no-store" };
 
+/** The two calls that take a redemption code from the caller. */
+const CODE_GUESS_METHODS: ReadonlySet<string> = new Set(["getCodeOffer", "redeemCode"]);
+
 function fail(status: number, error: string, headers: Record<string, string> = NO_STORE) {
   return NextResponse.json({ ok: false, error }, { status, headers });
 }
@@ -94,6 +97,17 @@ export async function POST(request: Request) {
       if (limit && !(await allowRequest(limit.name, limit.key))) {
         console.warn(JSON.stringify({ rpc: method, limited: limit.name }));
         return fail(429, RATE_LIMIT_MESSAGE, rateLimitHeaders(limit.name));
+      }
+    }
+    if (typeof body.method === "string" && CODE_GUESS_METHODS.has(body.method)) {
+      // Checking a code and redeeming one are both a guess at a code. Only a
+      // signed-in member gets this far; anyone else is refused below without
+      // a database load.
+      if (userId && !isStaffRole(session?.user)) {
+        if (!(await allowRequest("redeemCode", userLimitKey(userId)))) {
+          console.warn(JSON.stringify({ rpc: method, limited: "redeemCode" }));
+          return fail(429, RATE_LIMIT_MESSAGE, rateLimitHeaders("redeemCode"));
+        }
       }
     }
     const provider = await createServerDataProvider(userId, {

@@ -10,6 +10,8 @@ const calls: Array<{ model: string; method: string; args: unknown }> = [];
 const tables = new Map<string, Map<string, Row>>();
 /** While set, a `findMany` reads its rows and then waits here before returning. */
 let hold: Promise<void> | null = null;
+/** The next `times` upserts on this model throw, as failed database writes would. */
+let failUpserts: { model: string; times: number } | null = null;
 /** Delegates whose reads fail, as when a table or column is not there yet. */
 const broken = new Set<string>();
 
@@ -24,7 +26,8 @@ function table(model: string): Map<string, Row> {
 
 vi.mock("@/lib/db", () => {
   type Args = {
-    where?: { id?: string | { in: string[] } };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    where?: { id?: any } & Record<string, unknown>;
     create?: Row;
     update?: Row;
     data?: Row;
@@ -43,6 +46,10 @@ vi.mock("@/lib/db", () => {
         return row ? { ...row } : null;
       },
       async upsert(args) {
+        if (failUpserts && failUpserts.model === model && failUpserts.times > 0) {
+          failUpserts.times -= 1;
+          throw new Error("D1_ERROR: the write did not go through");
+        }
         const id = String(args?.where?.id);
         const existing = table(model).get(id);
         table(model).set(
@@ -59,6 +66,23 @@ vi.mock("@/lib/db", () => {
       async create(args) {
         table(model).set(String(args?.data?.id), { ...args?.data });
         return args?.data;
+      },
+      async updateMany(args) {
+        // The conditional write a claim is made with: only rows that match
+        // every condition are changed, and the count says how many.
+        const where = (args?.where ?? {}) as Record<string, unknown>;
+        let count = 0;
+        for (const [id, row] of table(model)) {
+          const matches = Object.entries(where).every(([key, want]) => {
+            const have = row[key] ?? null;
+            if (want instanceof Date && have instanceof Date) return +want === +have;
+            return have === (want ?? null);
+          });
+          if (!matches) continue;
+          table(model).set(id, { ...row, ...args?.data });
+          count += 1;
+        }
+        return { count };
       },
       async deleteMany(args) {
         const where = args?.where?.id;
@@ -639,6 +663,44 @@ describe("lists that have no table of their own", () => {
     expect(await provider.getRateCard()).toEqual(DEFAULT_RATE_CARD);
   });
 
+  it("keeps the opening hours as one row and reads them back", async () => {
+    await seedDatabase();
+    const { DEFAULT_OPENING_HOURS } = await import("@/lib/opening-hours");
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    const week = DEFAULT_OPENING_HOURS.map((d) => (d ? { ...d } : null));
+    week[1] = { open: 630, close: 870 };
+    await admin.adminSaveOpeningHours(week);
+    expect(upserts("siteRecord").map((u) => u.where.id)).toEqual(["openingHours:default"]);
+    expect(JSON.parse(String(table("siteRecord").get("openingHours:default")?.data))).toEqual(week);
+
+    const later = await createPrismaDataProvider(null, { fresh: true });
+    expect(await later.getOpeningHours()).toEqual(week);
+  });
+
+  it("uses the default hours for each day the database has wrong, and all of them when it has none", async () => {
+    await seedDatabase();
+    const { DEFAULT_OPENING_HOURS } = await import("@/lib/opening-hours");
+    const stored = DEFAULT_OPENING_HOURS.map((d) => (d ? { ...d } : null)) as unknown[];
+    stored[2] = { open: "one", close: 1200 };
+    stored[6] = { open: 600, close: 720 };
+    table("siteRecord").set("openingHours:default", {
+      id: "openingHours:default",
+      collection: "openingHours",
+      data: JSON.stringify(stored),
+    });
+    const { createPrismaDataProvider, invalidateBundleCache } = await import("./prisma-provider");
+    const provider = await createPrismaDataProvider(null, { fresh: true });
+    const read = await provider.getOpeningHours();
+    expect(read[2]).toEqual(DEFAULT_OPENING_HOURS[2]);
+    expect(read[6]).toEqual({ open: 600, close: 720 });
+
+    table("siteRecord").delete("openingHours:default");
+    invalidateBundleCache();
+    const fresh = await createPrismaDataProvider(null, { fresh: true });
+    expect(await fresh.getOpeningHours()).toEqual(DEFAULT_OPENING_HOURS);
+  });
+
   it("shows nothing, not sample rows, when the database has none", async () => {
     await seedDatabase();
     for (const id of [...table("siteRecord").keys()]) {
@@ -858,3 +920,155 @@ describe("the lobby display on the live site", () => {
     expect(feed.membership.products.length).toBeGreaterThan(0);
   });
 });
+
+describe("redemption codes on the live site", () => {
+  const JORDAN = "u-jordan";
+  const USED = "That code has already been used.";
+
+  function claims() {
+    return calls
+      .filter((c) => c.model === "redemptionCode" && c.method === "updateMany")
+      .map((c) => c.args as { where: Row; data: Row });
+  }
+
+  async function staffWithCode(input: Row = { kind: "credit", amountCents: 2500, quantity: 1 }) {
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    const [code] = await admin.adminCreateCodes(input as never);
+    calls.length = 0;
+    return { code: code!, createPrismaDataProvider };
+  }
+
+  it("saves a new code as a row, and reads it back for staff", async () => {
+    const { code, createPrismaDataProvider } = await staffWithCode();
+    expect(table("redemptionCode").get(code.id)).toMatchObject({
+      code: code.code,
+      kind: "credit",
+      amountCents: 2500,
+      redeemedAt: null,
+      voidedAt: null,
+    });
+    const later = await createPrismaDataProvider("u-admin", { fresh: true });
+    expect((await later.adminListCodes()).map((c) => c.id)).toContain(code.id);
+  });
+
+  it("claims the code with one conditional write before the credit is saved", async () => {
+    const { code, createPrismaDataProvider } = await staffWithCode();
+    const member = await createPrismaDataProvider(JORDAN, { fresh: true });
+    await member.redeemCode(JORDAN, code.code);
+
+    const [claim] = claims();
+    expect(claim!.where).toEqual({ id: code.id, redeemedAt: null, voidedAt: null });
+    expect(claim!.data).toMatchObject({ redeemedByUserId: JORDAN });
+    const order = calls
+      .filter(
+        (c) =>
+          c.method === "updateMany" ||
+          (c.model === "creditLedgerEntry" && c.method === "upsert"),
+      )
+      .map((c) => `${c.model}.${c.method}`);
+    expect(order[0]).toBe("redemptionCode.updateMany");
+    expect(order).toContain("creditLedgerEntry.upsert");
+
+    expect(table("creditLedgerEntry").get(`cl-code-${code.id}`)).toMatchObject({
+      userId: JORDAN,
+      kind: "gift_code",
+      amountCents: 2500,
+      sourcePaymentId: `code:${code.id}`,
+    });
+    expect(table("redemptionCode").get(code.id)?.redeemedByUserId).toBe(JORDAN);
+  });
+
+  it("grants nothing when another request claimed the code first", async () => {
+    const { code, createPrismaDataProvider } = await staffWithCode();
+    // Both requests load the code while it is still unused.
+    const first = await createPrismaDataProvider(JORDAN, { fresh: true });
+    const second = await createPrismaDataProvider("u-maya", { fresh: true });
+    await first.redeemCode(JORDAN, code.code);
+    calls.length = 0;
+
+    await expect(second.redeemCode("u-maya", code.code)).rejects.toThrow(USED);
+    expect(upserts("creditLedgerEntry")).toEqual([]);
+    expect(upserts("auditEvent")).toEqual([]);
+    expect(upserts("redemptionCode")).toEqual([]);
+    expect(table("redemptionCode").get(code.id)?.redeemedByUserId).toBe(JORDAN);
+    expect(table("creditLedgerEntry").get(`cl-code-${code.id}`)?.userId).toBe(JORDAN);
+  });
+
+  it("gives the same person one credit when their two presses race", async () => {
+    const { code, createPrismaDataProvider } = await staffWithCode();
+    const first = await createPrismaDataProvider(JORDAN, { fresh: true });
+    const second = await createPrismaDataProvider(JORDAN, { fresh: true });
+    await first.redeemCode(JORDAN, code.code);
+    await expect(second.redeemCode(JORDAN, code.code)).rejects.toThrow(USED);
+    const mine = [...table("creditLedgerEntry").values()].filter(
+      (e) => e.sourcePaymentId === `code:${code.id}`,
+    );
+    expect(mine).toHaveLength(1);
+  });
+
+  it("tries the save again when it fails once, and the credit lands once", async () => {
+    const { code, createPrismaDataProvider } = await staffWithCode();
+    const member = await createPrismaDataProvider(JORDAN, { fresh: true });
+    failUpserts = { model: "creditLedgerEntry", times: 1 };
+    await member.redeemCode(JORDAN, code.code);
+    expect(table("creditLedgerEntry").get(`cl-code-${code.id}`)?.userId).toBe(JORDAN);
+    expect(table("redemptionCode").get(code.id)?.redeemedByUserId).toBe(JORDAN);
+  });
+
+  it("holds the code for that person when the save keeps failing, and never hands it to another", async () => {
+    const { code, createPrismaDataProvider } = await staffWithCode();
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const member = await createPrismaDataProvider(JORDAN, { fresh: true });
+    failUpserts = { model: "creditLedgerEntry", times: 2 };
+    await expect(member.redeemCode(JORDAN, code.code)).rejects.toThrow(/held for you/i);
+    // Claimed, so a second person with the same code gets nothing.
+    expect(table("redemptionCode").get(code.id)?.redeemedByUserId).toBe(JORDAN);
+    const other = await createPrismaDataProvider("u-maya", { fresh: true });
+    await expect(other.redeemCode("u-maya", code.code)).rejects.toThrow(USED);
+    expect(table("creditLedgerEntry").has(`cl-code-${code.id}`)).toBe(false);
+    // The log names the code by id, never by its text.
+    expect(JSON.stringify(logged.mock.calls)).toContain(code.id);
+    expect(JSON.stringify(logged.mock.calls)).not.toContain(code.code);
+    logged.mockRestore();
+  });
+
+  it("will not void a code that was redeemed while staff had the list open", async () => {
+    const { code, createPrismaDataProvider } = await staffWithCode();
+    const staff = await createPrismaDataProvider("u-admin", { fresh: true });
+    const member = await createPrismaDataProvider(JORDAN, { fresh: true });
+    await member.redeemCode(JORDAN, code.code);
+    await expect(staff.adminVoidCode(code.id)).rejects.toThrow(/already been redeemed/i);
+    expect(table("redemptionCode").get(code.id)?.voidedAt ?? null).toBeNull();
+  });
+
+  it("will not redeem a code that was voided while the member had the page open", async () => {
+    const { code, createPrismaDataProvider } = await staffWithCode();
+    const member = await createPrismaDataProvider(JORDAN, { fresh: true });
+    const staff = await createPrismaDataProvider("u-admin", { fresh: true });
+    await staff.adminVoidCode(code.id);
+    calls.length = 0;
+    await expect(member.redeemCode(JORDAN, code.code)).rejects.toThrow(/not valid/i);
+    expect(upserts("creditLedgerEntry")).toEqual([]);
+  });
+
+  it("keeps the end date of a gifted membership on the member", async () => {
+    const { code, createPrismaDataProvider } = await staffWithCode({
+      kind: "membership",
+      tier: "community",
+      months: 3,
+      quantity: 1,
+    });
+    const member = await createPrismaDataProvider("u-alex", { fresh: true });
+    await member.redeemCode("u-alex", code.code);
+    expect(table("user").get("u-alex")).toMatchObject({
+      status: "active",
+      tier: "community",
+      membershipEndsAt: new Date("2027-02-01T12:00:00.000Z"),
+    });
+    const later = await createPrismaDataProvider("u-alex", { fresh: true });
+    expect((await later.getMember("u-alex"))?.membershipEndsAt).toBe("2027-02-01T12:00:00.000Z");
+  });
+});
+

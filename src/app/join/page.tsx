@@ -18,11 +18,13 @@ import type {
   OrgSettings,
   ScholarshipFundSummary,
 } from "@/lib/data";
+import { openingHoursLines, type OpeningHours } from "@/lib/opening-hours";
 
 export default function JoinPage() {
   const { provider, revision } = useData();
   const [settings, setSettings] = useState<OrgSettings | null>(null);
   const [hours, setHours] = useState<ContentPage | null>(null);
+  const [week, setWeek] = useState<OpeningHours | null>(null);
   const [products, setProducts] = useState<MembershipProduct[]>([]);
   const [fund, setFund] = useState<ScholarshipFundSummary | null>(null);
   const [catalogSource, setCatalogSource] = useState<"zeffy" | "fixtures">(
@@ -34,6 +36,7 @@ export default function JoinPage() {
     void (async () => {
       const s = await provider.getSettings();
       setSettings(s);
+      setWeek(await provider.getOpeningHours());
       setHours(await provider.getContentBySlug(s.hoursContentSlug));
       setProducts(await provider.listMembershipProducts());
       setFund(await provider.getScholarshipFundSummary());
@@ -252,14 +255,26 @@ export default function JoinPage() {
           <h2 className="mt-2 font-display text-2xl font-semibold text-brown">
             When we&apos;re open
           </h2>
-          {hours ? (
+          {/* The week comes from Admin → Settings, the same hours the lobby
+              display and reservations use. The Hours page adds anything
+              extra under it, such as holiday closures. */}
+          {week ? (
+            <div className="prose-cms mt-4">
+              <ul>
+                {openingHoursLines(week).map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="mt-4 text-secondary">Loading hours…</p>
+          )}
+          {week && hours ? (
             <div
               className="prose-cms mt-4"
               dangerouslySetInnerHTML={{ __html: hours.html }}
             />
-          ) : (
-            <p className="mt-4 text-secondary">Loading hours…</p>
-          )}
+          ) : null}
         </section>
       </PageShell>
     </div>

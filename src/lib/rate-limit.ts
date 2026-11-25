@@ -27,6 +27,10 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
  *   address, so this has to clear a whole class sitting down at once. It
  *   caps how many members one address can lock out, or how many emails it
  *   can try a common PIN against; the per-email lock is what stops guessing.
+ * - Redemption codes: 10 a minute per member, checking and redeeming
+ *   together. A code is about 74 bits, so this is not what keeps codes safe;
+ *   it stops one account hammering the database with guesses. Staff are not
+ *   limited.
  */
 export const RATE_LIMITS = {
   publicWriteAnonymous: { binding: "RL_PUBLIC_WRITE_ANON", limit: 5, periodSeconds: 60 },
@@ -36,6 +40,7 @@ export const RATE_LIMITS = {
   qrStart: { binding: "RL_QR_START", limit: 10, periodSeconds: 60 },
   syncMembership: { binding: "RL_SYNC_MEMBERSHIP", limit: 3, periodSeconds: 60 },
   pinAttempt: { binding: "RL_PIN_ATTEMPT", limit: 40, periodSeconds: 60 },
+  redeemCode: { binding: "RL_REDEEM_CODE", limit: 10, periodSeconds: 60 },
 } as const;
 
 export type RateLimitName = keyof typeof RATE_LIMITS;

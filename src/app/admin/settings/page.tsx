@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { AdminShell } from "@/components/admin-shell";
 import { MachineRatesForm } from "@/components/admin/machine-rates-form";
+import { OpeningHoursForm } from "@/components/admin/opening-hours-form";
 import { SiteDetailsForm } from "@/components/admin/site-details-form";
 import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
@@ -318,7 +319,7 @@ export default function AdminSettingsPage() {
         </label>
 
         <div className="space-y-2">
-          <Label htmlFor="hoursContentSlug">Page shown as the hours on Join</Label>
+          <Label htmlFor="hoursContentSlug">Page shown under the hours on Join (closures and notes)</Label>
           <select
             id="hoursContentSlug"
             name="hoursContentSlug"
@@ -371,6 +372,7 @@ export default function AdminSettingsPage() {
           {pending ? "Saving…" : "Save settings"}
         </Button>
       </form>
+      <OpeningHoursForm />
       <MachineRatesForm />
       <SiteDetailsForm />
     </AdminShell>

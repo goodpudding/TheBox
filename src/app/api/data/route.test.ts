@@ -555,4 +555,60 @@ describe("/api/data", () => {
     expect(limit).toHaveBeenCalledTimes(8);
     expect(submitBountyRequest).toHaveBeenCalledTimes(8);
   });
+
+  it("limits guesses at a redemption code, per member, for checking and redeeming together", async () => {
+    const member = user("member-1", "member");
+    const getCodeOffer = vi.fn(async () => {
+      throw new Error("That code is not valid. Check it and try again, or ask staff.");
+    });
+    const redeemCode = vi.fn(async () => ({ kind: "credit" }));
+    auth.mockResolvedValue({ user: { id: member.id, role: "member" } });
+    createServerDataProvider.mockResolvedValue(provider(member, { getCodeOffer, redeemCode }));
+    for (let i = 0; i < 10; i += 1) {
+      const res = await post(
+        { method: i % 2 ? "redeemCode" : "getCodeOffer", args: [member.id, "AAAAA-BBBBB-CCCCC"] },
+        { "cf-connecting-ip": `203.0.113.${i}` },
+      );
+      expect(res.status, `call ${i + 1}`).toBe(200);
+    }
+    const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const res = await post(
+      { method: "getCodeOffer", args: [member.id, "AAAAA-BBBBB-CCCCC"] },
+      { "cf-connecting-ip": "203.0.113.99" },
+    );
+    expect(res.status).toBe(429);
+    expect(getCodeOffer.mock.calls.length + redeemCode.mock.calls.length).toBe(10);
+    // What is logged about the refusal never includes the code.
+    expect(JSON.stringify(spy.mock.calls)).not.toContain("AAAAA");
+    spy.mockRestore();
+  });
+
+  it("does not count another member's guesses against you, and does not limit staff", async () => {
+    const one = user("member-1", "member");
+    const two = user("member-2", "member");
+    const staff = user("staff-1", "staff");
+    const getCodeOffer = vi.fn(async () => ({ kind: "credit" }));
+    const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    auth.mockResolvedValue({ user: { id: one.id, role: "member" } });
+    createServerDataProvider.mockResolvedValue(provider(one, { getCodeOffer }));
+    for (let i = 0; i < 11; i += 1) {
+      await post({ method: "getCodeOffer", args: [one.id, "X"] });
+    }
+    auth.mockResolvedValue({ user: { id: two.id, role: "member" } });
+    createServerDataProvider.mockResolvedValue(provider(two, { getCodeOffer }));
+    expect((await post({ method: "getCodeOffer", args: [two.id, "X"] })).status).toBe(200);
+    auth.mockResolvedValue({ user: { id: staff.id, role: "staff" } });
+    createServerDataProvider.mockResolvedValue(provider(staff, { getCodeOffer }));
+    for (let i = 0; i < 15; i += 1) {
+      expect((await post({ method: "getCodeOffer", args: [staff.id, "X"] })).status).toBe(200);
+    }
+    spy.mockRestore();
+  });
+
+  it("refuses a code guess from someone who is not signed in before any limit is spent", async () => {
+    auth.mockResolvedValue(null);
+    createServerDataProvider.mockResolvedValue(provider(null, {}));
+    const res = await post({ method: "redeemCode", args: ["u-x", "AAAAA-BBBBB-CCCCC"] });
+    expect(res.status).toBe(401);
+  });
 });
