@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { AdminShell } from "@/components/admin-shell";
 import { AdminNotice } from "@/components/admin/admin-notice";
+import { RedeemForMember } from "@/components/admin/redeem-for-member";
 import { StaffGate } from "@/components/staff-gate";
 import { StatusPill } from "@/components/status-pill";
 import { useData } from "@/components/providers";
@@ -11,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatDate, formatDateTime } from "@/lib/format";
-import { formatCode } from "@/lib/redemption-code";
+import { formatCardNumber, formatCode, parseCardNumber } from "@/lib/redemption-code";
 import { useNow } from "@/lib/use-now";
 import { formatMoneyExact, formatTier } from "@/lib/utils";
 import type {
@@ -88,6 +89,10 @@ export default function AdminCodesPage() {
   const [note, setNote] = useState("");
   const [paymentId, setPaymentId] = useState("");
   const [expires, setExpires] = useState("");
+  const [asCards, setAsCards] = useState(false);
+  const [firstCard, setFirstCard] = useState("");
+  const [search, setSearch] = useState("");
+  const [redeeming, setRedeeming] = useState<RedemptionCodeView | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,14 +116,32 @@ export default function AdminCodesPage() {
     [classes, now],
   );
 
-  const shown = useMemo(
-    () =>
-      codes.filter((c) => {
-        const status = statusOf(c, now);
-        return filter === "unused" ? status === "unused" || status === "expired" : status === filter;
-      }),
-    [codes, filter, now],
+  /** One more than the highest card number in use: where the next batch starts. */
+  const nextCard = useMemo(
+    () => codes.reduce((max, c) => Math.max(max, c.cardNumber ?? 0), 0) + 1,
+    [codes],
   );
+
+  const shown = useMemo(() => {
+    const wanted = search.trim();
+    if (wanted) {
+      // Looking a card up: whatever its status, so a used one is found too.
+      const card = parseCardNumber(wanted);
+      const text = wanted.toLowerCase();
+      const asCode = wanted.toUpperCase().replace(/[^A-Z0-9]/g, "");
+      return codes.filter((c) =>
+        card !== null
+          ? c.cardNumber === card
+          : (c.note ?? "").toLowerCase().includes(text) ||
+            (c.zeffyPaymentId ?? "").toLowerCase().includes(text) ||
+            (asCode.length >= 4 && c.code.includes(asCode)),
+      );
+    }
+    return codes.filter((c) => {
+      const status = statusOf(c, now);
+      return filter === "unused" ? status === "unused" || status === "expired" : status === filter;
+    });
+  }, [codes, filter, now, search]);
 
   const toPrint = codes.filter(
     (c) => picked.includes(c.id) && statusOf(c, now) === "unused",
@@ -142,12 +165,22 @@ export default function AdminCodesPage() {
         note,
         zeffyPaymentId: paymentId,
         expiresAt: expires || null,
+        numberAsCards: asCards,
+        firstCardNumber: asCards && firstCard.trim() ? Number(firstCard) : undefined,
       });
+      const firstMade = made[0]!;
+      const lastMade = made[made.length - 1]!;
       setMessage(
-        made.length === 1
-          ? `Made 1 code: ${formatCode(made[0]!.code)}`
-          : `Made ${made.length} codes. They are ticked below, ready to print.`,
+        firstMade.cardNumber
+          ? made.length === 1
+            ? `Made card ${formatCardNumber(firstMade.cardNumber)}. It is ticked below, ready to print.`
+            : `Made cards ${formatCardNumber(firstMade.cardNumber)} to ${formatCardNumber(lastMade.cardNumber ?? 0)}. They are ticked below, ready to print.`
+          : made.length === 1
+            ? `Made 1 code: ${formatCode(firstMade.code)}`
+            : `Made ${made.length} codes. They are ticked below, ready to print.`,
       );
+      setFirstCard("");
+      setSearch("");
       setPicked(made.map((c) => c.id));
       setFilter("unused");
       setNote("");
@@ -197,12 +230,26 @@ export default function AdminCodesPage() {
               <p className="font-display text-sm font-semibold">
                 Discover Burien Makerspace
               </p>
+              {code.cardNumber ? (
+                <p className="mt-3 font-display text-4xl font-semibold tracking-wide">
+                  Card {formatCardNumber(code.cardNumber)}
+                </p>
+              ) : null}
               <p className="mt-3 font-display text-lg font-semibold">{worth(code)}</p>
               <p className="mt-3 font-mono text-xl tracking-wider">{formatCode(code.code)}</p>
-              <p className="mt-3 text-sm">
-                Sign in at discoverburienmakerspace.com, open Redeem a code, and type
-                this code. It works once.
-              </p>
+              {code.cardNumber ? (
+                <p className="mt-3 text-sm">
+                  Staff record: this is the code behind card{" "}
+                  {formatCardNumber(code.cardNumber)}. Staff redeem the card at the desk
+                  by its number. It works once.
+                </p>
+              ) : (
+                <p className="mt-3 text-sm">
+                  Sign in at discoverburienmakerspace.com, open Redeem a code, and type
+                  this code. It works once.
+                </p>
+              )}
+              {code.note ? <p className="mt-1 text-sm">{code.note}</p> : null}
               {code.expiresAt ? (
                 <p className="mt-1 text-sm">Use by {formatDate(code.expiresAt)}.</p>
               ) : null}
@@ -217,7 +264,7 @@ export default function AdminCodesPage() {
   return (
     <AdminShell
       title="Codes"
-      description="Gift cards and promo codes. Make a code here, hand it over, and the person redeems it once on the Redeem a code page."
+      description="Gift cards and promo codes. Make a code here and hand it over. The person redeems it once on the Redeem a code page, or staff redeem a numbered card for them here."
     >
       <AdminNotice message={message} error={error} />
 
@@ -359,6 +406,39 @@ export default function AdminCodesPage() {
           Only set this on free or promotional codes, and check if unsure.
         </p>
 
+        <div className="space-y-3 rounded-2xl border border-border bg-surface/60 px-4 py-4">
+          <label className="flex items-center gap-3 text-charcoal">
+            <input
+              type="checkbox"
+              className="size-5"
+              checked={asCards}
+              onChange={(e) => setAsCards(e.target.checked)}
+            />
+            Number these as gift cards
+          </label>
+          <p className="text-sm text-secondary">
+            For printed cards that carry only a short number. Staff redeem a card at
+            the desk by its number; the full code stays on your printed sheet.
+          </p>
+          {asCards ? (
+            <div className="space-y-2">
+              <Label htmlFor="code-first-card">First card number</Label>
+              <Input
+                id="code-first-card"
+                inputMode="numeric"
+                value={firstCard}
+                placeholder={formatCardNumber(nextCard)}
+                onChange={(e) => setFirstCard(e.target.value)}
+                aria-describedby="code-first-card-help"
+              />
+              <p id="code-first-card-help" className="text-sm text-secondary">
+                Leave blank to carry on from {formatCardNumber(nextCard)}. The batch is
+                numbered in order from here.
+              </p>
+            </div>
+          ) : null}
+        </div>
+
         <div className="space-y-2">
           <Label htmlFor="code-note">Note (optional)</Label>
           <Input
@@ -407,6 +487,17 @@ export default function AdminCodesPage() {
               <option value="voided">Voided</option>
             </select>
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="code-search">Find a card</Label>
+            <Input
+              id="code-search"
+              className="w-44"
+              inputMode="search"
+              value={search}
+              placeholder="Card number or note"
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
           <Button
             type="button"
             variant="outline"
@@ -416,6 +507,34 @@ export default function AdminCodesPage() {
             Print {toPrint.length || ""} ticked
           </Button>
         </div>
+
+        {redeeming ? (
+          <div className="mt-6">
+            <RedeemForMember
+              key={redeeming.id}
+              cardRef={
+                redeeming.cardNumber
+                  ? formatCardNumber(redeeming.cardNumber)
+                  : redeeming.code
+              }
+              cardLabel={
+                redeeming.cardNumber
+                  ? `card ${formatCardNumber(redeeming.cardNumber)}`
+                  : formatCode(redeeming.code)
+              }
+              onDone={(text) => {
+                setRedeeming(null);
+                setError(null);
+                setMessage(text);
+                window.scrollTo({ top: 0 });
+              }}
+              onCancel={() => setRedeeming(null)}
+            />
+          </div>
+        ) : null}
+        {search.trim() && shown.length === 0 ? (
+          <p className="mt-6 text-secondary">No card or code matches that.</p>
+        ) : null}
 
         <ul className="mt-6 divide-y divide-border border-y border-border">
           {shown.map((code) => {
@@ -439,6 +558,11 @@ export default function AdminCodesPage() {
                     />
                   ) : null}
                   <div className="min-w-0">
+                    {code.cardNumber ? (
+                      <p className="font-display text-lg font-semibold text-brown">
+                        Card {formatCardNumber(code.cardNumber)}
+                      </p>
+                    ) : null}
                     <p className="font-mono text-charcoal">{formatCode(code.code)}</p>
                     <p className="font-display font-semibold text-brown">{worth(code)}</p>
                     <p className="text-sm text-secondary">
@@ -460,6 +584,9 @@ export default function AdminCodesPage() {
                         ) : (
                           "someone"
                         )}
+                        {code.redeemedByStaffName
+                          ? `, at the desk by ${code.redeemedByStaffName}`
+                          : ""}
                         {code.redeemedSummary ? ` · ${code.redeemedSummary}` : ""}
                       </p>
                     ) : null}
@@ -476,8 +603,28 @@ export default function AdminCodesPage() {
                     ) : null}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {status === "expired" ? <StatusPill tone="muted">Expired</StatusPill> : null}
+                  {status === "redeemed" && search.trim() ? (
+                    <StatusPill tone="muted">Redeemed</StatusPill>
+                  ) : null}
+                  {status === "voided" && search.trim() ? (
+                    <StatusPill tone="muted">Voided</StatusPill>
+                  ) : null}
+                  {status === "unused" ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      aria-label={`Redeem ${code.cardNumber ? `card ${formatCardNumber(code.cardNumber)}` : formatCode(code.code)} for a member`}
+                      onClick={() => {
+                        setMessage(null);
+                        setError(null);
+                        setRedeeming(code);
+                      }}
+                    >
+                      Redeem for a member
+                    </Button>
+                  ) : null}
                   {status === "unused" || status === "expired" ? (
                     <Button
                       type="button"
@@ -493,7 +640,7 @@ export default function AdminCodesPage() {
             );
           })}
         </ul>
-        {shown.length === 0 ? (
+        {shown.length === 0 && !search.trim() ? (
           <p className="mt-4 text-secondary">Nothing here.</p>
         ) : null}
       </section>
