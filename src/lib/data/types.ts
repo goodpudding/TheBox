@@ -1014,6 +1014,12 @@ export interface InventoryItem {
   createdById: string;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
+  /**
+   * Listed on the public Equipment page once approved. On unless staff or
+   * the area's steward switch it off for something the shop does not
+   * advertise.
+   */
+  showPublicly: boolean;
 }
 
 export interface ItemPhoto {

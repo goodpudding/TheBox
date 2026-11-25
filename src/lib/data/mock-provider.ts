@@ -119,6 +119,7 @@ import type {
   RedemptionCodeView,
   NewMemberInput,
   StaffCodeOffer,
+  PublicEquipmentItem,
 } from "./provider";
 import { DISPLAY_CAPTION_MAX, DISPLAY_PHOTO_LIMIT } from "./provider";
 import { buildDisplayFeed, buildMachineStatuses } from "./display-feed";
@@ -248,6 +249,21 @@ const INVENTORY_PRIVATE_FIELDS = [
   "notes",
   "serialNumber",
 ] as const satisfies ReadonlyArray<keyof InventoryItem>;
+
+/**
+ * Whether an item is listed on the public Equipment page: approved, still the
+ * shop's to use (not retired, not missing), not broken, and not switched off.
+ * An item that needs repair or is out for repair is still shown.
+ */
+function isPublicEquipment(item: InventoryItem): boolean {
+  return (
+    item.reviewStatus === "APPROVED" &&
+    item.status !== "RETIRED" &&
+    item.status !== "MISSING" &&
+    item.condition !== "BROKEN" &&
+    item.showPublicly !== false
+  );
+}
 
 const PHOTO_KINDS: readonly PhotoKind[] = ["FRONT", "SIDE", "SERIAL", "OTHER"];
 
@@ -6417,6 +6433,43 @@ export class MockDataProvider implements DataProvider {
     }).length;
   }
 
+  /**
+   * What a visitor who is not signed in sees on the Equipment page. Built by
+   * picking fields: nothing on the stored item reaches the public unless it
+   * is named here.
+   */
+  async listPublicEquipment(): Promise<PublicEquipmentItem[]> {
+    const areas = new Map(this.state.inventoryAreas.map((a) => [a.id, a]));
+    const order = (item: InventoryItem): number =>
+      (item.areaId ? areas.get(item.areaId)?.sortOrder : undefined) ??
+      Number.MAX_SAFE_INTEGER;
+    return this.state.inventoryItems
+      .filter(isPublicEquipment)
+      .sort(
+        (a, b) =>
+          order(a) - order(b) ||
+          (a.areaId ?? "").localeCompare(b.areaId ?? "") ||
+          a.name.localeCompare(b.name),
+      )
+      .map((item): PublicEquipmentItem => {
+        const area = item.areaId ? areas.get(item.areaId) : undefined;
+        // The front photo or none. A side or serial-plate photo never stands in.
+        const front = this.state.itemPhotos.find(
+          (p) => p.itemId === item.id && p.kind === "FRONT",
+        );
+        return {
+          name: item.name,
+          manufacturer: item.manufacturer ?? null,
+          model: item.model ?? null,
+          quantity: item.quantity > 1 ? item.quantity : null,
+          area: area ? { id: area.id, name: area.name } : null,
+          photo: front
+            ? { storageKey: front.storageKey, thumbKey: front.thumbKey ?? null }
+            : null,
+        };
+      });
+  }
+
   async listInventoryItems(
     viewerId: string,
     filters?: InventoryListFilters,
@@ -6618,6 +6671,7 @@ export class MockDataProvider implements DataProvider {
       createdById: user.id,
       createdAt: now,
       updatedAt: now,
+      showPublicly: true,
     };
     this.state.inventoryItems.push(item);
     for (const photo of photos) {
@@ -6706,6 +6760,10 @@ export class MockDataProvider implements DataProvider {
     );
     apply("condition", patch.condition);
     apply("notes", patch.notes === undefined ? undefined : patch.notes?.trim() || null);
+    apply(
+      "showPublicly",
+      patch.showPublicly === undefined ? undefined : Boolean(patch.showPublicly),
+    );
     this.touch(item);
     if (Object.keys(changes).length > 0) {
       this.recordItemEvent({

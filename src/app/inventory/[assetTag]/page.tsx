@@ -296,6 +296,7 @@ function EditForm({
     notes: string | null;
     areaId: string | null;
     condition: InventoryItemDetail["condition"];
+    showPublicly: boolean;
   }) => Promise<void>;
   onError: (msg: string) => void;
 }) {
@@ -306,6 +307,7 @@ function EditForm({
   const [notes, setNotes] = useState(item.notes ?? "");
   const [areaId, setAreaId] = useState(item.areaId ?? "");
   const [condition, setCondition] = useState(item.condition);
+  const [showPublicly, setShowPublicly] = useState(item.showPublicly !== false);
 
   return (
     <form
@@ -320,6 +322,7 @@ function EditForm({
           notes: notes || null,
           areaId: areaId || null,
           condition,
+          showPublicly,
         }).catch((err: Error) => onError(err.message));
       }}
     >
@@ -374,6 +377,22 @@ function EditForm({
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
       />
+      <label className="flex items-start gap-3 pt-1 text-charcoal">
+        <input
+          type="checkbox"
+          className="mt-0.5 size-5 shrink-0"
+          checked={showPublicly}
+          onChange={(e) => setShowPublicly(e.target.checked)}
+          aria-describedby="edit-public-help"
+        />
+        <span>
+          Show on the public Equipment page
+          <span id="edit-public-help" className="block text-sm text-secondary">
+            Visitors see the name, make, model and front photo once the item is
+            approved. Never the serial number, location, notes or value.
+          </span>
+        </span>
+      </label>
       <Button type="submit">Save</Button>
     </form>
   );

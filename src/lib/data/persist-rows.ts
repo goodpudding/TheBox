@@ -669,6 +669,7 @@ export const PERSIST_TABLES: PersistTable[] = [
       createdById: i.createdById,
       createdAt: asDate(i.createdAt) ?? now,
       updatedAt: asDate(i.updatedAt) ?? now,
+      showPublicly: i.showPublicly !== false,
     }),
     "inventoryArea",
   ),

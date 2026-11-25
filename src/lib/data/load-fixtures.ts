@@ -313,7 +313,14 @@ export function loadFixtures(): MockFixtureBundle {
     redemptionCodes: [],
     inventoryAreas: inventoryAreas as MockFixtureBundle["inventoryAreas"],
     areaStewards: areaStewards as MockFixtureBundle["areaStewards"],
-    inventoryItems: inventoryItems as MockFixtureBundle["inventoryItems"],
+    // Items are listed on the public Equipment page unless a row says otherwise.
+    inventoryItems: (
+      inventoryItems as Array<
+        Omit<MockFixtureBundle["inventoryItems"][number], "showPublicly"> & {
+          showPublicly?: boolean;
+        }
+      >
+    ).map((item) => ({ ...item, showPublicly: item.showPublicly ?? true })),
     itemPhotos: itemPhotos as MockFixtureBundle["itemPhotos"],
     itemEvents: itemEvents as MockFixtureBundle["itemEvents"],
     settings: {

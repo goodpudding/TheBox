@@ -68,6 +68,7 @@ export const RPC_RULES = {
   submitBountyRequest: { access: "public", arg: 0, field: "userId" },
   claimBounty: { access: "user", arg: 1 },
   completeBounty: { access: "user", arg: 1 },
+  listPublicEquipment: { access: "public", arg: -1 },
   listInventoryAreas: { access: "user", arg: -1 },
   listAreaStewards: { access: "user", arg: -1 },
   upsertInventoryArea: { access: "user", arg: 0 },

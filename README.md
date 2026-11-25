@@ -41,12 +41,22 @@ The rule: how the site looks is code; what it says is edited in the admin. Every
 | Gift cards and promo codes | Admin → Codes |
 | Which page shows under the hours on Join and which policy new members agree to; the every-safety-question quiz rule | Admin → Settings |
 | Shop inventory with photos | Inventory → Add item |
+| Which inventory items the public Equipment page lists | Inventory → an item → Edit → "Show on the public Equipment page" (on by default) |
 
 Lists with no table of their own (directory, gallery, wishlist, shop details, machine rates, tool champion terms) are rows in `SiteRecord`, one JSON row each (`src/lib/data/persist-delta.ts`). Lobby promos, display settings and lobby photos have tables of their own (see Lobby display). Inventory and gallery pictures are rows in `StoredFile`, because a Worker has no disk; set `INVENTORY_PHOTO_STORAGE=drive` to send new photos to a Google shared drive instead (`src/lib/inventory/storage.ts`).
 
 The opening hours are one stored week (`SiteRecord` row `openingHours:default`; `src/lib/opening-hours.ts` holds the default and the rules). The lobby display's "Open now", the hours a machine can be reserved in and the list on the Join page are all worked out from it, on the hour or the half hour. The Hours page under Admin → Content shows beneath that list and is for anything extra.
 
 Still in code: page headings, button labels and the messages built from data (dashboard notices, quiz results, booking confirmations), which machines are included with membership and which bill by time, gram or print (`src/lib/credits.ts`), and the class-category and machine-area lists. To make another paragraph editable, add it to `TEXT_BLOCKS` and draw it with `<TextBlock slug="…" />`.
+
+## The public Equipment page
+
+`/equipment` shows two lists, for anyone, signed in or not:
+
+- **In the shop**: the inventory, grouped by inventory area, each item with its front photo, name, make and model. An item appears once staff or its area's steward approve it in Inventory → Review. It is left off when it is retired, missing, broken, or switched off with "Show on the public Equipment page" on the item's edit form. An item that needs repair still shows, with no condition label.
+- **Machines to reserve**: the machines from Admin → Machines, each linking to its page with certifications and reservations. The two lists are kept separately, so a machine that is also in the inventory shows in both.
+
+A visitor gets only the name, manufacturer, model, a quantity when there is more than one, the area, and the front photo. Never the serial number or the serial-plate photo, the storage location, notes, donor, value, asset tag or who added it. `listPublicEquipment` in `src/lib/data/mock-provider.ts` builds that view by picking fields, and `src/lib/data/public-equipment.test.ts` fails if a new field reaches it unnoticed. Photos are served from `/api/inventory/photos/…` by their storage key, which is random and is only published for the front photo of a listed item.
 
 ## Redemption codes
 

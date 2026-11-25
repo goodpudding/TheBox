@@ -1102,6 +1102,8 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
         createdById: String(i.createdById),
         createdAt: toIsoRequired(i.createdAt as Date),
         updatedAt: toIsoRequired(i.updatedAt as Date),
+        // Shown unless switched off. A row from before the column is shown.
+        showPublicly: i.showPublicly == null ? true : Boolean(i.showPublicly),
       }),
     ),
     itemPhotos: (itemPhotoRows as Array<Record<string, unknown>>).map(

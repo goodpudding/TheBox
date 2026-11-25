@@ -1244,3 +1244,33 @@ describe("gift cards at the desk, on the live site", () => {
   });
 });
 
+
+describe("the public equipment switch on the live site", () => {
+  it("saves the switch as its own column and a later request reads it", async () => {
+    await seedDatabase();
+    expect(table("inventoryItem").get("inv-prusa")?.showPublicly).toBe(true);
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const staff = await createPrismaDataProvider("u-staff", { fresh: true });
+    await staff.updateInventoryItem("u-staff", "inv-prusa", { showPublicly: false });
+
+    const [write] = upserts("inventoryItem");
+    expect(write!.where).toEqual({ id: "inv-prusa" });
+    expect(Object.keys(write!.update).sort()).toEqual(["showPublicly", "updatedAt"]);
+    expect(write!.update.showPublicly).toBe(false);
+
+    const visitor = await createPrismaDataProvider(null, { fresh: true });
+    const names = (await visitor.listPublicEquipment()).map((i) => i.name);
+    expect(names).not.toContain("Prusa MK4");
+    expect(names).toContain("Orbital sander");
+  });
+
+  it("shows an item whose row has no value for the switch", async () => {
+    await seedDatabase();
+    // A row as it was before the column existed.
+    const row = table("inventoryItem").get("inv-prusa")!;
+    delete row.showPublicly;
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const visitor = await createPrismaDataProvider(null, { fresh: true });
+    expect((await visitor.listPublicEquipment()).map((i) => i.name)).toContain("Prusa MK4");
+  });
+});

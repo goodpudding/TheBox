@@ -590,6 +590,25 @@ export interface UpdateInventoryItemInput {
   location?: string | null;
   condition?: ItemCondition;
   notes?: string | null;
+  /** Whether the item is listed on the public Equipment page. */
+  showPublicly?: boolean;
+}
+
+/**
+ * One item as a visitor who is not signed in sees it on the Equipment page.
+ * Every field here is public. It is built by picking these fields from the
+ * stored item, so a field added to the item is not shown until it is added
+ * here on purpose. No serial, donor, value, notes, location, asset tag or id,
+ * and one picture only: the front photo, never the serial plate.
+ */
+export interface PublicEquipmentItem {
+  name: string;
+  manufacturer: string | null;
+  model: string | null;
+  /** Only when there is more than one. */
+  quantity: number | null;
+  area: { id: string; name: string } | null;
+  photo: { storageKey: string; thumbKey: string | null } | null;
 }
 
 export interface InventoryItemView extends InventoryItem {
@@ -958,6 +977,11 @@ export interface DataProvider {
   claimBounty(id: string, userId: string): Promise<Bounty>;
   completeBounty(id: string, userId: string): Promise<Bounty>;
 
+  /**
+   * The shop's equipment for anyone, signed in or not: approved items that
+   * are in service and not hidden, in the inventory areas' order.
+   */
+  listPublicEquipment(): Promise<PublicEquipmentItem[]>;
   listInventoryAreas(): Promise<InventoryArea[]>;
   listAreaStewards(): Promise<import("./types").AreaSteward[]>;
   upsertInventoryArea(
