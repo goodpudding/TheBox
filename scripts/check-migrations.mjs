@@ -4,7 +4,10 @@
  * 1. Applies every migrations/*.sql, in the order Wrangler uses, to an empty
  *    SQLite database. A file that fails here would stop the production deploy
  *    halfway through `wrangler d1 migrations apply`.
- * 2. Compares the result with prisma/schema.prisma. A difference is reported
+ * 2. Fails when a migration drops a table whose rows other tables depend on.
+ *    On D1 that deletes or blanks those rows, even when the table is rebuilt
+ *    and renamed back; see scripts/migration-safety.mjs.
+ * 3. Compares the result with prisma/schema.prisma. A difference is reported
  *    as a warning, not a failure: the db-artifacts workflow commits the next
  *    migration right after a schema change is pushed.
  */
@@ -13,6 +16,11 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import {
+  REVIEWED_TABLE_DROPS,
+  applyMigration,
+  describeUnsafeDrops,
+} from "./migration-safety.mjs";
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const dir = path.join(root, "migrations");
@@ -32,7 +40,19 @@ const db = new DatabaseSync(dbPath);
 let failed = false;
 for (const name of files) {
   try {
-    db.exec(readFileSync(path.join(dir, name), "utf8"));
+    const drops = applyMigration(db, readFileSync(path.join(dir, name), "utf8"));
+    if (drops.length > 0 && !REVIEWED_TABLE_DROPS.has(name)) {
+      failed = true;
+      console.error(`FAIL ${name}\n\n${describeUnsafeDrops(name, drops)}\n`);
+      if (process.env.GITHUB_ACTIONS) {
+        for (const drop of drops) {
+          console.log(
+            `::error file=migrations/${name},line=${drop.line}::DROP TABLE "${drop.table}" would delete or blank rows in ${[...new Set(drop.references.map((r) => r.table))].join(", ")} on the live database. Write this migration by hand; the job log says how.`,
+          );
+        }
+      }
+      continue;
+    }
     console.log(`ok   ${name}`);
   } catch (err) {
     failed = true;

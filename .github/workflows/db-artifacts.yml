@@ -6,6 +6,11 @@
 # migrations/NNNN_<name>.sql. The deploy command then applies it with
 # `wrangler d1 migrations apply thebox-db --remote`.
 #
+# A generated migration that `npm run db:check` rejects is not committed and
+# the run fails. The usual cause is a table rebuild: on D1, dropping a table
+# deletes the rows of the tables that point at it, even when the table is
+# renamed back a line later. Write that migration by hand (see the README).
+#
 # Runs on pushes that touch the schema/seed, or by hand from the Actions tab.
 name: db-artifacts
 on:
@@ -43,6 +48,12 @@ jobs:
             name=$([ "$n" = "0001" ] && echo init || echo schema_$(date -u +%Y%m%d%H%M))
             mv next.sql "migrations/${n}_${name}.sql"
             echo "wrote migrations/${n}_${name}.sql"
+            if ! npm run --silent db:check; then
+              echo "::error::migrations/${n}_${name}.sql was generated from prisma/schema.prisma but NOT committed, because npm run db:check rejects it (reason above). Write the migration by hand and push it with the schema change."
+              echo "The generated SQL, as a starting point. Do not commit it as it is:"
+              cat "migrations/${n}_${name}.sql"
+              exit 1
+            fi
           else
             echo "schema unchanged; no migration written"
           fi
