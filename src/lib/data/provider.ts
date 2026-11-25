@@ -460,11 +460,28 @@ export interface CreateCodesInput {
   zeffyPaymentId?: string;
   /** A date ("2027-01-31") or a full time. Empty: the code never expires. */
   expiresAt?: string | null;
+  /** Give each code a gift card number, counting up from firstCardNumber. */
+  numberAsCards?: boolean;
+  /** Left out: one more than the highest card number in use. */
+  firstCardNumber?: number;
+}
+
+/** What staff see before redeeming a card for someone. Never the code itself. */
+export interface StaffCodeOffer extends CodeOffer {
+  codeId: string;
+  cardNumber: number | null;
+}
+
+export interface NewMemberInput {
+  firstName: string;
+  lastName?: string;
+  email: string;
 }
 
 /** A code as staff see it in the list. */
 export interface RedemptionCodeView extends RedemptionCode {
   redeemedByName?: string | null;
+  redeemedByStaffName?: string | null;
   classTitle?: string | null;
 }
 
@@ -1105,6 +1122,23 @@ export interface DataProvider {
     code: string,
     choice?: { classSessionId?: string },
   ): Promise<CodeRedemption>;
+  /**
+   * Staff redeem a code for a member at the desk. `ref` is the number on a
+   * gift card ("014") or the full code. The same rules and the same single
+   * claim as redeemCode; the staff member acting is whoever is signed in.
+   */
+  adminGetCodeOfferFor(memberId: string, ref: string): Promise<StaffCodeOffer>;
+  adminRedeemCodeFor(
+    memberId: string,
+    ref: string,
+    choice?: { classSessionId?: string },
+  ): Promise<CodeRedemption>;
+  /**
+   * A member row for someone who has not signed in yet, such as a gift
+   * recipient at the desk: pending, no shop access, what a first sign-in
+   * makes. Signing in later with the same email finds this row.
+   */
+  adminCreateMember(input: NewMemberInput): Promise<User>;
   adminListCodes(): Promise<RedemptionCodeView[]>;
   adminCreateCodes(input: CreateCodesInput): Promise<RedemptionCode[]>;
   adminVoidCode(id: string): Promise<RedemptionCode>;

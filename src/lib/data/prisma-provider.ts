@@ -1046,6 +1046,8 @@ export async function loadBundleFromPrisma(): Promise<MockFixtureBundle> {
         redeemedSummary: (c.redeemedSummary as string | null) ?? null,
         voidedAt: toIso(c.voidedAt as Date | null),
         voidedById: (c.voidedById as string | null) ?? null,
+        cardNumber: (c.cardNumber as number | null) ?? null,
+        redeemedByStaffId: (c.redeemedByStaffId as string | null) ?? null,
         createdAt: toIsoRequired(c.createdAt as Date),
         updatedAt: toIsoRequired(c.updatedAt as Date),
       }),
@@ -1323,7 +1325,11 @@ async function claimCodes(claims: CodeClaim[]): Promise<void> {
       where: { id: claim.codeId, redeemedAt: null, voidedAt: null },
       data:
         claim.action === "redeem"
-          ? { redeemedAt: at, redeemedByUserId: claim.userId }
+          ? {
+              redeemedAt: at,
+              redeemedByUserId: claim.userId,
+              redeemedByStaffId: claim.staffId ?? null,
+            }
           : { voidedAt: at, voidedById: claim.userId },
     });
     if (count === 1) continue;
@@ -1340,6 +1346,54 @@ async function claimCodes(claims: CodeClaim[]): Promise<void> {
     }
     throw new Error(row?.redeemedAt ? CODE_ALREADY_USED : CODE_NOT_VALID);
   }
+}
+
+/**
+ * A batch of new codes was only partly saved. The usual cause: two staff
+ * numbered gift cards at the same moment and the database, which allows each
+ * card number once, refused one row. Rows are written one at a time, so the
+ * earlier ones are already there. Nobody has seen these codes (the request
+ * never answered), so take the whole batch and its audit row back out and
+ * say that nothing was made.
+ */
+async function undoCodeBatch(
+  made: RedemptionCode[],
+  next: MockFixtureBundle,
+  snapshot: MockFixtureBundle,
+  cause: unknown,
+): Promise<never> {
+  const known = new Set(snapshot.auditEvents.map((e) => e.id));
+  const auditIds = next.auditEvents.filter((e) => !known.has(e.id)).map((e) => e.id);
+  try {
+    await prisma.redemptionCode.deleteMany({
+      where: { id: { in: made.map((c) => c.id) } },
+    });
+    if (auditIds.length > 0) {
+      await prisma.auditEvent.deleteMany({ where: { id: { in: auditIds } } });
+    }
+  } catch (err) {
+    console.error(
+      JSON.stringify({
+        codes: "batch partly saved and not undone",
+        codeIds: made.map((c) => c.id),
+        first: String(cause),
+        second: String(err),
+      }),
+    );
+    throw new Error(
+      "Those codes were only partly saved. Check Admin → Codes and void any you did not mean to make.",
+    );
+  } finally {
+    invalidateBundleCache();
+  }
+  const taken =
+    (cause as { code?: unknown } | null)?.code === "P2002" &&
+    String((cause as Error).message).includes("cardNumber");
+  throw new Error(
+    taken
+      ? "Another batch took one of those card numbers a moment ago. No codes were made. Check the list and try again."
+      : "Those codes could not be saved. No codes were made. Please try again.",
+  );
 }
 
 /**
@@ -1427,6 +1481,9 @@ function createPersistingProxy(mock: MockDataProvider): DataProvider {
           try {
             await persistBundleToPrisma(next, snapshot);
           } catch (err) {
+            if (name === "adminCreateCodes") {
+              await undoCodeBatch(result as RedemptionCode[], next, snapshot, err);
+            }
             if (claims.length === 0) throw err;
             await finishClaimedSave(next, snapshot, claims, err);
           } finally {

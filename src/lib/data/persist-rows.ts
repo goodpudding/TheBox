@@ -607,6 +607,8 @@ export const PERSIST_TABLES: PersistTable[] = [
       voidedById: c.voidedById ?? null,
       createdAt: asDate(c.createdAt) ?? now,
       updatedAt: asDate(c.updatedAt) ?? now,
+      cardNumber: c.cardNumber ?? null,
+      redeemedByStaffId: c.redeemedByStaffId ?? null,
     }),
     "redemptionCode",
   ),

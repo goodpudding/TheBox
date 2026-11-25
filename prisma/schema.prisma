@@ -1037,6 +1037,11 @@ model RedemptionCode {
   voidedById       String?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
+  /// The short number on a printed gift card. Staff redeem by it at the desk.
+  /// New columns go last: prisma/seed-data.sql lists values by position.
+  cardNumber        Int?      @unique
+  /// The staff member who redeemed it for someone at the desk.
+  redeemedByStaffId String?
 
   @@index([redeemedByUserId])
 }

@@ -34,6 +34,7 @@ const READ_ONLY_METHODS = new Set([
   "pendingInventoryCount",
   "findInventoryBySerial",
   "findBookingByZeffyPaymentId",
+  "adminGetCodeOfferFor",
 ]);
 
 /**
