@@ -150,6 +150,11 @@ export const TEXT_BLOCKS: readonly TextBlock[] = [
     title: "Equipment page: line under the heading",
     html: "<p>Everything available in the makerspace and where it lives. Scan the QR on a machine for certifications, a getting-started video, and reservations.</p>",
   },
+  {
+    slug: "equipment-shop-intro",
+    title: "Equipment page: line above the shop's equipment",
+    html: "<p>What members have to work with, by area. Staff and the people who look after each area keep this list.</p>",
+  },
 
   // Made here
   {

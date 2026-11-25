@@ -11,6 +11,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { AdminShell } from "@/components/admin-shell";
 import { MemberAccessForm } from "@/components/admin/member-access-form";
+import { RedeemForMember } from "@/components/admin/redeem-for-member";
 import { StatusPill } from "@/components/status-pill";
 import { useData } from "@/components/providers";
 import { Button } from "@/components/ui/button";
@@ -565,6 +566,17 @@ export default function AdminMemberDetailPage() {
           </select>
         </div>
         <MemberAccessForm key={member.id} member={member} />
+        <div className="mt-8">
+          <RedeemForMember
+            key={`redeem-${member.id}`}
+            member={member}
+            onDone={(text) => {
+              setError(null);
+              setMessage(text);
+              bump();
+            }}
+          />
+        </div>
         {currentUser?.role === "staff" || currentUser?.role === "admin" ? (
           <div className="mt-6 space-y-3">
             <Button

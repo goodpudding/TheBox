@@ -106,6 +106,7 @@ export type AccessDenyReason =
   | "reservation_required";
 
 export type AuditAction =
+  | "member_created"
   | "rate_card_changed"
   | "opening_hours_changed"
   | "volunteer_role_saved"
@@ -487,6 +488,10 @@ export interface RedemptionCode extends Timestamps {
   redeemedSummary?: string | null;
   voidedAt?: ISODateTime | null;
   voidedById?: string | null;
+  /** The short number on a printed gift card: 14 for "014". Unique when set. */
+  cardNumber?: number | null;
+  /** The staff member who redeemed it for someone at the desk. */
+  redeemedByStaffId?: string | null;
 }
 
 export interface CreditWallet {
@@ -1009,6 +1014,12 @@ export interface InventoryItem {
   createdById: string;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
+  /**
+   * Listed on the public Equipment page once approved. On unless staff or
+   * the area's steward switch it off for something the shop does not
+   * advertise.
+   */
+  showPublicly: boolean;
 }
 
 export interface ItemPhoto {

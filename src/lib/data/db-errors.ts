@@ -9,6 +9,7 @@
 
 const FIELD_LABELS: Record<string, string> = {
   readerKey: "reader key",
+  cardNumber: "card number",
   email: "email address",
   slug: "page address",
   assetTag: "asset tag",

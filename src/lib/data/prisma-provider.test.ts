@@ -11,7 +11,13 @@ const tables = new Map<string, Map<string, Row>>();
 /** While set, a `findMany` reads its rows and then waits here before returning. */
 let hold: Promise<void> | null = null;
 /** The next `times` upserts on this model throw, as failed database writes would. */
-let failUpserts: { model: string; times: number } | null = null;
+let failUpserts: {
+  model: string;
+  times: number;
+  /** Let this many writes through first. */
+  after?: number;
+  error?: Error;
+} | null = null;
 /** Delegates whose reads fail, as when a table or column is not there yet. */
 const broken = new Set<string>();
 
@@ -42,13 +48,20 @@ vi.mock("@/lib/db", () => {
       },
       async findUnique(args) {
         if (broken.has(model)) throw new Error(`no such table: ${model}`);
-        const row = table(model).get(String(args?.where?.id));
+        const email = (args?.where as { email?: string } | undefined)?.email;
+        const row = email
+          ? [...table(model).values()].find((r) => r.email === email)
+          : table(model).get(String(args?.where?.id));
         return row ? { ...row } : null;
       },
       async upsert(args) {
         if (failUpserts && failUpserts.model === model && failUpserts.times > 0) {
-          failUpserts.times -= 1;
-          throw new Error("D1_ERROR: the write did not go through");
+          if ((failUpserts.after ?? 0) > 0) {
+            failUpserts.after = (failUpserts.after ?? 0) - 1;
+          } else {
+            failUpserts.times -= 1;
+            throw failUpserts.error ?? new Error("D1_ERROR: the write did not go through");
+          }
         }
         const id = String(args?.where?.id);
         const existing = table(model).get(id);
@@ -1072,3 +1085,192 @@ describe("redemption codes on the live site", () => {
   });
 });
 
+describe("gift cards at the desk, on the live site", () => {
+  const JORDAN = "u-jordan";
+  const STAFF = "u-staff";
+
+  function claims() {
+    return calls
+      .filter((c) => c.model === "redemptionCode" && c.method === "updateMany")
+      .map((c) => c.args as { where: Row; data: Row });
+  }
+
+  async function shopWithCard() {
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    const [card] = await admin.adminCreateCodes({
+      kind: "credit",
+      amountCents: 2500,
+      quantity: 1,
+      numberAsCards: true,
+      firstCardNumber: 14,
+    });
+    calls.length = 0;
+    return { card: card!, createPrismaDataProvider };
+  }
+
+  it("saves the card number with the code and reads it back", async () => {
+    const { card, createPrismaDataProvider } = await shopWithCard();
+    expect(table("redemptionCode").get(card.id)).toMatchObject({ cardNumber: 14 });
+    const later = await createPrismaDataProvider("u-admin", { fresh: true });
+    expect((await later.adminListCodes()).find((c) => c.id === card.id)?.cardNumber).toBe(14);
+  });
+
+  it("claims the card for the member, with the staff member's name on it, before the credit is saved", async () => {
+    const { card, createPrismaDataProvider } = await shopWithCard();
+    const staff = await createPrismaDataProvider(STAFF, { fresh: true });
+    await staff.adminRedeemCodeFor(JORDAN, "014");
+
+    const [claim] = claims();
+    expect(claim!.where).toEqual({ id: card.id, redeemedAt: null, voidedAt: null });
+    expect(claim!.data).toMatchObject({
+      redeemedByUserId: JORDAN,
+      redeemedByStaffId: STAFF,
+    });
+    const order = calls
+      .filter(
+        (c) =>
+          c.method === "updateMany" ||
+          (c.model === "creditLedgerEntry" && c.method === "upsert"),
+      )
+      .map((c) => `${c.model}.${c.method}`);
+    expect(order[0]).toBe("redemptionCode.updateMany");
+    expect(table("creditLedgerEntry").get(`cl-code-${card.id}`)).toMatchObject({
+      userId: JORDAN,
+      amountCents: 2500,
+    });
+    expect(table("redemptionCode").get(card.id)).toMatchObject({
+      redeemedByUserId: JORDAN,
+      redeemedByStaffId: STAFF,
+    });
+  });
+
+  it("grants nothing at the desk when the member redeemed the code themselves a moment earlier", async () => {
+    const { card, createPrismaDataProvider } = await shopWithCard();
+    // Both requests load the card while it is still unused.
+    const member = await createPrismaDataProvider(JORDAN, { fresh: true });
+    const staff = await createPrismaDataProvider(STAFF, { fresh: true });
+    await member.redeemCode(JORDAN, card.code);
+    calls.length = 0;
+
+    await expect(staff.adminRedeemCodeFor("u-alex", "014")).rejects.toThrow(
+      "That code has already been used.",
+    );
+    expect(upserts("creditLedgerEntry")).toEqual([]);
+    expect(upserts("auditEvent")).toEqual([]);
+    expect(table("redemptionCode").get(card.id)).toMatchObject({
+      redeemedByUserId: JORDAN,
+      redeemedByStaffId: null,
+    });
+    expect(table("creditLedgerEntry").get(`cl-code-${card.id}`)?.userId).toBe(JORDAN);
+  });
+
+  it("lets one of two staff win when both redeem the same card", async () => {
+    const { card, createPrismaDataProvider } = await shopWithCard();
+    const first = await createPrismaDataProvider(STAFF, { fresh: true });
+    const second = await createPrismaDataProvider("u-admin", { fresh: true });
+    const results = await Promise.allSettled([
+      first.adminRedeemCodeFor(JORDAN, "014"),
+      second.adminRedeemCodeFor("u-alex", "014"),
+    ]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    const ledger = [...table("creditLedgerEntry").values()].filter(
+      (e) => e.sourcePaymentId === `code:${card.id}`,
+    );
+    expect(ledger).toHaveLength(1);
+  });
+
+  it("leaves no part of a batch behind when a card number was taken by another batch meanwhile", async () => {
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const admin = await createPrismaDataProvider("u-admin", { fresh: true });
+    const before = table("redemptionCode").size;
+    const audits = table("auditEvent").size;
+    // The database refuses the third card: its number now belongs to a card
+    // another member of staff made after this request loaded its data.
+    failUpserts = {
+      model: "redemptionCode",
+      times: 1,
+      after: 2,
+      error: Object.assign(
+        new Error(
+          "\nInvalid `prisma.redemptionCode.upsert()` invocation:\n\n\nUnique constraint failed on the fields: (`cardNumber`)",
+        ),
+        { name: "PrismaClientKnownRequestError", code: "P2002" },
+      ),
+    };
+    await expect(
+      admin.adminCreateCodes({
+        kind: "credit",
+        amountCents: 2500,
+        quantity: 4,
+        numberAsCards: true,
+        firstCardNumber: 200,
+      }),
+    ).rejects.toThrow(
+      "Another batch took one of those card numbers a moment ago. No codes were made. Check the list and try again.",
+    );
+    expect(table("redemptionCode").size).toBe(before);
+    expect(table("auditEvent").size).toBe(audits);
+  });
+
+  it("saves a recipient staff add under the email a sign-in link looks them up by", async () => {
+    await seedDatabase();
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const staff = await createPrismaDataProvider(STAFF, { fresh: true });
+    const pat = await staff.adminCreateMember({
+      firstName: "Pat",
+      lastName: "Rivera",
+      email: " Pat.Rivera@Example.com ",
+    });
+    expect(table("user").get(pat.id)).toMatchObject({
+      email: "pat.rivera@example.com",
+      status: "pending",
+      shopAccess: false,
+      role: "member",
+    });
+
+    // Auth.js asks the adapter for the user by the normalised address when a
+    // sign-in link is opened. Finding this row is what makes it sign them in
+    // as the member staff added, where no row would make a second one.
+    const { PrismaAdapter } = await import("@auth/prisma-adapter");
+    const { prisma } = await import("@/lib/db");
+    const { normalizeSignInEmail } = await import("@/lib/sign-in-email");
+    const adapter = PrismaAdapter(prisma as never);
+    const found = await adapter.getUserByEmail!(normalizeSignInEmail("Pat.Rivera@example.com"));
+    expect(found?.id).toBe(pat.id);
+    expect([...table("user").values()].filter((u) => u.email === "pat.rivera@example.com")).toHaveLength(1);
+  });
+});
+
+
+describe("the public equipment switch on the live site", () => {
+  it("saves the switch as its own column and a later request reads it", async () => {
+    await seedDatabase();
+    expect(table("inventoryItem").get("inv-prusa")?.showPublicly).toBe(true);
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const staff = await createPrismaDataProvider("u-staff", { fresh: true });
+    await staff.updateInventoryItem("u-staff", "inv-prusa", { showPublicly: false });
+
+    const [write] = upserts("inventoryItem");
+    expect(write!.where).toEqual({ id: "inv-prusa" });
+    expect(Object.keys(write!.update).sort()).toEqual(["showPublicly", "updatedAt"]);
+    expect(write!.update.showPublicly).toBe(false);
+
+    const visitor = await createPrismaDataProvider(null, { fresh: true });
+    const names = (await visitor.listPublicEquipment()).map((i) => i.name);
+    expect(names).not.toContain("Prusa MK4");
+    expect(names).toContain("Orbital sander");
+  });
+
+  it("shows an item whose row has no value for the switch", async () => {
+    await seedDatabase();
+    // A row as it was before the column existed.
+    const row = table("inventoryItem").get("inv-prusa")!;
+    delete row.showPublicly;
+    const { createPrismaDataProvider } = await import("./prisma-provider");
+    const visitor = await createPrismaDataProvider(null, { fresh: true });
+    expect((await visitor.listPublicEquipment()).map((i) => i.name)).toContain("Prusa MK4");
+  });
+});

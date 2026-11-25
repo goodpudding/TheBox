@@ -1005,6 +1005,11 @@ model InventoryItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /// Listed on the public Equipment page once approved. Last column on
+  /// purpose: prisma/seed-data.sql gives values by position, and ADD COLUMN
+  /// puts a new column at the end.
+  showPublicly Boolean @default(true)
+
   @@index([areaId])
   @@index([status])
   @@index([reviewStatus])
@@ -1037,6 +1042,11 @@ model RedemptionCode {
   voidedById       String?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
+  /// The short number on a printed gift card. Staff redeem by it at the desk.
+  /// New columns go last: prisma/seed-data.sql lists values by position.
+  cardNumber        Int?      @unique
+  /// The staff member who redeemed it for someone at the desk.
+  redeemedByStaffId String?
 
   @@index([redeemedByUserId])
 }

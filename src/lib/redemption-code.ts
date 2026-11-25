@@ -44,3 +44,33 @@ export function normalizeCode(input: unknown): string {
     .replace(/[^A-Z0-9]/g, "")
     .slice(0, 64);
 }
+
+/**
+ * Gift card numbers. A printed card carries only a short number; staff type
+ * it at the desk to find the code behind it. A number is short enough to
+ * guess, so it never redeems anything on the member's own redeem page.
+ */
+export const MAX_CARD_NUMBER = 999_999;
+
+/** "014": at least three digits, so 7 and 70 cannot be mistaken on a card. */
+export function formatCardNumber(cardNumber: number): string {
+  return String(cardNumber).padStart(3, "0");
+}
+
+/**
+ * The card number in what staff typed ("014", "#14", "card 14"), or null
+ * when it is not one. Anything with letters beyond a leading "card" is a
+ * code, not a number.
+ */
+export function parseCardNumber(input: unknown): number | null {
+  if (typeof input !== "string") return null;
+  const text = input
+    .slice(0, 40)
+    .trim()
+    .replace(/^(?:gift\s*)?card\b/i, "")
+    .replace(/^[\s#:.-]+/, "")
+    .trim();
+  if (!/^\d{1,6}$/.test(text)) return null;
+  const value = Number(text);
+  return value >= 1 && value <= MAX_CARD_NUMBER ? value : null;
+}

@@ -24,7 +24,14 @@ import {
 import { isBadgeUid, normalizeBadgeUid } from "./badge-uid";
 import { cloneFixtures, loadFixtures } from "./load-fixtures";
 import { pictureAddress, webAddress } from "./site-info";
-import { generateCode, normalizeCode } from "@/lib/redemption-code";
+import {
+  MAX_CARD_NUMBER,
+  formatCardNumber,
+  generateCode,
+  normalizeCode,
+  parseCardNumber,
+} from "@/lib/redemption-code";
+import { normalizeSignInEmail } from "@/lib/sign-in-email";
 import {
   applyRateCardPatch,
   normalizeRateCard,
@@ -110,6 +117,9 @@ import type {
   CodeRedemption,
   CreateCodesInput,
   RedemptionCodeView,
+  NewMemberInput,
+  StaffCodeOffer,
+  PublicEquipmentItem,
 } from "./provider";
 import { DISPLAY_CAPTION_MAX, DISPLAY_PHOTO_LIMIT } from "./provider";
 import { buildDisplayFeed, buildMachineStatuses } from "./display-feed";
@@ -239,6 +249,21 @@ const INVENTORY_PRIVATE_FIELDS = [
   "notes",
   "serialNumber",
 ] as const satisfies ReadonlyArray<keyof InventoryItem>;
+
+/**
+ * Whether an item is listed on the public Equipment page: approved, still the
+ * shop's to use (not retired, not missing), not broken, and not switched off.
+ * An item that needs repair or is out for repair is still shown.
+ */
+function isPublicEquipment(item: InventoryItem): boolean {
+  return (
+    item.reviewStatus === "APPROVED" &&
+    item.status !== "RETIRED" &&
+    item.status !== "MISSING" &&
+    item.condition !== "BROKEN" &&
+    item.showPublicly !== false
+  );
+}
 
 const PHOTO_KINDS: readonly PhotoKind[] = ["FRONT", "SIDE", "SERIAL", "OTHER"];
 
@@ -497,7 +522,14 @@ const CODE_EXPIRED = "That code has expired. Ask staff about it.";
  * conditional write lands may go on. See createPersistingProxy.
  */
 export type CodeClaim =
-  | { codeId: string; action: "redeem"; userId: string; at: string }
+  | {
+      codeId: string;
+      action: "redeem";
+      userId: string;
+      /** Set when staff redeemed it for the member at the desk. */
+      staffId?: string;
+      at: string;
+    }
   | { codeId: string; action: "void"; userId: string | null; at: string };
 
 /** The same day of the month, `months` later; the last day when there is no such day. */
@@ -3155,20 +3187,27 @@ export class MockDataProvider implements DataProvider {
     return code;
   }
 
-  /** When a membership code would run to for this person, or why it cannot be used. */
-  private membershipEndFor(user: User, code: RedemptionCode): string {
+  /**
+   * When a membership code would run to for this person, or why it cannot be
+   * used. `atDesk` words the refusal for the staff member reading it.
+   */
+  private membershipEndFor(user: User, code: RedemptionCode, atDesk = false): string {
     const now = this.now();
     const active = user.status === "active" && Boolean(user.tier);
     const endsAt = user.membershipEndsAt ?? null;
     const running = endsAt !== null && new Date(endsAt).getTime() > Date.now();
     if (active && endsAt === null) {
       throw new Error(
-        "You already have a membership, so this code cannot be added to it here. Bring it to staff and they can turn it into shop credit.",
+        atDesk
+          ? `${user.displayName} already pays for a membership, so a membership card cannot be added to it. The card has not been used. You can void it and make a shop credit code for them instead.`
+          : "You already have a membership, so this code cannot be added to it here. Bring it to staff and they can turn it into shop credit.",
       );
     }
     if (active && running && user.tier !== code.tier) {
       throw new Error(
-        "You have a different gifted membership that is still running. See staff to combine it with this code.",
+        atDesk
+          ? `${user.displayName} has a different gifted membership running until ${endsAt!.slice(0, 10)}. The card has not been used.`
+          : "You have a different gifted membership that is still running. See staff to combine it with this code.",
       );
     }
     const base = active && running ? endsAt! : now;
@@ -3185,6 +3224,7 @@ export class MockDataProvider implements DataProvider {
     code: RedemptionCode,
     session: ClassSession | undefined,
     userId: string,
+    atDesk = false,
   ): string | null {
     if (
       !session ||
@@ -3206,7 +3246,11 @@ export class MockDataProvider implements DataProvider {
         b.userId === userId &&
         !["cancelled", "expired", "no_show"].includes(b.status),
     );
-    if (mine) return "You already have a booking for that class.";
+    if (mine) {
+      return atDesk
+        ? "They already have a booking for that class."
+        : "You already have a booking for that class.";
+    }
     const seats = this.state.bookings.filter(
       (b) => b.classSessionId === session.id && SEAT_STATUSES.includes(b.status),
     ).length;
@@ -3217,19 +3261,23 @@ export class MockDataProvider implements DataProvider {
   }
 
   async getCodeOffer(userId: string, codeText: string): Promise<CodeOffer> {
-    const user = this.requireUser(userId);
-    const code = this.usableCode(codeText);
+    return this.offerFor(this.requireUser(userId), this.usableCode(codeText), false);
+  }
+
+  /** What `code` would give `user` right now. */
+  private offerFor(user: User, code: RedemptionCode, atDesk: boolean): CodeOffer {
+    const userId = user.id;
     const offer: CodeOffer = { kind: code.kind, expiresAt: code.expiresAt ?? null };
     if (code.kind === "credit") {
       offer.amountCents = code.amountCents ?? 0;
     } else if (code.kind === "membership") {
       offer.tier = code.tier ?? undefined;
       offer.months = code.months ?? undefined;
-      offer.membershipEndsAt = this.membershipEndFor(user, code);
+      offer.membershipEndsAt = this.membershipEndFor(user, code, atDesk);
     } else {
       offer.maxPriceCents = code.classSessionId ? null : (code.maxPriceCents ?? 0);
       offer.classes = this.state.classSessions
-        .filter((s) => this.classCodeProblem(code, s, userId) === null)
+        .filter((s) => this.classCodeProblem(code, s, userId, atDesk) === null)
         .filter((s) => code.classSessionId || s.priceCents > 0)
         .sort(
           (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
@@ -3244,13 +3292,128 @@ export class MockDataProvider implements DataProvider {
     return offer;
   }
 
+  /** Whoever is acting, when they are staff. Otherwise this throws. */
+  private requireStaffActor(): User {
+    const actor = this.state.users.find((u) => u.id === this.currentUserId) ?? null;
+    if (!actor || !isStaffRole(actor)) throw new Error("Staff only");
+    return actor;
+  }
+
+  /**
+   * The code staff mean by a card number ("014") or a full code, if it can be
+   * used right now. Staff are told plainly what is wrong with a card: they
+   * can already see every code.
+   */
+  private usableCodeForStaff(ref: string): RedemptionCode {
+    const cardNumber = parseCardNumber(ref);
+    if (cardNumber === null) return this.usableCode(ref);
+    const card = formatCardNumber(cardNumber);
+    const code = this.state.redemptionCodes.find((c) => c.cardNumber === cardNumber);
+    if (!code) throw new Error(`No gift card has the number ${card}.`);
+    if (code.voidedAt) throw new Error(`Card ${card} was voided. It cannot be redeemed.`);
+    if (code.redeemedAt) {
+      const who =
+        this.state.users.find((u) => u.id === code.redeemedByUserId)?.displayName ??
+        "someone";
+      throw new Error(
+        `Card ${card} has already been redeemed, for ${who} on ${code.redeemedAt.slice(0, 10)}.`,
+      );
+    }
+    if (code.expiresAt && new Date(code.expiresAt).getTime() <= Date.now()) {
+      throw new Error(`Card ${card} has expired.`);
+    }
+    return code;
+  }
+
+  async adminGetCodeOfferFor(memberId: string, ref: string): Promise<StaffCodeOffer> {
+    this.requireStaffActor();
+    const member = this.requireUser(memberId);
+    const code = this.usableCodeForStaff(ref);
+    return {
+      ...this.offerFor(member, code, true),
+      codeId: code.id,
+      cardNumber: code.cardNumber ?? null,
+    };
+  }
+
+  async adminRedeemCodeFor(
+    memberId: string,
+    ref: string,
+    choice?: { classSessionId?: string },
+  ): Promise<CodeRedemption> {
+    const staff = this.requireStaffActor();
+    const member = this.requireUser(memberId);
+    return this.applyCode(member, this.usableCodeForStaff(ref), choice, staff);
+  }
+
+  async adminCreateMember(input: NewMemberInput): Promise<User> {
+    const staff = this.requireStaffActor();
+    const firstName = requiredText(input.firstName, "First name", NAME_MAX);
+    const lastName = optionalText(input.lastName, "Last name", NAME_MAX) ?? "";
+    let email: string;
+    try {
+      // The same form sign-in stores, so a later sign-in finds this row.
+      email = normalizeSignInEmail(input.email);
+    } catch {
+      throw new Error("Enter their email address, such as pat@example.com.");
+    }
+    const existing = this.state.users.find((u) => u.email.toLowerCase() === email);
+    if (existing) {
+      throw new Error(
+        `That email already belongs to ${existing.displayName}. Open their page to redeem the card for them.`,
+      );
+    }
+    const now = this.now();
+    const user: User = {
+      id: `member-${crypto.randomUUID()}`,
+      email,
+      firstName,
+      lastName,
+      displayName: `${firstName} ${lastName}`.trim(),
+      // What a first sign-in makes: a member who has not joined or onboarded.
+      role: "member",
+      status: "pending",
+      tier: null,
+      shopAccess: false,
+      isTeacher: false,
+      profileComplete: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.state.users.push(user);
+    this.pushAudit({
+      action: "member_created",
+      actorId: staff.id,
+      subjectUserId: user.id,
+      entityType: "User",
+      entityId: user.id,
+      metadata: { via: "staff" },
+    });
+    return user;
+  }
+
   async redeemCode(
     userId: string,
     codeText: string,
     choice?: { classSessionId?: string },
   ): Promise<CodeRedemption> {
-    const user = this.requireUser(userId);
-    const code = this.usableCode(codeText);
+    return this.applyCode(this.requireUser(userId), this.usableCode(codeText), choice, null);
+  }
+
+  /**
+   * Give `user` what `code` is for and mark it used. The one path for a
+   * member redeeming their own code and for staff redeeming a card for them
+   * (`staff` set): the benefit always lands on `user`.
+   */
+  private async applyCode(
+    user: User,
+    code: RedemptionCode,
+    choice: { classSessionId?: string } | undefined,
+    staff: User | null,
+  ): Promise<CodeRedemption> {
+    const userId = user.id;
+    const atDesk = staff !== null;
+    const card = code.cardNumber ? `Gift card ${formatCardNumber(code.cardNumber)}` : null;
     const now = this.now();
     const done: CodeRedemption = { kind: code.kind };
     let summary: string;
@@ -3265,7 +3428,7 @@ export class MockDataProvider implements DataProvider {
         kind: "gift_code",
         amountCents,
         sourcePaymentId: `code:${code.id}`,
-        note: "Redeemed a code",
+        note: card ?? "Redeemed a code",
         occurredAt: now,
       });
       done.amountCents = amountCents;
@@ -3273,7 +3436,7 @@ export class MockDataProvider implements DataProvider {
       granted = { amountCents };
     } else if (code.kind === "membership") {
       const tier = code.tier!;
-      const endsAt = this.membershipEndFor(user, code);
+      const endsAt = this.membershipEndFor(user, code, atDesk);
       user.status = "active";
       user.tier = tier;
       user.shopAccess = this.shopAccessForTier(tier);
@@ -3287,7 +3450,7 @@ export class MockDataProvider implements DataProvider {
       const sessionId = choice?.classSessionId ?? code.classSessionId ?? "";
       if (!sessionId) throw new Error("Choose a class to use this code on.");
       const session = this.state.classSessions.find((c) => c.id === sessionId);
-      const problem = this.classCodeProblem(code, session, userId);
+      const problem = this.classCodeProblem(code, session, userId, atDesk);
       if (problem || !session) throw new Error(problem ?? "That class is not available.");
 
       // Credit for exactly this class, then the ordinary booking and payment,
@@ -3332,16 +3495,28 @@ export class MockDataProvider implements DataProvider {
 
     code.redeemedAt = now;
     code.redeemedByUserId = userId;
+    code.redeemedByStaffId = staff?.id ?? null;
     code.redeemedSummary = summary;
     code.updatedAt = now;
-    this.codeClaims.push({ codeId: code.id, action: "redeem", userId, at: now });
+    this.codeClaims.push(
+      staff
+        ? { codeId: code.id, action: "redeem", userId, staffId: staff.id, at: now }
+        : { codeId: code.id, action: "redeem", userId, at: now },
+    );
     this.pushAudit({
       action: "code_redeemed",
-      actorId: userId,
+      // Who did it: the member themselves, or the staff member at the desk.
+      actorId: staff?.id ?? userId,
       subjectUserId: userId,
       entityType: "RedemptionCode",
       entityId: code.id,
-      metadata: { codeId: code.id, kind: code.kind, ...granted },
+      metadata: {
+        codeId: code.id,
+        kind: code.kind,
+        ...granted,
+        ...(staff ? { atDesk: true } : {}),
+        ...(code.cardNumber ? { cardNumber: code.cardNumber } : {}),
+      },
     });
     done.balanceCents = (await this.getCreditWallet(userId)).balanceCents;
     return done;
@@ -3354,6 +3529,10 @@ export class MockDataProvider implements DataProvider {
         ...code,
         redeemedByName: code.redeemedByUserId
           ? (this.state.users.find((u) => u.id === code.redeemedByUserId)?.displayName ??
+            null)
+          : null,
+        redeemedByStaffName: code.redeemedByStaffId
+          ? (this.state.users.find((u) => u.id === code.redeemedByStaffId)?.displayName ??
             null)
           : null,
         classTitle: code.classSessionId
@@ -3414,6 +3593,30 @@ export class MockDataProvider implements DataProvider {
     const note = optionalText(input.note, "Note", 200);
     const zeffyPaymentId = optionalText(input.zeffyPaymentId, "Zeffy payment ID", 100);
 
+    // Gift card numbers: consecutive, and never one a card already has.
+    let firstCardNumber: number | null = null;
+    if (input.numberAsCards) {
+      const inUse = this.state.redemptionCodes
+        .map((c) => c.cardNumber ?? 0)
+        .filter((n) => n > 0);
+      const next = inUse.length > 0 ? Math.max(...inUse) + 1 : 1;
+      const first = input.firstCardNumber === undefined ? next : Number(input.firstCardNumber);
+      if (!Number.isInteger(first) || first < 1 || first + quantity - 1 > MAX_CARD_NUMBER) {
+        throw new Error(
+          `Enter the first card number as a whole number from 1 to ${MAX_CARD_NUMBER}, with room for the whole batch.`,
+        );
+      }
+      const clash = inUse
+        .filter((n) => n >= first && n < first + quantity)
+        .sort((a, b) => a - b)[0];
+      if (clash !== undefined) {
+        throw new Error(
+          `Card number ${formatCardNumber(clash)} is already in use. Start at ${formatCardNumber(next)} or later.`,
+        );
+      }
+      firstCardNumber = first;
+    }
+
     const taken = new Set(this.state.redemptionCodes.map((c) => c.code));
     const made: RedemptionCode[] = [];
     while (made.length < quantity) {
@@ -3439,6 +3642,8 @@ export class MockDataProvider implements DataProvider {
         redeemedSummary: null,
         voidedAt: null,
         voidedById: null,
+        cardNumber: firstCardNumber === null ? null : firstCardNumber + made.length,
+        redeemedByStaffId: null,
         createdAt: now,
         updatedAt: now,
       });
@@ -3450,7 +3655,18 @@ export class MockDataProvider implements DataProvider {
       entityType: "RedemptionCode",
       entityId: made[0]!.id,
       // What was made, never the codes themselves.
-      metadata: { count: made.length, kind: input.kind, ...fields, expiresAt },
+      metadata: {
+        count: made.length,
+        kind: input.kind,
+        ...fields,
+        expiresAt,
+        ...(firstCardNumber === null
+          ? {}
+          : {
+              firstCardNumber,
+              lastCardNumber: firstCardNumber + made.length - 1,
+            }),
+      },
     });
     return made.map((c) => ({ ...c }));
   }
@@ -6217,6 +6433,43 @@ export class MockDataProvider implements DataProvider {
     }).length;
   }
 
+  /**
+   * What a visitor who is not signed in sees on the Equipment page. Built by
+   * picking fields: nothing on the stored item reaches the public unless it
+   * is named here.
+   */
+  async listPublicEquipment(): Promise<PublicEquipmentItem[]> {
+    const areas = new Map(this.state.inventoryAreas.map((a) => [a.id, a]));
+    const order = (item: InventoryItem): number =>
+      (item.areaId ? areas.get(item.areaId)?.sortOrder : undefined) ??
+      Number.MAX_SAFE_INTEGER;
+    return this.state.inventoryItems
+      .filter(isPublicEquipment)
+      .sort(
+        (a, b) =>
+          order(a) - order(b) ||
+          (a.areaId ?? "").localeCompare(b.areaId ?? "") ||
+          a.name.localeCompare(b.name),
+      )
+      .map((item): PublicEquipmentItem => {
+        const area = item.areaId ? areas.get(item.areaId) : undefined;
+        // The front photo or none. A side or serial-plate photo never stands in.
+        const front = this.state.itemPhotos.find(
+          (p) => p.itemId === item.id && p.kind === "FRONT",
+        );
+        return {
+          name: item.name,
+          manufacturer: item.manufacturer ?? null,
+          model: item.model ?? null,
+          quantity: item.quantity > 1 ? item.quantity : null,
+          area: area ? { id: area.id, name: area.name } : null,
+          photo: front
+            ? { storageKey: front.storageKey, thumbKey: front.thumbKey ?? null }
+            : null,
+        };
+      });
+  }
+
   async listInventoryItems(
     viewerId: string,
     filters?: InventoryListFilters,
@@ -6418,6 +6671,7 @@ export class MockDataProvider implements DataProvider {
       createdById: user.id,
       createdAt: now,
       updatedAt: now,
+      showPublicly: true,
     };
     this.state.inventoryItems.push(item);
     for (const photo of photos) {
@@ -6506,6 +6760,10 @@ export class MockDataProvider implements DataProvider {
     );
     apply("condition", patch.condition);
     apply("notes", patch.notes === undefined ? undefined : patch.notes?.trim() || null);
+    apply(
+      "showPublicly",
+      patch.showPublicly === undefined ? undefined : Boolean(patch.showPublicly),
+    );
     this.touch(item);
     if (Object.keys(changes).length > 0) {
       this.recordItemEvent({
